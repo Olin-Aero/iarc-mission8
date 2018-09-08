@@ -5,12 +5,13 @@ from Drone import Drone
 rospy.init_node('behaviors')
 drone = Drone()
 
+
 def fly_hover():
     rospy.loginfo('Running Hover Behavior')
     rospy.sleep(1.0)
 
-    rospy.loginfo('Taking off to 1.5 meters')
-    drone.takeoff(1.5)
+    rospy.loginfo('Taking off')
+    drone.takeoff()
 
     rospy.loginfo('Hovering')
     drone.hover(5)
@@ -20,12 +21,13 @@ def fly_hover():
 
     rospy.loginfo('Done!')
 
+
 def fly_forward():
     rospy.loginfo('Running Square Behavior')
     rospy.sleep(1.0)
 
-    rospy.loginfo('Taking off to 1.5 meters')
-    drone.takeoff(1.5)
+    rospy.loginfo('Taking off')
+    drone.takeoff()
 
     rospy.loginfo('Hovering')
     drone.hover(2)
@@ -38,12 +40,13 @@ def fly_forward():
     rospy.loginfo('Landing')
     drone.land()
 
+
 def fly_your_behavior():
     rospy.loginfo('Running ??? Behavior')
     rospy.sleep(1.0)
 
-    rospy.loginfo('Taking off to 1.5 meters')
-    drone.takeoff(1.5)
+    rospy.loginfo('Taking off')
+    drone.takeoff()
 
     rospy.loginfo('Hovering')
     drone.hover(2)
