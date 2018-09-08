@@ -16,7 +16,7 @@ except ImportError:
 
 
 class Drone:
-    NORMAL_HEIGHT = 2.5
+    DEFAULT_HEIGHT = 1.5
 
     def __init__(self, target=None, tfl=None):
         """
@@ -80,7 +80,7 @@ class Drone:
         :return: None
         """
         if self.last_height is None:
-            self.last_height = self.NORMAL_HEIGHT
+            self.last_height = self.DEFAULT_HEIGHT
         if height is None:
             height = self.last_height
         else:
@@ -182,7 +182,7 @@ class Drone:
 
     def move_towards(self, des_x=0.0, des_y=0.0, frame='map', height=None):
         """
-        Tells the drone to move towards a specific position on the field, then returns
+        Tells the drone to begin moving towards a specific position on the field, then returns
         :param height: Flight altitude, meters. Defaults to previously commanded height.
         :param frame: The tf frame associated with the target
         :param des_x: desired position x
@@ -201,61 +201,6 @@ class Drone:
         pose_stamped.header.frame_id = frame
 
         self.posPub.publish(pose_stamped)
-
-    def redirect_180(self, roomba, front_dist=1.5, rest_time=1.0, height=1.5):
-        """
-        Redirects the target rooba 180 degrees by landing in front of it.
-        :param Roomba roomba: The target to redirect
-        :param float front_dist: How far in front to land
-        :param float rest_time: How long to sit on the ground(seconds)
-        :param float height: How high to fly after taking off again
-        :return bool: Success?
-        """
-        if height is None:
-            height = self.last_height
-        else:
-            self.last_height = height
-
-        self.move_to(front_dist, 0, roomba.frame_id, height=0.5)
-
-        rospy.sleep(0.5)
-
-        self.land()
-
-        rospy.sleep(rest_time)
-
-        self.takeoff(height)
-        self.hover(0, height)
-
-    def redirect_45(self, roomba, hover_height=1.0, land_height=0.3, height=None):
-        """
-        Redirects the target roomba 45 degrees by landing on it.
-        :param Roomba roomba: The target to redirect
-        :param float hover_height: How high to fly to see the roomba and prepare for / debrief from the redirect
-        :param float land_height: How high to be when we tell the drone to land
-        :param float height: How high to fly after taking off again
-        :return bool: Success?
-        """
-
-        if height is None:
-            height = self.last_height
-        else:
-            self.last_height = height
-
-        # First, move to above the roomba, to get positioned well and get a feel for how it's moving.
-        self.move_to(0, 0, roomba.frame_id, height=hover_height)
-
-        # Next, lower down to just above the roomba, in preparation for landing.
-        # Note that this relies on move_to updating itself to move towards a moving reference frame.  TODO: check / test that.
-        self.move_to(0, 0, roomba.frame_id, height=land_height, tol=0.1)
-
-        self.land()
-
-        self.takeoff(height=hover_height)  # Get back up to a safe height, so we can see where the roomba is again.
-
-        # TODO: see if the roomba actually got redirected, change return value based off that.
-
-        return True
 
     def get_pos(self, frame='map'):
         """
