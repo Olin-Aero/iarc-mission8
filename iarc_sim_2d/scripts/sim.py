@@ -97,8 +97,9 @@ class SimManager(object):
     def run(self):
         """ Main Loop """
         # 1. create publishing handles
-        self.vel_pub_ = rospy.Publisher('/%s/cmd_vel' % self.drone_.tag, Twist,   queue_size=10)
-        self.z_pub_   = rospy.Publisher('/%s/height'  % self.drone_.tag, Float64, queue_size=10)
+        #self.vel_pub_ = rospy.Publisher('/%s/cmd_vel'  % self.drone_.tag, Twist,   queue_size=10)
+        self.vel_sub_ = rospy.Subscriber('/%s/cmd_vel' % self.drone_.tag, Twist,   self.drone_.set_vel)
+        self.z_pub_   = rospy.Publisher('/%s/height'   % self.drone_.tag, Float64, queue_size=10)
 
         # 2. wait for start signal ...
         while self.start_time_ is None:
