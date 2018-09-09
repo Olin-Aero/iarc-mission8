@@ -12,6 +12,8 @@ from random import choice
 robots.py
 
 Contains two classes to represent target and obstacle roombas.
+
+TODO : vel3d is bullshit
 '''
 
 class Drone(object):
@@ -67,7 +69,7 @@ class Drone(object):
                 self.can_collide = True
                 self.collision_center = []
 
-    def record_vel(self, data):
+    def set_vel(self, data):
         self.vel3d = data
 
     def update(self, delta, elapsed):
