@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 import rospy
-from Drone import Drone
+from util.Drone import Drone
 
 rospy.init_node('behaviors')
 drone = Drone()
