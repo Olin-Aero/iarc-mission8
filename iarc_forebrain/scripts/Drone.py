@@ -18,20 +18,20 @@ except ImportError:
 class Drone:
     DEFAULT_HEIGHT = 1.5
 
-    def __init__(self, target=None, tfl=None):
+    def __init__(self, tfl=None):
         """
         :type tfl: tf.TransformListener
         """
-        self.should_hit_button = False
-        self.should_land_front = False
-        self.vel3d = Twist()
+        if not rospy.get_name().endswith('/unnamed'):
+            # Initialize the node
+            rospy.init_node('controller', anonymous=True)
+            rospy.sleep(0.2)
 
         # World state
         self._remembers_flying = False
 
         # Remembered control state
         self.last_height = 0.0
-        self.current_target = target  # Roomba class
 
         self.prev_target_facing_angle = None  # in radian
 
