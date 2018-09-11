@@ -18,20 +18,24 @@ except ImportError:
 class Drone:
     DEFAULT_HEIGHT = 1.5
 
-    def __init__(self, target=None, tfl=None):
+    def __init__(self, tfl=None):
         """
         :type tfl: tf.TransformListener
         """
-        self.should_hit_button = False
-        self.should_land_front = False
-        self.vel3d = Twist()
+        rospy.loginfo("name: {}".format(rospy.get_name()))
+
+        if rospy.get_name().endswith('/unnamed'):
+            # Initialize the node
+            rospy.init_node('controller', anonymous=True)
+            rospy.sleep(0.2)
+
+            # rospy.logwarn('initialing ROS node in Drone object')
 
         # World state
         self._remembers_flying = False
 
         # Remembered control state
         self.last_height = 0.0
-        self.current_target = target  # Roomba class
 
         self.prev_target_facing_angle = None  # in radian
 
@@ -39,6 +43,7 @@ class Drone:
 
         if tfl is None:
             self.tf = tf.TransformListener()
+            rospy.sleep(1.0)
         else:
             self.tf = tfl
 
@@ -72,27 +77,23 @@ class Drone:
         else:
             return self._remembers_flying
 
-    def takeoff(self, height=None, tol=0.2):
+    def takeoff(self, height=1.5, tol=0.2):
         """
         Commands the drone to takeoff from ground level, and blocks until it has done so.
         :param (float) height: Height in meters
         :param (float) tol: Tolerance to desired height to wait until reaching. Set to 0 to disable.
         :return: None
         """
-        if self.last_height is None:
-            self.last_height = self.DEFAULT_HEIGHT
-        if height is None:
-            height = self.last_height
-        else:
-            self.last_height = height
+        self.last_height = height
 
         self.takeoffPub.publish(Empty())
 
-        if tol != 0:
+        if tol > 0:
             r = rospy.Rate(10)
             while height - self.get_altitude() > tol and not rospy.is_shutdown():
                 self.hover(time=0, height=height)
                 r.sleep()
+            rospy.loginfo("Drone reached height of {} meters, takeoff finished".format(self.get_altitude()))
 
         self._remembers_flying = True
 
@@ -253,3 +254,4 @@ class Drone:
         :param (Navdata) msg:
         """
         self.navdata = msg
+
