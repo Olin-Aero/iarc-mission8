@@ -62,4 +62,4 @@ def fly_your_behavior():
     drone.land()
 
 
-fly_hover()
+fly_forward()
