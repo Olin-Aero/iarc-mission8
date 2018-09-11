@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 # Hello! As you can see, this line starts with a hashtag. That creates something called a "comment"
 # in programming. Comments are ignored by the code interpreter so you can write whatever you want
 # without breaking your program.
@@ -16,39 +18,38 @@
 
 # Here we import something from the Drone module (we wrote this on IARC last year - you're welcome.)
 # So now to make a drone takeoff it's literally one line of code -- which you'll see very shortly.
-from Drone import Drone
-import rospy # This is another module we need. Don't worry about this for now.
+from util.Drone import Drone
 
 # Create a drone object. You can name your drone anything you want (I've named my drone Fred)
 
-fred = Drone()
+drone = Drone()
 
 # First thing that Fred needs to do is take off from the ground. To make him fly we command him like this:
 
-fred.takeoff() #Told you it was one line!!
+drone.takeoff() #Told you it was one line!!
 
 # This command makes Fred fly upwards to an altitude of 1.5 meters. He will stay there if you dont give him
 # another command! Tell him to move forward next:
 
-fred.move_to(1.0, 0.0, 'launch')
+drone.move_to(1.0, 0.0, 'launch')
 
 # So what does that command mean? Fred recognizes move_to() as a command but requires
 # 3 "parameters" (inputs) to customize the exact instructions we want to give him.
-# fred.move_to(1.0, 0.0, 'launch') tells fred to move to position (1.0, 0.0) on a grid that
+# drone.move_to(1.0, 0.0, 'launch') tells Fred to move to position (1.0, 0.0) on a grid that
 # is centered on his 'launch' position. This command will make him move 1 meter in the
 # x-direction from his launch position,
-# If you wanted him to move the opposite direction, you can use the command fred.move_to(-1.0, 0.0, 'launch')
+# If you wanted him to move the opposite direction, you can use the command drone.move_to(-1.0, 0.0, 'launch')
 
 # At this point in the code, Fred has moved to position (1.0, 0.0). Good job, Fred.
 # Now let's move again. It's been forever since I've taken geometry in high school but if I remember
 # correctly, to create a square we can move to positions (1.0, 1.0), (0.0, 1.0), then back to the launch position, (0.0, 0.0).
 
-fred.move_to(1.0, 1.0, 'launch')
-fred.move_to(0.0, 1.0, 'launch')
-fred.move_to(0.0, 0.0, 'launch')
+drone.move_to(1.0, 1.0, 'launch')
+drone.move_to(0.0, 1.0, 'launch')
+drone.move_to(0.0, 0.0, 'launch')
 
 # Fred has completed the square. Woo!
 # Now he needs a break. Let's tell him to hover in place for 3 seconds before landing:
 
-fred.hover(3)
-fred.land()
+drone.hover(3)
+drone.land()
