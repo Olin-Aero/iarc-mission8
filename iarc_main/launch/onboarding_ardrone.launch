@@ -1,0 +1,6 @@
+<launch>
+    <include file="$(find iarc_main)/launch/ardrone_interface.launch"/>
+    <include file="$(find iarc_main)/launch/backbone.launch"/>
+    <node pkg="tf" type="static_transform_publisher" name="launch_frame"
+          args="0 0 0 0 0 0 odom launch 200"/>
+</launch>
