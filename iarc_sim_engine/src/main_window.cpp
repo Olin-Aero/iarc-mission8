@@ -27,7 +27,8 @@ MainWindow::MainWindow(QWidget* parent, const QPixmap& map):
 
         // Add Altitude
         alt_txt_item = new QGraphicsTextItem("0.0");
-        alt_txt_item->setDefaultTextColor(QColor::fromRgbF(1.0,1.0,1.0));
+        alt_txt_item->setDefaultTextColor(QColor::fromRgbF(0.0,0.0,1.0));
+        alt_txt_item->setPos(5, 5);
         scene->addItem(alt_txt_item);
         
         view->setScene(scene);
