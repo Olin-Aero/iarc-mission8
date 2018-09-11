@@ -7,7 +7,8 @@ drone = Drone()
 
 
 def fly_hover():
-    # The drone flies to a height of 1.5 meters for 5 seconds.
+    """ The drone flies to a height of 1.5 meters for 5 seconds. """
+    
     rospy.loginfo('Running Hover Behavior')
     rospy.sleep(1.0) # Delays the code from running by one second.
 

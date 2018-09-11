@@ -22,10 +22,14 @@ class Drone:
         """
         :type tfl: tf.TransformListener
         """
+        rospy.loginfo("name: {}".format(rospy.get_name()))
+
         if rospy.get_name().endswith('/unnamed'):
             # Initialize the node
             rospy.init_node('controller', anonymous=True)
             rospy.sleep(0.2)
+
+            # rospy.logwarn('initialing ROS node in Drone object')
 
         # World state
         self._remembers_flying = False
@@ -39,6 +43,7 @@ class Drone:
 
         if tfl is None:
             self.tf = tf.TransformListener()
+            rospy.sleep(1.0)
         else:
             self.tf = tfl
 
