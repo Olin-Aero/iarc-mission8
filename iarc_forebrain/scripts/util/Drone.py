@@ -88,6 +88,8 @@ class Drone:
 
         self.takeoffPub.publish(Empty())
 
+        rospy.sleep(0.1)
+
         if tol > 0:
             r = rospy.Rate(10)
             while height - self.get_altitude() > tol and not rospy.is_shutdown():
@@ -107,6 +109,8 @@ class Drone:
         self.last_height = 0
 
         self.landPub.publish(Empty())
+
+        rospy.sleep(0.1)
 
         if block:
             r = rospy.Rate(10)
