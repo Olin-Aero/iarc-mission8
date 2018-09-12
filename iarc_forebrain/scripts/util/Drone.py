@@ -159,7 +159,7 @@ class Drone:
                 r.sleep()
                 self.posPub.publish(start_pos)
 
-    def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.8):
+    def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.4):
         """
         Tells the drone to move to a specific position on the field, and blocks until the drone is
         within tol of the target, counting vertical and horizontal distance
