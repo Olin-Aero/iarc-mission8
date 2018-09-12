@@ -171,6 +171,9 @@ class Drone:
         :return:
         """
 
+        if height == 0.0:
+            height = self.last_height
+
         r = rospy.Rate(20)
         while not rospy.is_shutdown():
             rel_pos = self.get_pos(frame).pose.position
