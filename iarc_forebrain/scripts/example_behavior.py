@@ -37,18 +37,10 @@ drone.move_to(1.0, 0.0, 'launch')
 # 3 "parameters" (inputs) to customize the exact instructions we want to give him.
 # drone.move_to(1.0, 0.0, 'launch') tells Fred to move to position (1.0, 0.0) on a grid that
 # is centered on his 'launch' position. This command will make him move 1 meter in the
-# x-direction from his launch position,
+# x-direction from his launch position.
 # If you wanted him to move the opposite direction, you can use the command drone.move_to(-1.0, 0.0, 'launch')
 
 # At this point in the code, Fred has moved to position (1.0, 0.0). Good job, Fred.
-# Now let's move again. It's been forever since I've taken geometry in high school but if I remember
-# correctly, to create a square we can move to positions (1.0, 1.0), (0.0, 1.0), then back to the launch position, (0.0, 0.0).
-
-drone.move_to(1.0, 1.0, 'launch')
-drone.move_to(0.0, 1.0, 'launch')
-drone.move_to(0.0, 0.0, 'launch')
-
-# Fred has completed the square. Woo!
 # Now he needs a break. Let's tell him to hover in place for 3 seconds before landing:
 
 drone.hover(3)
