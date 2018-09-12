@@ -8,6 +8,10 @@
     </include>
     <!-- Spawn simulated quadrotor uav -->
     <include file="$(find iarc_sim_3d)/launch/spawn_drone.launch"/>
+    <include file="$(find iarc_sim_3d)/launch/noisy_odom.launch"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="sim_drone_tf"
+        args="0 0 0 0 0 0 drone/base_link ardrone_base_link 1"/>
 
     <!-- Spawn Targets -->
     <!--
