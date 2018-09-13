@@ -61,7 +61,7 @@ install:
     # Create the devel/setup.bash (run catkin build with an empty workspace) and
     # source it to set the path variables.
   - cd ~/catkin_ws
-  - catkin_make
+  - catkin build
   - source devel/setup.bash
     # Add the package under integration to the workspace using a symlink.
   - cd ~/catkin_ws/src
@@ -89,7 +89,7 @@ before_script:
 # TODO : add install targets and tests
 script:
   - cd ~/catkin_ws
-  - catkin_make
+  - catkin build
     # Run the tests, ensuring the path is set correctly.
     #- source devel/setup.bash
     #- rospack profile
