@@ -88,6 +88,8 @@ class Drone:
 
         self.takeoffPub.publish(Empty())
 
+        rospy.sleep(0.1)
+
         if tol > 0:
             r = rospy.Rate(10)
             while height - self.get_altitude() > tol and not rospy.is_shutdown():
@@ -107,6 +109,8 @@ class Drone:
         self.last_height = 0
 
         self.landPub.publish(Empty())
+
+        rospy.sleep(0.1)
 
         if block:
             r = rospy.Rate(10)
@@ -155,7 +159,7 @@ class Drone:
                 r.sleep()
                 self.posPub.publish(start_pos)
 
-    def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.8):
+    def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.4):
         """
         Tells the drone to move to a specific position on the field, and blocks until the drone is
         within tol of the target, counting vertical and horizontal distance
@@ -166,6 +170,9 @@ class Drone:
         :param tol:
         :return:
         """
+
+        if height == 0.0:
+            height = self.last_height
 
         r = rospy.Rate(20)
         while not rospy.is_shutdown():
