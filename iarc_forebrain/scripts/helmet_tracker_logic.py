@@ -1,17 +1,17 @@
 #!/usr/bin/env python2
+import sys
 
-import sys, cv2
+import cv2
 
 
+# In normal usage, this function will be imported by the *_ros file, and called from there.
+# For test purposes, this file is also executable and can directly process a saved image.
 def detect_helmet_coordinates(image, visualize=True):
     """
     Detects the pixel coordinates of the helmet in the image feed
 
     Input: OpenCV image
     Output: tuple of x- and y- coordinates of the center of the green helmet in the display
-
-    If visualize == True, it should also use cv2.imshow() to display the original and the thresholded images.
-
     """
     if visualize:
         cv2.imshow('Raw Image', image)
@@ -23,8 +23,7 @@ def detect_helmet_coordinates(image, visualize=True):
 
 
 
-
-### Provided as part of template
+### Test code for processing data directly from the computer webcam or a saved image file
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         filename = sys.argv[1]
