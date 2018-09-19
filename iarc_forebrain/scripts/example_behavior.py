@@ -1,8 +1,10 @@
 #!/usr/bin/env python2
 
+# (See that line above? Keep that line. It's important... If you really must know what it is, google "Shebang".)
+
 # Hello! As you can see, this line starts with a hashtag. That creates something called a "comment"
 # in programming. Comments are ignored by the code interpreter so you can write whatever you want
-# without breaking your program.
+# without breaking your program. The only exception to this is the Shebang above.
 
 # I'll walk you through this example file that can fly the drone in a square.
 
@@ -45,3 +47,12 @@ drone.move_to(1.0, 0.0, 'launch')
 
 drone.hover(3)
 drone.land()
+
+# Wait! One more thing. Before you try to run your file, double-check that your
+# permissions allow you to run it. You can do this by following these steps:
+# 1) Right click your file
+# 2) Click "Properties" on the menu
+# 3) Go to the "Permissions" tab
+# 4) Check the "Allow executing as a file" box
+
+# You only need to edit the permissions once. Happy flying!
