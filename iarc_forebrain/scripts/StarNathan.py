@@ -8,7 +8,7 @@ def moveDrone(drone,x,y):
 	drone.hover(1)
 
 jj_the_jet_plane = Drone()
-rospy.loginfo("Taking off")
+rospy.loginfo("Taking Off")
 jj_the_jet_plane.takeoff()
 jj_the_jet_plane.hover(1)
 moveDrone(jj_the_jet_plane,-4.0,0.0)
