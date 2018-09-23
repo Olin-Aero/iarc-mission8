@@ -1,8 +1,10 @@
 #!/usr/bin/env python2
 
+# (See that line above? Keep that line. It's important... If you really must know what it is, google "Shebang".)
+
 # Hello! As you can see, this line starts with a hashtag. That creates something called a "comment"
 # in programming. Comments are ignored by the code interpreter so you can write whatever you want
-# without breaking your program.
+# without breaking your program. The only exception to this is the Shebang above.
 
 # I'll walk you through this example file that can fly the drone in a square.
 
@@ -37,19 +39,20 @@ drone.move_to(1.0, 0.0, 'launch')
 # 3 "parameters" (inputs) to customize the exact instructions we want to give him.
 # drone.move_to(1.0, 0.0, 'launch') tells Fred to move to position (1.0, 0.0) on a grid that
 # is centered on his 'launch' position. This command will make him move 1 meter in the
-# x-direction from his launch position,
+# x-direction from his launch position.
 # If you wanted him to move the opposite direction, you can use the command drone.move_to(-1.0, 0.0, 'launch')
 
 # At this point in the code, Fred has moved to position (1.0, 0.0). Good job, Fred.
-# Now let's move again. It's been forever since I've taken geometry in high school but if I remember
-# correctly, to create a square we can move to positions (1.0, 1.0), (0.0, 1.0), then back to the launch position, (0.0, 0.0).
-
-drone.move_to(1.0, 1.0, 'launch')
-drone.move_to(0.0, 1.0, 'launch')
-drone.move_to(0.0, 0.0, 'launch')
-
-# Fred has completed the square. Woo!
 # Now he needs a break. Let's tell him to hover in place for 3 seconds before landing:
 
 drone.hover(3)
 drone.land()
+
+# Wait! One more thing. Before you try to run your file, double-check that your
+# permissions allow you to run it. You can do this by following these steps:
+# 1) Right click your file
+# 2) Click "Properties" on the menu
+# 3) Go to the "Permissions" tab
+# 4) Check the "Allow executing as a file" box
+
+# You only need to edit the permissions once. Happy flying!
