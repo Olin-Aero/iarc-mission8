@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python2
 
 from util.Drone import Drone
@@ -32,7 +31,9 @@ drone.move_to(0.25, 0.5, 'launch')
 # move to pt. 6
 drone.move_to(2.0, 2.0, 'launch')
 
-# hover in place for 3 seconds before landing
-rospy.loginfo("lowering landing...")
-drone.hover(3)
+# hover in place at 1.5 m before landing
+rospy.loginfo("lowering"
+drone.hover(1.5)
+
+rospy.loginfo("landing")
 drone.land()
