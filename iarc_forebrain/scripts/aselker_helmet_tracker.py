@@ -14,14 +14,18 @@ def detect_helmet_coordinates(image, visualize=True):
     Output: tuple of x- and y- coordinates of the center of the green helmet in the display
     """
 
+    # Define some threshholds
     h_range = 6
     s_range = 100
     v_range = 155
 
+    # Convert to HSV
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    # Define bounds for "red"
     red_lower = np.array([180 - h_range/2, 255 - s_range, 100 - v_range])
     red_upper = np.array([h_range/2, 255, 255])
 
+    # Red loops over the 179-0 boundary in hue space, so we need two separate masks
     red_lower_low_h = red_lower
     red_lower_low_h[0] = 0
     mask_low_h = cv2.inRange(hsv, red_lower_low_h, red_upper)
@@ -30,7 +34,13 @@ def detect_helmet_coordinates(image, visualize=True):
     red_upper_high_h[0] = 179
     mask_high_h = cv2.inRange(hsv, red_lower, red_upper_high_h)
 
+    # Merge the masks
     mask = mask_low_h | mask_high_h
+
+    # Erode and dilate to remove small blobs and islands
+    mask = cv2.erode(mask, None, iterations=1)
+    mask = cv2.dilate(mask, None, iterations=1)
+
     masked = cv2.bitwise_and(image, image, mask=mask)
 
     if visualize:
