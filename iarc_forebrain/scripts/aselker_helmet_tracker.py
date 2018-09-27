@@ -15,7 +15,7 @@ def detect_helmet_coordinates(image, visualize=True):
     """
 
     # Define some threshholds
-    h_range = 6
+    h_range = 12
     s_range = 100
     v_range = 155
 
@@ -26,11 +26,11 @@ def detect_helmet_coordinates(image, visualize=True):
     red_upper = np.array([h_range/2, 255, 255])
 
     # Red loops over the 179-0 boundary in hue space, so we need two separate masks
-    red_lower_low_h = red_lower
+    red_lower_low_h = red_lower.copy()
     red_lower_low_h[0] = 0
     mask_low_h = cv2.inRange(hsv, red_lower_low_h, red_upper)
 
-    red_upper_high_h = red_upper
+    red_upper_high_h = red_upper.copy()
     red_upper_high_h[0] = 179
     mask_high_h = cv2.inRange(hsv, red_lower, red_upper_high_h)
 
@@ -41,7 +41,6 @@ def detect_helmet_coordinates(image, visualize=True):
     mask = cv2.erode(mask, None, iterations=1)
     mask = cv2.dilate(mask, None, iterations=1)
 
-    masked = cv2.bitwise_and(image, image, mask=mask)
 
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[1] # This is [0] for opencv2, but we're on 3
@@ -57,7 +56,11 @@ def detect_helmet_coordinates(image, visualize=True):
       coords = None
 
     if visualize:
-        cv2.imshow('Raw Image', image)
+        crossed = image.copy()
+        cv2.drawMarker(crossed, coords, (0, 255, 0), cv2.MARKER_CROSS)
+
+        cv2.imshow('Full Image', crossed)
+        masked = cv2.bitwise_and(image, image, mask=mask)
         cv2.imshow("Masked image", masked)
 
     return coords
