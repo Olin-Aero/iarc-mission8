@@ -43,10 +43,24 @@ def detect_helmet_coordinates(image, visualize=True):
 
     masked = cv2.bitwise_and(image, image, mask=mask)
 
+    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[1] # This is [0] for opencv2, but we're on 3
+    center = None
+
+    if len(cnts) > 0: # If there are any contours
+      c = max(cnts, key=cv2.contourArea) # Find the contour that surrounds the largest area
+      m = cv2.moments(c)
+      x = int(m["m10"] / m["m00"])
+      y = int(m["m01"] / m["m00"])
+      coords = (x, y)
+    else:
+      coords = None
+
     if visualize:
         cv2.imshow('Raw Image', image)
         cv2.imshow("Masked image", masked)
-    return (0, 0)  # (x, y) measured in pixels
+
+    return coords
 
 
 
