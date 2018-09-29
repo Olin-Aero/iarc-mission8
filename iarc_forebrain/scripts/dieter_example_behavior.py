@@ -6,15 +6,15 @@ import rospy
 drone = Drone()
 
 # commands to move a drone in the shape of a star
-rospy.loginfo("taking off...")
+rospy.loginfo("taking off. ..")
 drone.takeoff()
 
 # move to pt. 1
 rospy.loginfo("starting star movement...")
 drone.move_to(2.0, 2.0, 'launch')
 
-# change altitude
-drone.hover(3)
+# hover and change altitude
+drone.hover(1.5, height=3.0)
 
 # move to pt. 2
 drone.move_to(0.0, 2.0, 'launch')
@@ -31,9 +31,9 @@ drone.move_to(0.25, 0.5, 'launch')
 # move to pt. 6
 drone.move_to(2.0, 2.0, 'launch')
 
-# hover in place at 1.5 m before landing
-rospy.loginfo("lowering"
-drone.hover(1.5)
+# hover at 1.5 m for 1.5 seconds before landing
+rospy.loginfo("lowering")
+drone.hover(1.5, height=1.5)
 
 rospy.loginfo("landing")
 drone.land()
