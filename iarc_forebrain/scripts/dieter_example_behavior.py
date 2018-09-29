@@ -6,7 +6,7 @@ import rospy
 drone = Drone()
 
 # commands to move a drone in the shape of a star
-rospy.loginfo("taking off. ..")
+rospy.loginfo("taking off...")
 drone.takeoff()
 
 # move to pt. 1
