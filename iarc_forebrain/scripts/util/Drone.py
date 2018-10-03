@@ -215,8 +215,10 @@ class Drone:
         Tells the drone to begin moving towards a specific position on the field, then returns
         :param height: Flight altitude, meters. Defaults to previously commanded height.
         :param frame: The tf frame associated with the target
-        :param des_x: desired position x
-        :param des_y: desired position y
+        :param x: desired velocity x in the drone frame (forward) in m/s
+        :param y: desired velocity y in the drone frame (left) in m/s
+        :param z: desired velocity z in the drone frame (up) in m/s
+        :param angvel: desired angular velocity in the yaw direction in rad/s
         """
 
         vel = Twist()
@@ -225,7 +227,7 @@ class Drone:
         vel.linear.z = z
         vel.angular.z = angvel
 
-        self.velPub.publish(pose_stamped)
+        self.velPub.publish(vel)
 
 
     def get_pos(self, frame='map'):
