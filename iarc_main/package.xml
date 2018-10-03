@@ -50,6 +50,8 @@
   <build_depend>ardrone_autonomy</build_depend>
   <build_depend>iarc_arbiter</build_depend>
   <build_depend>iarc_forebrain</build_depend>
+  <build_depend>video_stream_opencv</build_depend>
+
   <run_depend>geometry_msgs</run_depend>
   <run_depend>message_generation</run_depend>
   <run_depend>message_runtime</run_depend>
@@ -57,8 +59,10 @@
   <run_depend>std_msgs</run_depend>
   <run_depend>teleop_twist_keyboard</run_depend>
   <run_depend>ardrone_autonomy</run_depend>
+  <run_depend>video_stream_opencv</run_depend>
   <run_depend>iarc_arbiter</run_depend>
   <run_depend>iarc_forebrain</run_depend>
+
 
 
   <!-- The export tag contains other, unspecified, tags -->
