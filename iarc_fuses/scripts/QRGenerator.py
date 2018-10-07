@@ -1,4 +1,6 @@
 #!/usr/bin/env python2
+
+# Creates 20 QR codes with randomly generatod 4 digit numbers. Also creates the 4 quarters of these 20 images.
 import qrcode
 import os
 import rospkg
