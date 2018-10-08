@@ -34,7 +34,9 @@ def ground_area(cm, tf_x):
     mray = np.dot(cray, M_x[:3,:3].T) # right-multiply rotation matrix
 
     # extend ray to groundplane
-    l = txn[2] / mray[:,2]
+    l = - txn[2] / mray[:,2]
+    # need to flip z since mray is pointing downwards
+    # i.e. same as mray[:,2].dot([0,0,-1]) which is the correct distance
     gray = l[:,np.newaxis] * mray
     return gray[:,:2] + np.reshape(txn[:2], [-1,2])
 
@@ -76,7 +78,7 @@ class CamStitcher(object):
         n, m = self.map_shape_[:2]
         u = U.rint(n/2. + (y / self.map_res_))
         v = U.rint(m/2. + (x / self.map_res_))
-        return np.stack([u,v], axis=-1)
+        return np.stack([v,u], axis=-1)
 
     def data_cb(self, cam_id, info, msg):
         try:
@@ -106,13 +108,14 @@ class CamStitcher(object):
         src_ar = np.asarray([[0,0], [h,0], [h,w], [0,w]], dtype=np.float32)
         dst_ar = ground_area(cm, tf_x)
         dst_ar = self.xy2uv(dst_ar).astype(np.float32)
-        #cv2.polylines(self.map_, U.rint([dst_ar]), True, (255,255,255))
 
-        #rospy.loginfo_throttle(1.0, 'dst_ar:{}'.format(dst_ar))
+        # TODO : evaluate if roi-based approach is more efficient
         M = cv2.getPerspectiveTransform(src_ar, dst_ar)
-        # TODO : test if this erases other parts of the image as a side-effect
-        # (ideally not!)
-        cv2.warpPerspective(img, M, self.map_.shape[:2][::-1], dst=self.map_)
+        cv2.warpPerspective(img, M, self.map_.shape[:2][::-1], dst=self.map_,
+                borderMode=cv2.BORDER_TRANSPARENT)
+
+        #cv2.polylines(self.map_, U.rint([dst_ar]), True, (255,255,255))
+        #rospy.loginfo_throttle(1.0, 'dst_ar:{}'.format(dst_ar))
 
         if reset:
             self.data_[cam_id] = None
@@ -123,10 +126,11 @@ class CamStitcher(object):
 
     def run(self):
         rate = rospy.Rate(50)
+        cv2.namedWindow('map', cv2.WINDOW_NORMAL)
         while not rospy.is_shutdown():
             self.step()
             rate.sleep()
-            cv2.imshow('map', self.map_)
+            cv2.imshow('map', np.flipud(self.map_))
             cv2.waitKey(10)
 
 def main():
