@@ -38,8 +38,8 @@ def detect_helmet_coordinates(image, visualize=True):
         if visualize:
             cv2.imshow("Image", image)
         return (cX, cY)  # (x, y) measured in pixels
-    # show the image
-    if visualize:
+    # show the image so it still displays if it doesn't see a thing.
+    if visualize: 
         cv2.imshow("Image", image) # shows the original image
 
 
