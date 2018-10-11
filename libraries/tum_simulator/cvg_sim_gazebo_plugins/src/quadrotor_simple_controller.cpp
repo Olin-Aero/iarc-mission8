@@ -82,7 +82,7 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     velocity_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("navdataTopic"))
-    navdata_topic_ = "/ardrone/navdata";
+    navdata_topic_ = "ardrone/navdata";
   else
     navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValue()->GetAsString();
 
@@ -98,12 +98,14 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
 
   if (!_sdf->HasElement("bodyName"))
   {
-    link = _model->GetLink();
+    link = _model->GetLink("base_link");
     link_name_ = link->GetName();
   }
   else {
     link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
-    link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
+    //ROS_INFO("link name : %s", link_name_.c_str());
+    //link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
+    link = _model->GetLink(link_name_);
   }
 
   if (!link)
@@ -242,6 +244,7 @@ void GazeboQuadrotorSimpleController::VelocityCallback(const geometry_msgs::Twis
 
 void GazeboQuadrotorSimpleController::ImuCallback(const sensor_msgs::ImuConstPtr& imu)
 {
+    //ROS_INFO_THROTTLE(1.0, "IMU");
   pose.rot.Set(imu->orientation.w, imu->orientation.x, imu->orientation.y, imu->orientation.z);
   euler = pose.rot.GetAsEuler();
   angular_velocity = pose.rot.RotateVector(math::Vector3(imu->angular_velocity.x, imu->angular_velocity.y, imu->angular_velocity.z));
@@ -249,6 +252,7 @@ void GazeboQuadrotorSimpleController::ImuCallback(const sensor_msgs::ImuConstPtr
 
 void GazeboQuadrotorSimpleController::StateCallback(const nav_msgs::OdometryConstPtr& state)
 {
+    //ROS_INFO_THROTTLE(1.0, "STATE");
   math::Vector3 velocity1(velocity);
 
   if (imu_topic_.empty()) {
