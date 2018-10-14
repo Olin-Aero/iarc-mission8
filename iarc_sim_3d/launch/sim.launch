@@ -2,6 +2,7 @@
 	<arg name="paused" default="false"/>
     <arg name="debug"  default="false"/>
     <arg name="verbose"  default="false"/>
+    <arg name="map_tf" default="false"/>
 
     <!-- Create World -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -22,11 +23,21 @@
         <arg name="x" default="-0.5"/>
     </include>
 
+    <!-- map -> odom transforms -->
+    <group if="$(arg map_tf)">
+        <node pkg="tf" type="static_transform_publisher" name="map_to_drone_1_odom_tf"
+            args="0.5 0 0 0 0 0 map drone_1/odom 1"/>
+        <node pkg="tf" type="static_transform_publisher" name="map_to_drone_2_odom_tf"
+            args="-0.5 0 0 0 0 0 map drone_2/odom 1"/>
+    </group>
+
     <group if="false">
         <!-- single drone cfg -->
         <include file="$(find iarc_sim_3d)/launch/noisy_odom.launch" />
         <node pkg="tf" type="static_transform_publisher" name="sim_drone_tf"
             args="0 0 0 0 0 0 drone/base_link ardrone_base_link 1"/>
     </group>
+
+
 
 </launch>
