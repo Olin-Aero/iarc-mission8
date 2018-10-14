@@ -12,6 +12,7 @@ import message_filters
 
 from iarc_fuses import utils as U
 from functools import partial
+import shapely.geometry as sp
 
 def horizon_area(cm, tf_x, inv=False):
     """ Compute area under the horizon in the image according to current camera transformation.
@@ -130,6 +131,7 @@ class CamStitcher(object):
         m = np.ceil(self.map_width_  / self.map_res_).astype(np.int32)
         self.map_shape_ = (n,m,3)
         self.map_ = np.zeros(shape=(n,m,3), dtype=np.uint8)
+        self.viz_ = np.zeros(shape=(n,m,3), dtype=np.uint8)
         self.tmp_ = np.zeros(shape=(n,m,1), dtype=np.uint8)
         self.tmp2_ = self.map_.copy()
         self.mask_ = None
@@ -241,6 +243,14 @@ class CamStitcher(object):
         cv2.warpPerspective(img, M, (m,n), dst=self.tmp2_) # warped content
         sel = np.broadcast_to(self.tmp_ == 255, self.tmp2_.shape) # mask index
         self.map_[sel] = self.tmp2_[sel] # finally, update data
+
+        # visualization
+        #np.copyto(self.viz_, self.map_)
+        #dbg_ar = ground_area(cm, hor_ar, tf_x)
+        #print('dbg_ar', dbg_ar)
+        #ix_ar = sp.Polygon(dst_ar).intersection(sp.Polygon(dbg_ar))
+        #print(ix_ar)
+
 
         if reset:
             self.data_[cam_id] = None
