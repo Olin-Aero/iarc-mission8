@@ -1,35 +1,24 @@
 <launch>
 	<arg name="paused" default="false"/>
+    <arg name="debug"  default="false"/>
+    <arg name="verbose"  default="false"/>
+    <arg name="map_tf" default="false"/>
+    <arg name="single" default="true"/>
 
-    <!-- Create World -->
-    <include file="$(find gazebo_ros)/launch/empty_world.launch">
-        <arg name="world_name" value="$(find iarc_sim_3d)/worlds/iarc.world"/>
-		<arg name="paused" value="$(arg paused)"/>
+    <!-- single -->
+    <include if="$(arg single)" file="$(find iarc_sim_3d)/launch/sim_single.launch">
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="debug"  value="$(arg debug)"/>
+        <arg name="verbose"  value="$(arg verbose)"/>
+        <arg name="map_tf" value="$(arg map_tf)"/>
     </include>
-    <!-- Spawn simulated quadrotor uav -->
-    <include file="$(find iarc_sim_3d)/launch/spawn_drone.launch"/>
-    <!--<include file="$(find iarc_sim_3d)/launch/noisy_odom.launch"/>-->
 
-    <node pkg="tf" type="static_transform_publisher" name="sim_drone_tf"
-        args="0 0 0 0 0 0 drone/base_link ardrone_base_link 1"/>
-
-    <!-- Spawn Targets -->
-    <!--
-    <include file="$(find iarc_sim_3d)/launch/spawn_targets.launch"/>
-    -->
-
-    <!-- Spawn Obstacles -->
-    <!--
-    <include file="$(find iarc_sim_3d)/launch/spawn_obstacles.launch"/>
-    -->
-
-    <!--
-    <include file="$(find iarc_sim_3d)/launch/spawn_roomba.launch">
-        <arg name="ns" value="target0"/>
-        <arg name="x" value="1.00000000000000000000"/>
-        <arg name="y" value="0"/>
-        <arg name="Y" value="0"/>
+    <!-- multi-->
+    <include unless="$(arg single)" file="$(find iarc_sim_3d)/launch/sim_multi.launch">
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="debug"  value="$(arg debug)"/>
+        <arg name="verbose"  value="$(arg verbose)"/>
+        <arg name="map_tf" value="$(arg map_tf)"/>
     </include>
-    -->
 
 </launch>
