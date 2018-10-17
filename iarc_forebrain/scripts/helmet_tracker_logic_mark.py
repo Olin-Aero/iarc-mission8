@@ -10,6 +10,7 @@ def detect_helmet_coordinates(image, visualize=True):
 
     Input: OpenCV image
     Output: tuple of x- and y- coordinates of the center of the green helmet in the display
+            or (-1, -1) if no helmet is visible.
     """
 
     # set upper and lower bounds for color I want to track in HSV
@@ -45,11 +46,11 @@ def detect_helmet_coordinates(image, visualize=True):
 		return (cX, cY)
     
     except:
-    	# if the object is not in the frame, show return the original image...
+    	# if the object is not in the frame, imshow returns the original image...
     	cv2.imshow('Raw Image', image)
 
     	# ...and return (0, 0) for position
-    	return (0, 0)
+    	return (-1, -1)
 
 
 
