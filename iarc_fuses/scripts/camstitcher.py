@@ -20,6 +20,7 @@ def horizon_area(cm, tf_x, inv=False):
     Args:
         cm(image_geometry.PinholeCameraModel): camera model for image.
         tf_x(tuple): (txn,qxn) tuple for translation and rotation(quaternion).
+            This is the transformation that converts camera to map frame.
             Refer to results from tf.TransformListener.lookupTransform()
         inv(bool): if True, returns area above the horizon instead.
 
@@ -86,6 +87,8 @@ def ground_area(cm, src, tf_x):
 
     Args:
         cm(image_geometry.PinholeCameraModel): camera model for image.
+        src(np.ndarray): [4,2] array of four corners, formatted (u,v).
+            Represents the area in the frame to compute the groundplane projection.
         tf_x(tuple): (txn,qxn) tuple for translation and rotation(quaternion).
             Refer to results from tf.TransformListener.lookupTransform()
     Returns:
