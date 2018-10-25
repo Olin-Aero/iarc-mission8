@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Adapted from audiolazy_example.py, which came with this license...
+#
 # This file is part of AudioLazy, the signal processing Python package.
 # Copyright (C) 2012-2016 Danilo de Jesus da Silva Bellini
 #
@@ -21,9 +22,6 @@ whistle detector.  Work in progress!
 """
 # from __future__ import division
 from audiolazy import sHz, chunks, AudioIO, line, pi, window
-from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
-from numpy.fft import rfft
 import numpy as np
 import collections, sys, threading, time
 
@@ -31,11 +29,12 @@ import collections, sys, threading, time
 rate = 44100
 s, Hz = sHz(rate) # s = rate, Hz = tau / rate
 
-length = 2 ** 12
+length = 2 ** 15
 data = collections.deque([0.] * length, maxlen=length)
 wnd = np.array(window.hamming(length)) # For FFT
 
-histLen = 10 # Number of frames to average
+ampMin = 0.0001
+sharpMin = 0.0001
 
 api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
@@ -53,23 +52,16 @@ update_data.finish = False
 th = threading.Thread(target=update_data)
 th.start() # Actually start updating data
 
-spectra = [] # History of spectra
-for _ in range(histLen):
-  spectra.append([0] * (int(length/2) + 1))
-
 try:
   while True:
     array_data = np.array(data)
-    thisSpectrum = np.abs(rfft(array_data * wnd)) / length
-    spectra.pop()
-    spectra.append(thisSpectrum)
-    spectrum = np.mean(spectra, 0) # Average the history
+    spectrum = np.abs(np.fft.rfft(array_data * wnd)) / length
 
     freqs = np.array(line(length, 0, 2 * pi / Hz).take(length // 2 + 1))
     # The first freq is 0, the last freq value is half of rate, and there are length/2 + 1 of them (so the
     # index of the last is length/2).  So, each freq is about rate/length * its index (+/- 1 ?)
 
-    lower_bound = 100 # Lowest freq (Hz) to look for
+    lower_bound = 200 # Lowest freq (Hz) to look for
     lower_bound_i = int((lower_bound * length) / rate)
     
     spectrum = spectrum[lower_bound_i:]
@@ -78,12 +70,14 @@ try:
     kernel = (-0.1, -0.2, 0.6, -0.2, -0.1)
     d = np.convolve(spectrum, kernel)[2:-2] # trim so that the elements still correspond to the freqs
 
-    maxi = np.argmax(d)
-    maxf = freqs[maxi]
-    maxr = d[maxi]
-    maxa = spectrum[maxi]
+    maxi = np.argmax(d) 
+    freq = freqs[maxi]
+    sharpness = d[maxi]
+    amplitude = spectrum[maxi]
 
-    print("Freq: " + str(maxf) + "\tAmplitude: " + str(maxa) + "\tSharpness: " + str(maxr))
+    print("Freq: " + str(freq) + "\tAmplitude: " + str(amplitude) + "\tSharpness: " + str(sharpness))
+    if ampMin < amplitude and sharpMin < sharpness:
+      print("whistle detected!")
  
     time.sleep(0.01)
 except KeyboardInterrupt:
