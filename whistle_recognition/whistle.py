@@ -29,12 +29,19 @@ import collections, sys, threading, time
 rate = 44100
 s, Hz = sHz(rate) # s = rate, Hz = tau / rate
 
-length = 2 ** 15
+length = 2 ** 14
 data = collections.deque([0.] * length, maxlen=length)
 wnd = np.array(window.hamming(length)) # For FFT
 
-ampMin = 0.0001
-sharpMin = 0.0001
+searchFreq = 100 # Hz; minimum time between checking for whistles.
+
+minAmp = 0.0001 # Minimum absolute amplitude of a whistle
+minSharp = 0.0001 # Minimum "sharpness" of a whistle
+
+maxVariance = 0.001 # Maximum variance in frequency for a whistle
+tonicResetlen = 2 # Seconds to reset the scale
+
+relativeNotes = np.log([1/2, 5/8, 3/4, 1, 5/4, 3/2, 2])
 
 api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
@@ -52,6 +59,12 @@ update_data.finish = False
 th = threading.Thread(target=update_data)
 th.start() # Actually start updating data
 
+# Set up some variables preserved between search iterations
+whistle = [] # This whistle so far
+whistleLen = 0 # The whistle's length, in seconds
+lastTime = time.clock()
+tonic = 0 # Freq, in Hz, of the tonic note off of which other whistles will be judged
+
 try:
   while True:
     array_data = np.array(data)
@@ -61,7 +74,7 @@ try:
     # The first freq is 0, the last freq value is half of rate, and there are length/2 + 1 of them (so the
     # index of the last is length/2).  So, each freq is about rate/length * its index (+/- 1 ?)
 
-    lower_bound = 200 # Lowest freq (Hz) to look for
+    lower_bound = 400 # Lowest freq (Hz) to look for
     lower_bound_i = int((lower_bound * length) / rate)
     
     spectrum = spectrum[lower_bound_i:]
@@ -75,11 +88,44 @@ try:
     sharpness = d[maxi]
     amplitude = spectrum[maxi]
 
-    print("Freq: " + str(freq) + "\tAmplitude: " + str(amplitude) + "\tSharpness: " + str(sharpness))
-    if ampMin < amplitude and sharpMin < sharpness:
-      print("whistle detected!")
+    # Do timing stuff just before we record the time, to prevent off-by-1ish
+    thisTime = time.clock()
+    timeSinceLast = thisTime - lastTime
+    lastTime = thisTime
+
+    if minAmp < amplitude and minSharp < sharpness:
+      print("Freq: " + str(freq) + "\tAmplitude: " + str(amplitude) + "\tSharpness: " + str(sharpness))
+      whistle += [freq]
+      whistleLen += timeSinceLast
+      whistleAvg = np.exp(np.mean(np.log(whistle))) # Take the log mean to find the cental frequency
+      if tonicResetlen <= whistleLen:
+        if np.var(np.log(whistle)) < maxVariance:
+          tonic = whistleAvg
+          print("Reset tonic to " + str(tonic) + " Hz")
+        else:
+          print("Variance too high")
+      else:
+        if tonic == 0:
+          print("Tonic not set")
+        else:
+          logDist = np.log(whistleAvg) - np.log(tonic)
+          print("Log distance: " + str(logDist))
+          # Find the closest note
+          closestNote = -1
+          closestDist = np.Inf
+          for i, n in enumerate(relativeNotes):
+            if abs(logDist - n) < closestDist:
+              closestDist = logDist - n
+              closestNote = i
+          print("Closest note index: " + str(closestNote))
+    else:
+      whistle = []
+      whistleLen = 0
  
-    time.sleep(0.01)
+    
+    #Try to keep times as close to searchFreq as possible
+    if timeSinceLast < (1 / searchFreq):
+      time.sleep((1 / searchFreq) - timeSinceLast)
 except KeyboardInterrupt:
   pass
 
