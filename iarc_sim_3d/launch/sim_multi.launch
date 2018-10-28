@@ -15,20 +15,22 @@
     <!-- Spawn simulated quadrotor uav -->
     <include file="$(find iarc_sim_3d)/launch/spawn_drone.launch">
         <arg name="ns" default="drone_1"/>
-        <arg name="x" default="0.5"/>
+        <arg name="x" default="-10."/>
+        <arg name="y" default="0.5"/>
     </include>
 
     <include file="$(find iarc_sim_3d)/launch/spawn_drone.launch">
         <arg name="ns" default="drone_2"/>
-        <arg name="x" default="-0.5"/>
+        <arg name="x" default="-10."/>
+        <arg name="y" default="-0.5"/>
     </include>
 
     <!-- map -> odom transforms -->
     <group if="$(arg map_tf)">
         <node pkg="tf" type="static_transform_publisher" name="map_to_drone_1_odom_tf"
-            args="0.5 0 0 0 0 0 map drone_1/odom 1"/>
+            args="-10 0.5 0 0 0 0 map drone_1/odom 1"/>
         <node pkg="tf" type="static_transform_publisher" name="map_to_drone_2_odom_tf"
-            args="-0.5 0 0 0 0 0 map drone_2/odom 1"/>
+            args="-10 -0.5 0 0 0 0 map drone_2/odom 1"/>
     </group>
 
 </launch>

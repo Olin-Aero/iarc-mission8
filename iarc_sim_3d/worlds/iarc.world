@@ -36,14 +36,171 @@
             <uri>model://iarc_sim_3d/models/floor</uri>
         </include>
 
+        <!-- Hideouts? -->
+        <population name="hideouts">
+            <model name="hide">
+                <include>
+                    <static>true</static>
+                    <uri>model://drc_practice_orange_jersey_barrier</uri>
+                </include>
+            </model>
+            <pose>-3 0 0 0 0 0</pose>
+            <box>
+                <size>20 12 0.01</size>
+            </box>
+            <model_count>3</model_count>
+            <distribution>
+                <type>random</type>
+            </distribution>
+        </population>
+
+        <!-- Bins -->
+        <model name='bin_0'>
+            <pose frame=''>10.0 0.0 0 0 0 0</pose>
+            <static>1</static>
+            <link name='link'>
+                <collision name='collision'>
+                    <geometry>
+                        <mesh>
+                            <uri>model://dumpster/meshes/dumpster.dae</uri>
+                            <scale>1 1 1</scale>
+                        </mesh>
+                    </geometry>
+                    <max_contacts>10</max_contacts>
+                    <surface>
+                        <contact>
+                            <ode/>
+                        </contact>
+                        <bounce/>
+                        <friction>
+                            <torsional>
+                                <ode/>
+                            </torsional>
+                            <ode/>
+                        </friction>
+                    </surface>
+                </collision>
+                <visual name='visual'>
+                    <geometry>
+                        <mesh>
+                            <uri>model://dumpster/meshes/dumpster.dae</uri>
+                            <scale>1 1 1</scale>
+                        </mesh>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>model://dumpster/materials/scripts</uri>
+                            <uri>model://dumpster/materials/textures</uri>
+                            <name>Dumpster/Diffuse</name>
+                        </script>
+                    </material>
+                </visual>
+                <self_collide>0</self_collide>
+                <kinematic>0</kinematic>
+                <gravity>1</gravity>
+            </link>
+        </model>
+
+        <model name='bin_1'>
+            <pose frame=''>10.0 -5.0 0 0 0 0</pose>
+            <static>1</static>
+            <link name='link'>
+                <collision name='collision'>
+                    <geometry>
+                        <mesh>
+                            <uri>model://dumpster/meshes/dumpster.dae</uri>
+                            <scale>1 1 1</scale>
+                        </mesh>
+                    </geometry>
+                    <max_contacts>10</max_contacts>
+                    <surface>
+                        <contact>
+                            <ode/>
+                        </contact>
+                        <bounce/>
+                        <friction>
+                            <torsional>
+                                <ode/>
+                            </torsional>
+                            <ode/>
+                        </friction>
+                    </surface>
+                </collision>
+                <visual name='visual'>
+                    <geometry>
+                        <mesh>
+                            <uri>model://dumpster/meshes/dumpster.dae</uri>
+                            <scale>1 1 1</scale>
+                        </mesh>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>model://dumpster/materials/scripts</uri>
+                            <uri>model://dumpster/materials/textures</uri>
+                            <name>Dumpster/Diffuse</name>
+                        </script>
+                    </material>
+                </visual>
+                <self_collide>0</self_collide>
+                <kinematic>0</kinematic>
+                <gravity>1</gravity>
+            </link>
+        </model>
+
+        <model name='bin_2'>
+            <pose frame=''>10.0 5.0 0 0 0 0</pose>
+            <static>1</static>
+            <link name='link'>
+                <collision name='collision'>
+                    <geometry>
+                        <mesh>
+                            <uri>model://dumpster/meshes/dumpster.dae</uri>
+                            <scale>1 1 1</scale>
+                        </mesh>
+                    </geometry>
+                    <max_contacts>10</max_contacts>
+                    <surface>
+                        <contact>
+                            <ode/>
+                        </contact>
+                        <bounce/>
+                        <friction>
+                            <torsional>
+                                <ode/>
+                            </torsional>
+                            <ode/>
+                        </friction>
+                    </surface>
+                </collision>
+                <visual name='visual'>
+                    <geometry>
+                        <mesh>
+                            <uri>model://dumpster/meshes/dumpster.dae</uri>
+                            <scale>1 1 1</scale>
+                        </mesh>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>model://dumpster/materials/scripts</uri>
+                            <uri>model://dumpster/materials/textures</uri>
+                            <name>Dumpster/Diffuse</name>
+                        </script>
+                    </material>
+                </visual>
+                <self_collide>0</self_collide>
+                <kinematic>0</kinematic>
+                <gravity>1</gravity>
+            </link>
+        </model>
+
         <model name="wall_l">
-            <pose>-20 0 1.5 0 0 0</pose>
+            <pose>-14 0 1.5 0 0 0</pose>
             <static>1</static>
             <link name="link">
                 <visual name="visual">
                     <geometry>
                         <box>
-                            <size>0.1 40 3</size>
+                            <size>0.1 15 3</size>
                         </box>
                     </geometry>
                 </visual>
@@ -51,20 +208,20 @@
                 <collision name="collision">
                     <geometry>
                         <box>
-                            <size>0.1 40 3</size>
+                            <size>0.1 15 3</size>
                         </box>
                     </geometry>
                 </collision>
             </link>
         </model>
         <model name="wall_r">
-            <pose>20 0 1.5 0 0 0</pose>
+            <pose>14 0 1.5 0 0 0</pose>
             <static>1</static>
             <link name="link">
                 <visual name="visual">
                     <geometry>
                         <box>
-                            <size>0.1 40 3</size>
+                            <size>0.1 15 3</size>
                         </box>
                     </geometry>
                 </visual>
@@ -72,20 +229,20 @@
                 <collision name="collision">
                     <geometry>
                         <box>
-                            <size>0.1 40 3</size>
+                            <size>0.1 15 3</size>
                         </box>
                     </geometry>
                 </collision>
             </link>
         </model>
         <model name="wall_b">
-            <pose>0 -20 1.5 0 0 0</pose>
+            <pose>0 -7.5 1.5 0 0 0</pose>
             <static>1</static>
             <link name="link">
                 <visual name="visual">
                     <geometry>
                         <box>
-                            <size>40 0.1 3</size>
+                            <size>28 0.1 3</size>
                         </box>
                     </geometry>
                 </visual>
@@ -93,20 +250,20 @@
                 <collision name="collision">
                     <geometry>
                         <box>
-                            <size>40 0.1 3</size>
+                            <size>28 0.1 3</size>
                         </box>
                     </geometry>
                 </collision>
             </link>
         </model>
         <model name="wall_f">
-            <pose>0 20 1.5 0 0 0</pose>
+            <pose>0 7.5 1.5 0 0 0</pose>
             <static>1</static>
             <link name="link">
                 <visual name="visual">
                     <geometry>
                         <box>
-                            <size>40 0.1 3</size>
+                            <size>28 0.1 3</size>
                         </box>
                     </geometry>
                 </visual>
@@ -114,7 +271,7 @@
                 <collision name="collision">
                     <geometry>
                         <box>
-                            <size>40 0.1 3</size>
+                            <size>28 0.1 3</size>
                         </box>
                     </geometry>
                 </collision>
