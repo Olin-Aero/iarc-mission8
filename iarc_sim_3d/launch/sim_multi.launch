@@ -28,9 +28,9 @@
     <!-- map -> odom transforms -->
     <group if="$(arg map_tf)">
         <node pkg="tf" type="static_transform_publisher" name="map_to_drone_1_odom_tf"
-            args="-10 0.5 0 0 0 0 map drone_1/odom 1"/>
+            args="0 0 0 0 0 0 map drone_1/odom 1"/>
         <node pkg="tf" type="static_transform_publisher" name="map_to_drone_2_odom_tf"
-            args="-10 -0.5 0 0 0 0 map drone_2/odom 1"/>
+            args="0 0 0 0 0 0 map drone_2/odom 1"/>
     </group>
 
 </launch>
