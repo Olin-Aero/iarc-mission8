@@ -45,8 +45,10 @@ minWhistleLen = 0.3 # seconds; below this, whistles are not processed.  Expect s
 maxVariance = 0.5 # Maximum variance in frequency for a whistle
 tonicResetLen = 2 # Seconds to reset the scale
 
-noteNames = ["Tonic (octave down)", "3rd (octave down)", "5th (octave down)", "Tonic", "3rd", "5th", "Tonic (octave up)"]
-relativeNotes = np.log([1/2, 5/8, 3/4, 1, 5/4, 3/2, 2])
+# noteNames = ["Tonic (octave down)", "3rd (octave down)", "5th (octave down)", "Tonic", "3rd", "5th", "Tonic (octave up)"]
+# relativeNotes = np.log([1/2, 5/8, 3/4, 1, 5/4, 3/2, 2])
+noteNames = ["Tonic", "3rd", "5th", "octave"]
+relativeNotes = np.log([1, 5/4, 3/2, 2])
 
 api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
