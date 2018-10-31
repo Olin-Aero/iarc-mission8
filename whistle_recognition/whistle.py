@@ -38,13 +38,33 @@ searchFreq = 100 # Hz; minimum time between checking for whistles.
 minAmp = 0.0001 # Minimum absolute amplitude of a whistle
 minSharp = 0.0001 # Minimum "sharpness" of a whistle
 
-maxVariance = 0.001 # Maximum variance in frequency for a whistle
-tonicResetlen = 2 # Seconds to reset the scale
+maxSlope = 0.02 # Log hz per second; beyond this it's considered two separate whistles
+slopeAvgLen = 5 # Number of samples to average the slope
+minWhistleLen = 0.3 # seconds; below this, whistles are not processed.  Expect strange behavior if == 0.
 
+maxVariance = 0.5 # Maximum variance in frequency for a whistle
+tonicResetLen = 2 # Seconds to reset the scale
+
+noteNames = ["Tonic (octave down)", "3rd (octave down)", "5th (octave down)", "Tonic", "3rd", "5th", "Tonic (octave up)"]
 relativeNotes = np.log([1/2, 5/8, 3/4, 1, 5/4, 3/2, 2])
 
 api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
+
+def processWhistle(whistle, whistleLen, tonic):
+  if tonic == 0:
+    print("Tonic not set")
+  else:
+    logDist = np.log(whistleAvg) - np.log(tonic)
+    print("Log distance: " + str(logDist))
+    # Find the closest note
+    closestNote = -1
+    closestDist = np.Inf
+    for i, n in enumerate(relativeNotes):
+      if abs(logDist - n) < closestDist:
+        closestDist = logDist - n
+        closestNote = i
+    print("Closest note: " + noteNames[closestNote])
 
 # Creates a data updater callback
 def update_data():
@@ -61,6 +81,7 @@ th.start() # Actually start updating data
 
 # Set up some variables preserved between search iterations
 whistle = [] # This whistle so far
+logWhistle = []
 whistleLen = 0 # The whistle's length, in seconds
 lastTime = time.clock()
 tonic = 0 # Freq, in Hz, of the tonic note off of which other whistles will be judged
@@ -94,32 +115,36 @@ try:
     lastTime = thisTime
 
     if minAmp < amplitude and minSharp < sharpness:
-      print("Freq: " + str(freq) + "\tAmplitude: " + str(amplitude) + "\tSharpness: " + str(sharpness))
+      #print("Freq: " + str(freq) + "\tAmplitude: " + str(amplitude) + "\tSharpness: " + str(sharpness))
       whistle += [freq]
+      logWhistle += [np.log(freq)]
       whistleLen += timeSinceLast
-      whistleAvg = np.exp(np.mean(np.log(whistle))) # Take the log mean to find the cental frequency
-      if tonicResetlen <= whistleLen:
-        if np.var(np.log(whistle)) < maxVariance:
+      whistleAvg = np.exp(np.mean(logWhistle)) # Take the log mean to find the cental frequency
+      if tonicResetLen <= whistleLen:
+        if np.var(logWhistle) < maxVariance:
           tonic = whistleAvg
           print("Reset tonic to " + str(tonic) + " Hz")
         else:
           print("Variance too high")
       else:
-        if tonic == 0:
-          print("Tonic not set")
-        else:
-          logDist = np.log(whistleAvg) - np.log(tonic)
-          print("Log distance: " + str(logDist))
-          # Find the closest note
-          closestNote = -1
-          closestDist = np.Inf
-          for i, n in enumerate(relativeNotes):
-            if abs(logDist - n) < closestDist:
-              closestDist = logDist - n
-              closestNote = i
-          print("Closest note index: " + str(closestNote))
+        if slopeAvgLen+1 <= len(whistle):
+          diffs = np.subtract(logWhistle[-slopeAvgLen:], logWhistle[-slopeAvgLen-1:-1])
+          if np.sqrt(np.mean(np.square(diffs))) <= maxSlope:
+            pass
+            # print("Continuous whistle")
+          else:
+            # print("Discontinuity!")
+            if minWhistleLen <= whistleLen < tonicResetLen:
+              processWhistle(whistle, whistleLen, tonic)
+            whistle = []
+            logWhistle = []
+            whistleLen = 0
+
     else:
+      if minWhistleLen <=  whistleLen < tonicResetLen:
+        processWhistle(whistle, whistleLen, tonic)
       whistle = []
+      logWhistle = []
       whistleLen = 0
  
     
