@@ -7,12 +7,24 @@ import itertools
 
 class Combiner():
 	def __init__(self):
+		self.drone1QRSub = rospy.Subscriber('/drone1/QRImage',Image,self.drone1CB) # The callbacks won't work as I have not yet figured out how to convert a ROS image to PIL image
+		self.drone2QRSub = rospy.Subscriber('/drone2/QRImage',Image,self.drone2CB)
+		self.drone3QRSub = rospy.Subscriber('/drone3/QRImage',Image,self.drone3CB)
+		self.drone4QRSub = rospy.Subscriber('/drone4/QRImage',Image,self.drone4CB)
 		rospack = rospkg.RosPack() 
 		pkgRoot = rospack.get_path('iarc_fuses') # Gets the package
 		images = []
 		for i in range(4):
 			images.append(Image.open(os.path.join(pkgRoot,"scripts","FinalImage%d.png" % (i))))
 		self.images = images
+	def drone1CB(self,imageMessage):
+		self.images[0] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
+	def drone2CB(self,imageMessage):
+		self.images[1] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
+	def drone3CB(self,imageMessage):
+		self.images[2] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
+	def drone4CB(self,imageMessage):
+		self.images[3] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
 	def decode(self,image):
 		my_QR = QR()
 		if my_QR.decode(image): # if the image is a recognizable QR Code
@@ -37,9 +49,11 @@ class Combiner():
 			result = self.decode("combined_im.png") # decodes the image file, returns None if it isnt a qr, otherwise the value-
 			os.remove("combined_im.png") # gets rid of the image from the file
 			if not result == None:
+				for i in range(4):
+					os.remove("FinalImage%d.png" %(i))
 				return result
 	def run(self):
-		print(self.combineAndDecode())
+		return self.combineAndDecode()
 if __name__ == '__main__':
 	comb = Combiner()
 	comb.run()
