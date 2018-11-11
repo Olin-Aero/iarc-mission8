@@ -147,11 +147,13 @@ class CamStitcher(object):
         # ROS Handles
         self.br_ = CvBridge()
         self.tfl_ = tf.TransformListener()
+        self.hud_pub_ = rospy.Publisher('hud', Image, queue_size=10)
 
         # setup camera subscribers
         self.sub_   = {k:None for k in self.sources_}
-        self.data_   = {k:None for k in self.sources_}
-        self.model_   = {k:None for k in self.sources_}
+        self.data_  = {k:None for k in self.sources_}
+        self.model_ = {k:None for k in self.sources_}
+        self.area_  = {k:None for k in self.sources_}
 
         for src in self.sources_:
             img_sub  = message_filters.Subscriber('{}/image_raw'.format(src), Image) 
@@ -206,7 +208,7 @@ class CamStitcher(object):
                 It is recommended to keep this parameter untouched to prevent duplicate processing.
         """
         if self.data_[cam_id] is None:
-            return
+            return False
 
         # unpack metadata ...
         header, img = self.data_[cam_id] 
@@ -221,7 +223,7 @@ class CamStitcher(object):
             tf_x = self.tfl_.lookupTransform(self.map_frame_, cm.tf_frame, stamp) # tf_frame is optical frame
         except tf.Exception as e:
             rospy.loginfo_throttle(1.0, 'Cam Stitcher TF Exception : {}'.format(e))
-            return
+            return False
 
         w,h = cm.width, cm.height
         n,m = self.map_shape_[:2]
@@ -231,8 +233,8 @@ class CamStitcher(object):
 
         # four corners groundplane projection
         dst_ar = ground_area(cm, src_ar, tf_x)
-        dst_ar = self.xy2uv(dst_ar).astype(np.float32)
-        M = cv2.getPerspectiveTransform(src_ar, dst_ar)
+        dst_ar_uv = self.xy2uv(dst_ar).astype(np.float32)
+        M = cv2.getPerspectiveTransform(src_ar, dst_ar_uv)
 
         # horizon area mask to prevent skylines/wall-like objects from getting written on the map
         hor_ar = horizon_area(cm, tf_x, inv=False)
@@ -247,31 +249,49 @@ class CamStitcher(object):
         sel = np.broadcast_to(self.tmp_ == 255, self.tmp2_.shape) # mask index
         self.map_[sel] = self.tmp2_[sel] # finally, update data
 
-        # visualization
-        #np.copyto(self.viz_, self.map_)
-        #dbg_ar = ground_area(cm, hor_ar, tf_x)
-        #print('dbg_ar', dbg_ar)
-        #ix_ar = sp.Polygon(dst_ar).intersection(sp.Polygon(dbg_ar))
-        #print(ix_ar)
-
+        # Mark Visibility Boundary
+        dbg_ar = ground_area(cm, hor_ar, tf_x)
+        ix_ar = sp.Polygon(dst_ar).intersection(sp.Polygon(dbg_ar))
+        ix_ar = ix_ar.exterior.coords
+        ix_ar = self.xy2uv(ix_ar)
+        self.area_[cam_id] = ix_ar
 
         if reset:
             self.data_[cam_id] = None
 
+        return True
+
+    def overlay(self, ks):
+        """ overlay visualization """
+        np.copyto(self.viz_, self.map_)
+        if len(ks) > 0:
+            area = [self.area_[k] for k in ks]
+            cv2.polylines(self.viz_, area, True, [255,0,0], 4)
+
     def step(self):
         """ single step through all known camera sources"""
+        update_keys = []
         for src in self.sources_:
-            self.proc(src)
+            if self.proc(src): update_keys.append(src)
+        self.overlay(update_keys)
+
+    def publish(self, as_cv=False):
+        """ publish hud - visualization over ROS or OpenCV """
+        if as_cv:
+            cv2.imshow('map', np.flipud(self.viz_))
+            cv2.waitKey(10)
+        else:
+            msg = self.br_.cv2_to_imgmsg(np.flipud(self.viz_), "bgr8")
+            self.hud_pub_.publish(msg)
 
     def run(self):
         """ actually run the node """
         rate = rospy.Rate(50)
-        cv2.namedWindow('map', cv2.WINDOW_NORMAL)
+        #cv2.namedWindow('map', cv2.WINDOW_NORMAL)
         while not rospy.is_shutdown():
             self.step()
             rate.sleep()
-            cv2.imshow('map', np.flipud(self.map_))
-            cv2.waitKey(10)
+            self.publish()
 
 def main():
     rospy.init_node('cam_stitcher')
