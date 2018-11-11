@@ -1,5 +1,6 @@
 from PIL import Image
 import os
+import rospy
 import rospkg
 from qrtools import QR
 from random import shuffle
@@ -7,13 +8,14 @@ import itertools
 
 class Combiner():
 	def __init__(self):
-		self.drone1QRSub = rospy.Subscriber('/drone1/QRImage',Image,self.drone1CB) # The callbacks won't work as I have not yet figured out how to convert a ROS image to PIL image
-		self.drone2QRSub = rospy.Subscriber('/drone2/QRImage',Image,self.drone2CB)
-		self.drone3QRSub = rospy.Subscriber('/drone3/QRImage',Image,self.drone3CB)
-		self.drone4QRSub = rospy.Subscriber('/drone4/QRImage',Image,self.drone4CB)
-		rospack = rospkg.RosPack() 
+		# self.drone1QRSub = rospy.Subscriber('/drone1/QRImage',Image,self.drone1CB) # The callbacks won't work as I have not yet figured out how to convert a ROS image to PIL image
+		# self.drone2QRSub = rospy.Subscriber('/drone2/QRImage',Image,self.drone2CB)
+		# self.drone3QRSub = rospy.Subscriber('/drone3/QRImage',Image,self.drone3CB)
+		# self.drone4QRSub = rospy.Subscriber('/drone4/QRImage',Image,self.drone4CB)
+		rospack = rospkg.RosPack()
 		pkgRoot = rospack.get_path('iarc_fuses') # Gets the package
 		images = []
+		# Stand-in images until ros detection callback exists
 		for i in range(4):
 			images.append(Image.open(os.path.join(pkgRoot,"scripts","FinalImage%d.png" % (i))))
 		self.images = images
