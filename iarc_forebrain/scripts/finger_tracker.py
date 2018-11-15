@@ -35,7 +35,7 @@ def track_fingers(image, visualize=True):
     if len(contours)==0: return
     contours = sorted(contours, key=cv2.contourArea)
     hand = contours[-1]
-    convexIndices = cv2.convexHull(hand), returnPoints=False)
+    convexIndices = cv2.convexHull(hand, returnPoints=False)
     fingertips = [contours[-1][i[0]] for i in convexIndices]
     fingertips, convexIndices = groupPoints(fingertips, convexIndices)
 

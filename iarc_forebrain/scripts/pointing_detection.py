@@ -24,17 +24,13 @@ IMAGE_HEIGHT = FOCAL_Y
 def nothing(x):
     pass
 
-def pointing_detection(image, visualize=True):
+def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     """
-    Determines direction that an arm is pointing
+    Determines direction that human player is pointing and location of helmet
+    returns (angle in degrees CCW from forward, helmet position vector in drone frame)
     """
     IMAGE_WIDTH = image.shape[0]
     IMAGE_HEIGHT = image.shape[1]
-    # pitch = 60*math.pi/180
-    pitch = 60*math.pi/180 # at pitch = 0 camera faces down
-    # z = 2;
-    z = .75; # height of camera above ground
-
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -64,15 +60,15 @@ def pointing_detection(image, visualize=True):
 
     # Simple yaw estimate
     yaw = math.atan2(dy, dx) - math.pi/2
-    print("Simple yaw")
-    print(yaw*180/math.pi)
+    # print("Simple yaw")
+    # print(yaw*180/math.pi)
 
     # Transformation based yaw estimate
     tvec_head = find_point(p1, z-PLAYER_HEIGHT, pitch)
     tvec_hand = find_point(p2, z-PLAYER_HEIGHT, pitch)
 
-    print("Helmet position")
-    print(tvec_head)
+    # print("Helmet position")
+    # print(tvec_head)
     dx = tvec_hand[0] - tvec_head[0]
     dy = tvec_hand[1] - tvec_head[1]
     yaw = math.atan2(dy, dx) - math.pi/2
@@ -86,7 +82,7 @@ def pointing_detection(image, visualize=True):
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
     print("Better yaw")
-    return yaw*180/math.pi
+    return (yaw, tvec_head)
 
 def find_point(p, dz, pitch):
     ''' Locates point given coordinates in image, drone pitch, and height difference between drone and point.
@@ -136,6 +132,11 @@ def locate(image, lower, upper):
 
 ### Test code for processing data directly from the computer webcam or a saved image file
 if __name__ == '__main__':
+    # pitch = 60*math.pi/180
+    pitch = 60*math.pi/180 # at pitch = 0 camera faces down
+    # z = 2;
+    z = .75; # height of camera above ground
+    
     if len(sys.argv) == 2:
         filename = sys.argv[1]
         if filename == 'webcam':
@@ -150,8 +151,8 @@ if __name__ == '__main__':
                     break
 
                 # Process it
-                coordinates = pointing_detection(image)
-                print(coordinates)
+                coordinates = pointing_detection(image, pitch, z, True)
+                print(coordinates[0]*180/math.pi)
 
                 # Exit if the "Esc" key is pressed
                 key = cv2.waitKey(1)
@@ -160,7 +161,7 @@ if __name__ == '__main__':
         else:
             # Read data from an image file
             image = cv2.imread(filename)
-            count = pointing_detection(image)
+            count = pointing_detection(image, pitch, z, True)
             print(count)
             cv2.waitKey(0)
 
