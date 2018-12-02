@@ -38,6 +38,10 @@
         <include>
             <uri>model://iarc_sim_3d/models/grid</uri>
         </include>
+        <include>
+            <uri>model://iarc_sim_3d/models/QR</uri>
+        </include>
+
 
         <model name="wall_l">
             <pose>-20 0 1.5 0 0 0</pose>
