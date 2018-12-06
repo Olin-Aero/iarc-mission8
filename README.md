@@ -3,13 +3,13 @@
 
 Semester 1 integration targets
 
-- [ ] Drone.py
+- [ ] Drone.py - Eric
 - [ ] Bebop
-- [ ] Map visualization
-- [ ] QR code stitching
-- [ ] Pointing direction stuff
-- [ ] Whistle commands
+- [x] Map visualization
+- [ ] QR code stitching - Nathan
+- [ ] Pointing direction stuff - Paul and David
+- [ ] Whistle commands - Adam
   - [ ] “go”
   - [ ] “stop”
   - [ ] “camera”
-- [ ] Object detection (running with default classes)
+- [ ] Object detection (running with default classes) - Lydia (Eric supporting)
