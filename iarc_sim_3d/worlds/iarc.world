@@ -35,11 +35,20 @@
         <include>
             <uri>model://iarc_sim_3d/models/floor</uri>
         </include>
-        <include>
+        <!-- <include>
             <uri>model://iarc_sim_3d/models/grid</uri>
+        </include> -->
+        <include>
+            <uri>model://iarc_sim_3d/models/qr1</uri>
         </include>
         <include>
-            <uri>model://iarc_sim_3d/models/QR</uri>
+            <uri>model://iarc_sim_3d/models/qr2</uri>
+        </include>
+        <include>
+            <uri>model://iarc_sim_3d/models/qr3</uri>
+        </include>
+        <include>
+            <uri>model://iarc_sim_3d/models/qr4</uri>
         </include>
 
 

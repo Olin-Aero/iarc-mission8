@@ -110,7 +110,7 @@ material IARC/QR1
                 texture 0140-1.png
                     filtering anisotropic
                     max_anisotropy 16
-                    scale 0.1 0.1
+                    scale 1 1
             }
         }
     }
@@ -132,7 +132,7 @@ material IARC/QR2
                 texture 0140-2.png
                     filtering anisotropic
                     max_anisotropy 16
-                    scale 0.1 0.1
+                    scale 1 1
             }
         }
     }
@@ -154,7 +154,7 @@ material IARC/QR3
                 texture 0140-3.png
                     filtering anisotropic
                     max_anisotropy 16
-                    scale 0.1 0.1
+                    scale 1 1
             }
         }
     }
@@ -176,7 +176,7 @@ material IARC/QR4
                 texture 0140-4.png
                     filtering anisotropic
                     max_anisotropy 16
-                    scale 0.1 0.1
+                    scale 1 1
             }
         }
     }
