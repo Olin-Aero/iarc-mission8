@@ -31,8 +31,8 @@ class QRCombiner():
             combined_im.paste(im3,(0,width)) # third in bottom left
             im4 = images[perm[3]].crop((15,15,width,height))
             combined_im.paste(im4,(height,width)) # fourth in bottom right
-            combined_im.save("combined_im.png") # saves the image because the QR decoder doesn't accept a PIL Image
-            result = self.decode("combined_im.png") # decodes the image file, returns None if it isnt a qr, otherwise the value-
+            combined_im.save("/tmp/combined_im.png") # saves the image because the QR decoder doesn't accept a PIL Image
+            result = self.decode("/tmp/combined_im.png") # decodes the image file, returns None if it isnt a qr, otherwise the value-
             #os.remove("combined_im.png") # gets rid of the image from the file
             if not (result is None):
                 print ':)'
@@ -50,7 +50,7 @@ def main():
 
     for i in range(4):
         # NOTE: Get the images from the IARC google drive
-        images.append(Image.open(os.path.join(pkgRoot,"QRCodes","1929-%d.png" % (i+1))))
+        images.append(Image.open("/tmp","Image2-%d.png" % (i))))
     print images
 
     comb = QRCombiner()
