@@ -1,8 +1,11 @@
 <launch>
     <arg name="3d" default="false"/>
+    <arg name="single" default="true"/>
 
     <include file="$(find iarc_sim_2d)/launch/basic.launch" unless="$(arg 3d)"/>
-    <include file="$(find iarc_sim_3d)/launch/sim.launch" if="$(arg 3d)"/>
+    <include file="$(find iarc_sim_3d)/launch/sim.launch" if="$(arg 3d)">
+	    <arg name="single" value="$(arg single)"/>
+    </include>
 
     <include file="$(find iarc_main)/launch/backbone.launch"/>
     <node pkg="tf" type="static_transform_publisher" name="launch_frame"
