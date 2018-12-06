@@ -82,7 +82,7 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     velocity_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("navdataTopic"))
-    navdata_topic_ = "/ardrone/navdata";
+    navdata_topic_ = "ardrone/navdata";
   else
     navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValue()->GetAsString();
 
@@ -98,12 +98,12 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
 
   if (!_sdf->HasElement("bodyName"))
   {
-    link = _model->GetLink();
+    link = _model->GetLink("base_link");
     link_name_ = link->GetName();
   }
   else {
     link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
-    link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
+    link = _model->GetLink(link_name_);
   }
 
   if (!link)
