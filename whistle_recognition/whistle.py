@@ -1,29 +1,14 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-# Adapted from audiolazy_example.py, which came with this license...
-#
-# This file is part of AudioLazy, the signal processing Python package.
-# Copyright (C) 2012-2016 Danilo de Jesus da Silva Bellini
-#
-# AudioLazy is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#!/usr/bin/env python2
+# Some parts of this file were adapted from the AudioLazy example "animated_plot.py"
 """
-whistle detector.  Work in progress!
+Whistle detector.  Publishes whistles, interpreted as voice commands, to a ROS channel.
 """
-# from __future__ import division
+from __future__ import division
 from audiolazy import sHz, chunks, AudioIO, line, pi, window
 import numpy as np
 import collections, sys, threading, time
+import rospy
+from std_msgs.msg import String
 
 # AudioLazy init
 rate = 44100
@@ -53,20 +38,50 @@ relativeNotes = np.log([1, 5/4, 3/2, 2])
 api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
 
-def processWhistle(whistle, whistleLen, tonic):
+
+def whistlesToCmd(whistles):
+  """
+  Tries to convert a series of 3 whistles into a "voice" command.
+  Whistles represent drone index, direction, and distance, in that order.
+  Returns the command as a string, or None otherwise.
+  """
+
+  # Each command has three parts: drone name, direction, distance.
+  # These convert the four whistled tones into each of those parts.
+  drones = ["alpha", "bravo", "charlie", "delta"]
+  dirs = ["north", "east", "south", "west"]
+  dists = ["0.5", "1", "2", "4"]
+
+  if len(whistles) != 3:
+    return
+  
+  cmd = " ".join([drones[whistles[0]], dirs[whistle[1]], dists[whistles[2]]])
+  return cmd
+
+def freqToNote(freq, tonic):
   if tonic == 0:
     print("Tonic not set")
-  else:
-    logDist = np.log(whistleAvg) - np.log(tonic)
-    print("Log distance: " + str(logDist))
-    # Find the closest note
-    closestNote = -1
-    closestDist = np.Inf
-    for i, n in enumerate(relativeNotes):
-      if abs(logDist - n) < closestDist:
-        closestDist = logDist - n
-        closestNote = i
+    return None
+
+  logDist = np.log(whistleAvg) - np.log(tonic)
+  print("Log distance: " + str(logDist))
+  closestNote = -1
+  closestDist = np.Inf
+  for i, n in enumerate(relativeNotes):
+    if abs(logDist - n) < closestDist:
+      closestDist = logDist - n
+      closestNote = i
+  if closestNote != -1:
     print("Closest note: " + noteNames[closestNote])
+    return closestNote
+  else:
+    print("No closest note...?")
+    return None
+
+
+def processWhistle(whistle, whistleLen, tonic):
+  note = freqToNote(whistle, tonic)
+  
 
 # Creates a data updater callback
 def update_data():
@@ -75,6 +90,13 @@ def update_data():
       data.append(el)
       if update_data.finish:
         break
+
+# Define the rospy publisher
+pub = rospy.Publisher("/voice", String, queue_size = 10)
+
+# Start the ROS node
+rospy.init_node("whistle_detector", anonymous = True)
+
 
 # Creates the data updater thread
 update_data.finish = False
@@ -88,8 +110,8 @@ whistleLen = 0 # The whistle's length, in seconds
 lastTime = time.clock()
 tonic = 0 # Freq, in Hz, of the tonic note off of which other whistles will be judged
 
-try:
-  while True:
+try: # Catch ctrl-c nicely.  May no longer be needed with rospy.
+  while not rospy.is_shutdown:
     array_data = np.array(data)
     spectrum = np.abs(np.fft.rfft(array_data * wnd)) / length
 
@@ -117,7 +139,6 @@ try:
     lastTime = thisTime
 
     if minAmp < amplitude and minSharp < sharpness:
-      #print("Freq: " + str(freq) + "\tAmplitude: " + str(amplitude) + "\tSharpness: " + str(sharpness))
       whistle += [freq]
       logWhistle += [np.log(freq)]
       whistleLen += timeSinceLast
@@ -133,22 +154,18 @@ try:
           diffs = np.subtract(logWhistle[-slopeAvgLen:], logWhistle[-slopeAvgLen-1:-1])
           if np.sqrt(np.mean(np.square(diffs))) <= maxSlope:
             pass
-            # print("Continuous whistle")
           else:
-            # print("Discontinuity!")
             if minWhistleLen <= whistleLen < tonicResetLen:
               processWhistle(whistle, whistleLen, tonic)
             whistle = []
             logWhistle = []
             whistleLen = 0
-
-    else:
+    else: # if amplitude or sharpness is too low
       if minWhistleLen <=  whistleLen < tonicResetLen:
         processWhistle(whistle, whistleLen, tonic)
       whistle = []
       logWhistle = []
       whistleLen = 0
- 
     
     #Try to keep times as close to searchFreq as possible
     if timeSinceLast < (1 / searchFreq):
@@ -156,6 +173,6 @@ try:
 except KeyboardInterrupt:
   pass
 
-# Stop the recording thread after closing the window
+# Stop the recording thread
 update_data.finish = True
 th.join()
