@@ -13,8 +13,9 @@ import sys
 from pointing_detection import pointing_detection
 from util.Drone import Drone
 
+SAMPLE_PERIOD = .1
 CAM_PITCH = math.pi/2
-D = 2
+D = 1
 
 class FollowGesture:
 
@@ -23,16 +24,16 @@ class FollowGesture:
         self.bridge = CvBridge()
         self.pub = rospy.Publisher("/gesture_direction", Float64, queue_size=10)
         self.drone = Drone()
+        self.prevTime = rospy.Time.now()
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
         rospy.Subscriber("/ardrone/front/image_raw", Image, self.image_raw_callback)
-        self.a = False
 
     def image_raw_callback(self, msg):
         try:
-            if(self.a):
+            if((rospy.Time.now()-self.prevTime).to_sec()<SAMPLE_PERIOD):
                 return
-            self.a = True
+            self.prevTime = rospy.Time.now()
             frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
             # frame = msg
 
@@ -41,14 +42,16 @@ class FollowGesture:
             o = pos.pose.orientation
             orientation = euler_from_quaternion([o.w, o.x, o.y, o.z])
 
-            direction, helmet = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, True)
+            direction, helmet = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, False)
+            if direction is None:
+                return
             self.pub.publish(direction)
-            print(direction)
 
 
             dx = D*math.cos(direction+orientation[2])
             dy = D*math.sin(direction+orientation[2])
-            self.drone.move_to(pos.pose.position.x+dx, pos.pose.position.y+dy)
+            print(pos.pose.position.x+dx, pos.pose.position.y+dy)
+            self.drone.move_towards(pos.pose.position.x+dx, pos.pose.position.y+dy)
             key = cv2.waitKey(1)
 
         except CvBridgeError as e:
@@ -59,9 +62,9 @@ class FollowGesture:
         # TODO wait for signal
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
-        while True:
+        # while True:
             # rate.sleep()
-            rospy.spin()
+        rospy.spin()
             # ok, image = self.camera.read()
             # if not ok:
             #     print("Unable to open webcam...")

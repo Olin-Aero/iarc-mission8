@@ -32,6 +32,8 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     # print(pitch)
     # pitch += math.pi/2
     # print(z)
+    pitch = 60*math.pi/180 
+    z = 0.75
 
     IMAGE_WIDTH = image.shape[0]
     IMAGE_HEIGHT = image.shape[1]
@@ -58,6 +60,9 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     upper4 = np.array([67, 255, 255])
     p2 = locate(hsv, lower4, upper4)
 
+    if(p1 is None or p2 is None):
+        return (None, None)
+
     dx = p2[0]-p1[0]
     dy = -p2[1]+p1[1] # image coordinate system is vertically flipped
     dy = dy/math.cos(pitch)
@@ -75,7 +80,7 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     # print(tvec_head)
     dx = tvec_hand[0] - tvec_head[0]
     dy = tvec_hand[1] - tvec_head[1]
-    yaw = math.atan2(dy, dx) - math.pi/2
+    yaw = math.atan2(dy, dx) #- math.pi/2
     if yaw < -math.pi:
         yaw += 2*math.pi
 
@@ -85,8 +90,8 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
         cv2.circle(image, p2, 10, (0, 0, 255), -1)
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
-    print("Better yaw")
-    print(yaw)
+    # print("Better yaw")
+    print(yaw*180/math.pi)
     return (yaw, tvec_head)
 
 def find_point(p, dz, pitch):
@@ -126,7 +131,7 @@ def locate(image, lower, upper):
     contours = filter(lambda x:len(x)>10, contours)
     contours = sorted(contours, key=cv2.contourArea)
     if not len(contours):
-        return  (0,0)
+        return  None
     target = contours[-1]
 
     M = cv2.moments(target)
