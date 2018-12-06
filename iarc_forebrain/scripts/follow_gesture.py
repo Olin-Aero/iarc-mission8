@@ -26,11 +26,15 @@ class FollowGesture:
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
         rospy.Subscriber("/ardrone/front/image_raw", Image, self.image_raw_callback)
+        self.a = False
 
     def image_raw_callback(self, msg):
         try:
-          # frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            frame = msg
+            if(self.a):
+                return
+            self.a = True
+            frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            # frame = msg
 
             pos = self.drone.get_pos()
             
@@ -39,11 +43,13 @@ class FollowGesture:
 
             direction, helmet = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, True)
             self.pub.publish(direction)
+            print(direction)
 
 
             dx = D*math.cos(direction+orientation[2])
             dy = D*math.sin(direction+orientation[2])
             self.drone.move_to(pos.pose.position.x+dx, pos.pose.position.y+dy)
+            key = cv2.waitKey(1)
 
         except CvBridgeError as e:
             print(e)
@@ -54,7 +60,8 @@ class FollowGesture:
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
         while True:
-            rate.sleep()
+            # rate.sleep()
+            rospy.spin()
             # ok, image = self.camera.read()
             # if not ok:
             #     print("Unable to open webcam...")

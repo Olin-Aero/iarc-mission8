@@ -29,6 +29,10 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     Determines direction that human player is pointing and location of helmet
     returns (angle in degrees CCW from forward, helmet position vector in drone frame)
     """
+    # print(pitch)
+    # pitch += math.pi/2
+    # print(z)
+
     IMAGE_WIDTH = image.shape[0]
     IMAGE_HEIGHT = image.shape[1]
 
@@ -54,9 +58,9 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     upper4 = np.array([67, 255, 255])
     p2 = locate(hsv, lower4, upper4)
 
-    dx = p2[0]-p1[0];
-    dy = -p2[1]+p1[1]; # image coordinate system is vertically flipped
-    dy = dy/math.cos(pitch);
+    dx = p2[0]-p1[0]
+    dy = -p2[1]+p1[1] # image coordinate system is vertically flipped
+    dy = dy/math.cos(pitch)
 
     # Simple yaw estimate
     yaw = math.atan2(dy, dx) - math.pi/2
@@ -82,6 +86,7 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
     print("Better yaw")
+    print(yaw)
     return (yaw, tvec_head)
 
 def find_point(p, dz, pitch):
