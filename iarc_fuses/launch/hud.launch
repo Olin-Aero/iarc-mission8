@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="iarc_fuses" type="camstitcher.py" name="hud" output="screen">
+        <param name="map_frame" value="map"/>
+        <param name="sources" value="/drone_1/ardrone/bottom;/drone_2/ardrone/bottom"/>
+    </node>
+</launch>

@@ -60,22 +60,22 @@ void GazeboQuadrotorStateController::Load(physics::ModelPtr _model, sdf::Element
     velocity_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("takeoffTopic"))
-    takeoff_topic_ = "/ardrone/takeoff";
+    takeoff_topic_ = "ardrone/takeoff";
   else
     takeoff_topic_ = _sdf->GetElement("takeoffTopic")->GetValue()->GetAsString();
 
-  if (!_sdf->HasElement("/ardrone/land"))
-    land_topic_ = "/ardrone/land";
+  if (!_sdf->HasElement("ardrone/land"))
+    land_topic_ = "ardrone/land";
   else
     land_topic_ = _sdf->GetElement("landTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("resetTopic"))
-    reset_topic_ = "/ardrone/reset";
+    reset_topic_ = "ardrone/reset";
   else
     reset_topic_ = _sdf->GetElement("resetTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("navdataTopic"))
-    navdata_topic_ = "/ardrone/navdata";
+    navdata_topic_ = "ardrone/navdata";
   else
     navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValue()->GetAsString();
 
@@ -194,7 +194,7 @@ void GazeboQuadrotorStateController::Load(physics::ModelPtr _model, sdf::Element
 
   // for camera control
   // switch camera server
-  std::string toggleCam_topic  = "ardrone/togglecam";
+  std::string toggleCam_topic  = "togglecam";
   ros::AdvertiseServiceOptions toggleCam_ops = ros::AdvertiseServiceOptions::create<std_srvs::Empty>(
     toggleCam_topic,
     boost::bind(&GazeboQuadrotorStateController::toggleCamCallback, this, _1,_2),
@@ -204,9 +204,9 @@ void GazeboQuadrotorStateController::Load(physics::ModelPtr _model, sdf::Element
   toggleCam_service = node_handle_->advertiseService(toggleCam_ops);
 
   // camera image data
-  std::string cam_out_topic  = "/ardrone/image_raw";
-  std::string cam_front_in_topic = "/ardrone/front/image_raw";
-  std::string cam_bottom_in_topic = "/ardrone/bottom/image_raw";
+  std::string cam_out_topic  = "ardrone/image_raw";
+  std::string cam_front_in_topic = "ardrone/front/image_raw";
+  std::string cam_bottom_in_topic = "ardrone/bottom/image_raw";
   std::string in_transport = "raw";
 
   camera_it_ = new image_transport::ImageTransport(*node_handle_);
@@ -223,9 +223,9 @@ void GazeboQuadrotorStateController::Load(physics::ModelPtr _model, sdf::Element
     ros::VoidPtr(), in_transport);
 
   // camera image data
-  std::string cam_info_out_topic  = "/ardrone/camera_info";
-  std::string cam_info_front_in_topic = "/ardrone/front/camera_info";
-  std::string cam_info_bottom_in_topic = "/ardrone/bottom/camera_info";
+  std::string cam_info_out_topic  = "ardrone/camera_info";
+  std::string cam_info_front_in_topic = "ardrone/front/camera_info";
+  std::string cam_info_bottom_in_topic = "ardrone/bottom/camera_info";
 
   camera_info_publisher_ = node_handle_->advertise<sensor_msgs::CameraInfo>(cam_info_out_topic,1);
 
@@ -419,7 +419,7 @@ void GazeboQuadrotorStateController::Update()
 
 
   navdata.header.stamp = ros::Time::now();
-  navdata.header.frame_id = "ardrone_base_link";
+  navdata.header.frame_id = namespace_ + "base_link"; // TODO : fix - technically tf_prefix
   navdata.state = robot_current_state;
   navdata.magX = 0;
   navdata.magY = 0;
