@@ -111,7 +111,7 @@ lastTime = time.clock()
 tonic = 0 # Freq, in Hz, of the tonic note off of which other whistles will be judged
 
 try: # Catch ctrl-c nicely.  May no longer be needed with rospy.
-  while not rospy.is_shutdown:
+  while not rospy.is_shutdown():
     array_data = np.array(data)
     spectrum = np.abs(np.fft.rfft(array_data * wnd)) / length
 
