@@ -30,6 +30,8 @@ minWhistleLen = 0.3 # seconds; below this, whistles are not processed.  Expect s
 maxVariance = 0.5 # Maximum variance in frequency for a whistle
 tonicResetLen = 2 # Seconds to reset the scale
 
+maxGroupSpacing = 2; # Seconds between whistles for a group
+
 # noteNames = ["Tonic (octave down)", "3rd (octave down)", "5th (octave down)", "Tonic", "3rd", "5th", "Tonic (octave up)"]
 # relativeNotes = np.log([1/2, 5/8, 3/4, 1, 5/4, 3/2, 2])
 noteNames = ["Tonic", "3rd", "5th", "octave"]
@@ -39,7 +41,7 @@ api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
 
 
-def whistlesToCmd(whistles):
+def groupToCmd(whistles):
   """
   Tries to convert a series of 3 whistles into a "voice" command.
   Whistles represent drone index, direction, and distance, in that order.
@@ -78,9 +80,27 @@ def freqToNote(freq, tonic):
     print("No closest note...?")
     return None
 
-
+lastWhistleTime = 0 # time zero -> "infinitely long ago"
+group = []
 def processWhistle(whistle, whistleLen, tonic):
+  global lastWhistleTime, group # I am sorry.
+
   note = freqToNote(whistle, tonic)
+  if note is not None:
+    # Check timing, maybe start a new group
+    now = time.clock()
+    if (now - lastWhistleTime) > maxGroupSpacing:
+      group = [note]
+      print("Too long!")
+    lastWhistleTime = now
+    print("Last whistle time is now " + str(lastWhistleTime))
+
+    if len(group) == 3:
+      cmd = groupToCmd(group)
+      rospy.loginfo(cmd)
+      pub.publish(cmd) 
+      group = []
+
   
 
 # Creates a data updater callback
