@@ -13,10 +13,6 @@ class QRDetector():
     def __init__(self):
         pass
 
-    def __call__(self, img):
-        qr = self.detect(img) # might return a list of candidate regions or something
-        return qr
-
     def imageToBinary(self,image):
         # inputse an image to get the whites of a digital screen
         whiteLowerBound = (249,210,160) # a high blue value was used because computers tend to make white very blue.
@@ -58,26 +54,30 @@ class QRDetector():
     def getCroppedImage(self,rotatedImage,box):
         # inputs a rotated image and box containing a qr quadrant and returns a 200 by 200 image containing the qr quadrant
         crop_img = rotatedImage[box[1][1]:box[3][1], box[1][0]:box[3][0]] # crops the image by the box
-        crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY) #  converts the box to grayscale to easily calculate the mean
-        height, width = crop_img.shape # width and height of the image
+        bw_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY) #  converts the box to grayscale to easily calculate the mean
+        height, width = bw_img.shape # width and height of the image
         if width > height: # if the width is greater than the height, it needs to be cut in one direction
-            selection1 = crop_img[0:height, 0:height] # first selection is the left square
-            selection2 = crop_img[0:height, width-height:width] # second selection is the right square
-            mean1, _ = cv2.meanStdDev(selection1) # calculates the mean brightness of each selection
-            mean2, _ = cv2.meanStdDev(selection2)
+            selection1C = crop_img[0:height, 0:height] # first selection is the left square
+            selection2C = crop_img[0:height, width-height:width] # second selection is the right square
+            selection1B = bw_img[0:height, 0:height] # first selection is the left square
+            selection2B = bw_img[0:height, width-height:width] # second selection is the right square
+            mean1, _ = cv2.meanStdDev(selection1B) # calculates the mean brightness of each selection
+            mean2, _ = cv2.meanStdDev(selection2B)
             if mean1 > mean2: # whichever selection is brighter on average becomes the final image
-                    finalImage = selection1
+                    finalImage = selection1C
             else:
-                    finalImage = selection2
+                    finalImage = selection2C
         if height > width: # same as above but in the case that the height needs to be cut
-            selection1 = crop_img[0:width, 0:width]
-            selection2 = crop_img[height - width:height, 0:width]
-            mean1, _ = cv2.meanStdDev(selection1)
-            mean2, _ = cv2.meanStdDev(selection2)
+            selection1C = crop_img[0:width, 0:width]
+            selection2C = crop_img[height - width:height, 0:width]
+            selection1B = bw_img[0:width, 0:width]
+            selection2B = bw_img[height - width:height, 0:width]
+            mean1, _ = cv2.meanStdDev(selection1B)
+            mean2, _ = cv2.meanStdDev(selection2B)
             if mean1 > mean2:
-                    finalImage = selection1
+                    finalImage = selection1C
             else:
-                    finalImage = selection2
+                    finalImage = selection2C
         if height == width: # in this case, the image is already square
                 finalImage = crop_img
         finalImage = cv2.resize(finalImage, (200, 200)) # resizes the square image to 200 by 200 to make later processing easier

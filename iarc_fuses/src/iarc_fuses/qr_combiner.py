@@ -21,7 +21,6 @@ class QRCombiner():
         width,height=images[0].size # Get the width and height of each image
         permutations = list(itertools.permutations([0, 1, 2, 3])) # creates a list containing all permutations of the 4 images
         for perm in permutations:
-            print perm
             combined_im = Image.new('RGB', (width*2-15,height*2-15)) # creates a new image that is twice the height and width of the quadrants
             # TODO : resolve overlaps in combination
             combined_im.paste(images[perm[0]],(0,0)) # puts the first image in top left
@@ -50,7 +49,7 @@ def main():
 
     for i in range(4):
         # NOTE: Get the images from the IARC google drive
-        images.append(Image.open("/tmp","Image2-%d.png" % (i))))
+        images.append(Image.open("/tmp","Image2-%d.png" % (i)))
     print images
 
     comb = QRCombiner()

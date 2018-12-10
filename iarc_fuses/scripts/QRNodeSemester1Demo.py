@@ -6,17 +6,18 @@ import cv2
 import numpy as np
 import rospkg
 from sensor_msgs.msg import Image
+from PIL import Image as PILImage
 from std_msgs.msg import Int32
 from math import *
 from cv_bridge import CvBridge, CvBridgeError
-
+from std_msgs.msg import String
 from iarc_fuses.qr_detector import QRDetector
 from iarc_fuses.qr_combiner import QRCombiner
 
 def convert_nparray_to_PIL(x):
     cv2_im = x
     cv2_im = cv2.cvtColor(cv2_im,cv2.COLOR_BGR2RGB)
-    return Image.fromarray(cv2_im)
+    return PILImage.fromarray(cv2_im)
 
 class QRNode():
     def __init__(self):
@@ -27,23 +28,24 @@ class QRNode():
         # ROS Handles
         rospy.init_node('QRDetector', anonymous=True)
         self.drone1ImageSub = rospy.Subscriber('/drone1/image_raw',Image,self.drone1CB) # The ros interfacing won't work yet as I haven't figured out how to convert a ROS image to PIL Image
-        self.drone2ImageSub = rospy.Subscriber('/drone2/image_raw',Image,self.drone2CB)
-        self.drone3ImageSub = rospy.Subscriber('/drone3/image_raw',Image,self.drone3CB)
-        self.drone4ImageSub = rospy.Subscriber('/drone4/image_raw',Image,self.drone4CB)
+        self.voiceSub = rospy.Subscriber('/voice',String,self.voiceCB)
         self.qrNumberPub = rospy.Publisher('/qr_number', Int32, queue_size=10)
         self.bridge = CvBridge()
-
+        self.currentImage = None
         self.images = [None for _ in range(4)]
         self.number = None
 
     def drone1CB(self,imageMessage):
-        self.images[0] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
-    def drone2CB(self,imageMessage):
-        self.images[1] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
-    def drone3CB(self,imageMessage):
-        self.images[2] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
-    def drone4CB(self,imageMessage):
-        self.images[3] = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
+        self.currentImage = self.bridge.imgmsg_to_cv2(imageMessage, desired_encoding="passthrough")
+
+    def voiceCB(self,dataMessage):
+        if(dataMessage.data == "picture"):
+            for i in range(4):
+                if (self.images[i] == None):
+                    self.images[i] = self.currentImage
+                    break
+
+
 
     def resetCB(self):
         # TODO : have a ros topic, service, something that's going to call this
@@ -63,7 +65,7 @@ class QRNode():
         if self.number is None:
             # don't have the number yet
             for image in images:
-                qr = self.detector(image)
+                croppedImage = self.detector(image)
                 finalImages.append(croppedImage) # adds the image to the collection of final images
 
             # combine and decode QR Codes
@@ -75,7 +77,7 @@ class QRNode():
         self.qrNumberPub.publish(number)
 
     def run(self):
-        rate = rospy.Rate(50)
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.process()
             rate.sleep()
