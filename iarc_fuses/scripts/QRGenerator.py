@@ -10,28 +10,32 @@ from random import randint
 from shutil import copyfile
 import qrcode
 
-class qrGenerator(object):
+class QRGenerator(object):
     def __init__(self, args):
         rospack = rospkg.RosPack() 
         pkgRoot = rospack.get_path('iarc_fuses') # Gets the package
         mydir = os.path.join(pkgRoot,"QRCodes")
 
-        if args.values()[0]:
-            qrGenerator.deleteQR(mydir)
+        if args.values()[0]: # Did user request new QR codes? Check argparse arguments.
+            QRGenerator.deleteQR(mydir)
 
-            for i in range(20):
+            for i in range(20): # Generate 20 QR codes
                 code = '{0:04}'.format(randint(0, 10**3))
-                image = qrGenerator.generateQR(pkgRoot, code)
-                qrGenerator.cropQR(pkgRoot, image, code)
+                image = QRGenerator.generateQR(pkgRoot, code)
+                QRGenerator.cropQR(pkgRoot, image, code)
 
-            qrGenerator.setQRMaterial(rospack, code)
+            QRGenerator.setQRMaterial(rospack, code) # Sets the last code as the used QR code image in the sim.
         else:
             filelist = [ f for f in os.listdir(mydir) if f.endswith(".png") ]
             rand = random.randint(0,len(filelist)-1)
-            print rand
-            code = filelist[rand].replace('-1.png', '').replace('-2.png', '').replace('-3.png', '').replace('-4.png', '').replace('.png', '')
-            print code
-            qrGenerator.setQRMaterial(rospack, code)
+
+            substitutions = {'-1.png': '', '-2.png': '', '-3.png': '', '-4.png': '', '.png': ''}
+            regex = re.compile('|'.join(map(re.escape, substitutions)))
+            code = regex.sub(lambda match: substitutions[match.group(0)], filelist[rand])
+
+            # code = filelist[rand].replace('-1.png', '').replace('-2.png', '').replace('-3.png', '').replace('-4.png', '').replace('.png', '')
+            print "Your new QR code is: " + str(code)
+            QRGenerator.setQRMaterial(rospack, code)
 
     @staticmethod
     def generateQR(pkgRoot, code):
@@ -100,7 +104,7 @@ class qrGenerator(object):
             if not os.path.isfile(newJpgSimPath): copyfile(newJpgFusesPath, newJpgSimPath)
 
             # Add QR material to media/materials/scripts/iarc.material
-            qrGenerator.replaceFilename(sdfPath, code, num)
+            QRGenerator.replaceFilename(sdfPath, code, num)
         print "New code: " + str(code)
 
 if __name__ == '__main__':
@@ -108,4 +112,4 @@ if __name__ == '__main__':
     ap.add_argument("-n", "--new", required=False, help="generate new QR codes", action = "store_true")
     args = vars(ap.parse_args())
 
-    qr = qrGenerator(args)
+    qr = QRGenerator(args)

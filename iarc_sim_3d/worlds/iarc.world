@@ -107,6 +107,22 @@
                         </script>
                     </material>
                 </visual>
+                <visual name='QR code 1'>
+                    <pose>1 1 1 0 0 0</pose>
+                    <geometry>
+                        <mesh>
+                            <uri>model://iarc_sim_3d/models/qr1</uri>
+                            <scale>1 1 0.01</scale>
+                        </mesh>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>model://iarc_sim_3d/materials/scripts</uri>
+                            <uri>model://iarc_sim_3d/materials/textures</uri>
+                            <name>Dumpster/Diffuse</name>
+                        </script>
+                    </material>
+                </visual>
                 <self_collide>0</self_collide>
                 <kinematic>0</kinematic>
                 <gravity>1</gravity>
