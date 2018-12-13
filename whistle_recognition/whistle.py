@@ -1,7 +1,18 @@
 #!/usr/bin/env python2
-# Some parts of this file were adapted from the AudioLazy example "animated_plot.py"
 """
 Whistle detector.  Publishes whistles, interpreted as voice commands, to a ROS channel.
+
+To use:
+  * Set the tonic.  Do this by whistling a steady note for about two seconds, until the terminal displays
+    "Reset tonic to X Hz". 
+  * Whistle the parts of a "move" command.  Each one has three parts: Drone, direction, and distance.  Each
+    part corresponds to a single whistle.  Tone controls the output:
+      Tonic -> drone Alpha, direction north, distance 0.5m
+      3rd -> drone Bravo, direction east, distance 1m
+      Tonic -> drone Charlie, direction south, distance 2m
+      Tonic -> drone Delta, direction west, distance 4m
+
+Some parts of this file were adapted from the AudioLazy example "animated_plot.py".
 """
 from __future__ import division
 from audiolazy import sHz, chunks, AudioIO, line, pi, window
@@ -30,10 +41,8 @@ minWhistleLen = 0.3 # seconds; below this, whistles are not processed.  Expect s
 maxVariance = 0.5 # Maximum variance in frequency for a whistle
 tonicResetLen = 2 # Seconds to reset the scale
 
-maxGroupSpacing = 2; # Seconds between whistles for a group
+maxGroupSpacing = 3; # Seconds between whistles for a group
 
-# noteNames = ["Tonic (octave down)", "3rd (octave down)", "5th (octave down)", "Tonic", "3rd", "5th", "Tonic (octave up)"]
-# relativeNotes = np.log([1/2, 5/8, 3/4, 1, 5/4, 3/2, 2])
 noteNames = ["Tonic", "3rd", "5th", "octave"]
 relativeNotes = np.log([1, 5/4, 3/2, 2])
 
@@ -41,7 +50,7 @@ api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
 chunks.size = 1 if api == "jack" else 16
 
 
-def groupToCmd(whistles):
+def groupToCmd(group):
   """
   Tries to convert a series of 3 whistles into a "voice" command.
   Whistles represent drone index, direction, and distance, in that order.
@@ -54,10 +63,10 @@ def groupToCmd(whistles):
   dirs = ["north", "east", "south", "west"]
   dists = ["0.5", "1", "2", "4"]
 
-  if len(whistles) != 3:
-    return
+  if len(group) != 3:
+    return None
   
-  cmd = " ".join([drones[whistles[0]], dirs[whistle[1]], dists[whistles[2]]])
+  cmd = " ".join([drones[group[0]], dirs[group[1]], dists[group[2]]])
   return cmd
 
 def freqToNote(freq, tonic):
@@ -92,14 +101,18 @@ def processWhistle(whistle, whistleLen, tonic):
     if (now - lastWhistleTime) > maxGroupSpacing:
       group = [note]
       print("Too long!")
+    else:
+      group += [note]
     lastWhistleTime = now
-    print("Last whistle time is now " + str(lastWhistleTime))
 
     if len(group) == 3:
       cmd = groupToCmd(group)
-      rospy.loginfo(cmd)
-      pub.publish(cmd) 
-      group = []
+      if cmd:
+        rospy.loginfo("Sent voice command: \"" + cmd + "\"")
+        pub.publish(cmd) 
+        group = []
+      else:
+        print("Failed to parse whistles.")
 
   
 
@@ -181,7 +194,7 @@ try: # Catch ctrl-c nicely.  May no longer be needed with rospy.
             logWhistle = []
             whistleLen = 0
     else: # if amplitude or sharpness is too low
-      if minWhistleLen <=  whistleLen < tonicResetLen:
+      if minWhistleLen <= whistleLen < tonicResetLen:
         processWhistle(whistle, whistleLen, tonic)
       whistle = []
       logWhistle = []
