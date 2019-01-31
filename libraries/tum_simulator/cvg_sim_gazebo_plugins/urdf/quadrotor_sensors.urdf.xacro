@@ -17,8 +17,9 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <alwaysOn>true</alwaysOn>
         <updateRate>100.0</updateRate>
         <bodyName>base_link</bodyName>
-        <frameId>ardrone_base_link</frameId>
-        <topicName>/ardrone/imu</topicName>
+        <!-- TODO : update bodyName?? -->
+        <frameId>$(arg tf_prefix)/base_link</frameId>
+        <topicName>$(arg tf_prefix)/imu</topicName>
         <rpyOffsets>0 0 0</rpyOffsets> <!-- deprecated -->
         <gaussianNoise>0</gaussianNoise>  <!-- deprecated -->
         <accelDrift>0.5 0.5 0.5</accelDrift>
@@ -33,8 +34,8 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <alwaysOn>true</alwaysOn>
         <updateRate>10.0</updateRate>
         <bodyName>base_link</bodyName>
-        <topicName>pressure_height</topicName>
-        <altimeterTopicName>altimeter</altimeterTopicName>
+        <topicName>$(arg tf_prefix)/pressure_height</topicName>
+        <altimeterTopicName>$(arg tf_prefix)/altimeter</altimeterTopicName>
         <offset>0</offset>
         <drift>0.1</drift>
         <gaussianNoise>0.5</gaussianNoise>
@@ -44,7 +45,7 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <alwaysOn>true</alwaysOn>
         <updateRate>10.0</updateRate>
         <bodyName>base_link</bodyName>
-        <topicName>magnetic</topicName>
+        <topicName>$(arg tf_prefix)/magnetic</topicName>
         <offset>0 0 0</offset>
         <drift>0.0 0.0 0.0</drift>
         <gaussianNoise>1.3e-2 1.3e-2 1.3e-2</gaussianNoise>
@@ -54,8 +55,8 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <alwaysOn>true</alwaysOn>
         <updateRate>4.0</updateRate>
         <bodyName>base_link</bodyName>
-        <topicName>fix</topicName>
-        <velocityTopicName>fix_velocity</velocityTopicName>
+        <topicName>$(arg tf_prefix)/fix</topicName>
+        <velocityTopicName>$(arg tf_prefix)/fix_velocity</velocityTopicName>
         <drift>5.0 5.0 5.0</drift>
         <gaussianNoise>0.1 0.1 0.1</gaussianNoise>
         <velocityDrift>0 0 0</velocityDrift>
@@ -66,7 +67,7 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <alwaysOn>true</alwaysOn>
         <updateRate>100.0</updateRate>
         <bodyName>base_link</bodyName>
-		<topicName>ground_truth/state</topicName>
+        <topicName>$(arg tf_prefix)/ground_truth/state</topicName>
         <gaussianNoise>0.0</gaussianNoise>
         <frameName>map</frameName>
       </plugin>
