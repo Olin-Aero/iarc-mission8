@@ -43,7 +43,7 @@ tonicResetLen = 2 # Seconds to reset the scale
 
 maxGroupSpacing = 3; # Seconds between whistles for a group
 
-noteNames = ["Tonic", "3rd", "5th", "octave"]
+noteNames = ["tonic", "3rd", "5th", "octave"]
 relativeNotes = np.log([1, 5/4, 3/2, 2])
 
 api = sys.argv[1] if sys.argv[1:] else None # Choose API via command-line
@@ -69,6 +69,7 @@ def groupToCmd(group):
   cmd = " ".join([drones[group[0]], dirs[group[1]], dists[group[2]]])
   return cmd
 
+
 def freqToNote(freq, tonic):
   if tonic == 0:
     print("Tonic not set")
@@ -76,20 +77,15 @@ def freqToNote(freq, tonic):
 
   logDist = np.log(whistleAvg) - np.log(tonic)
   print("Log distance: " + str(logDist))
-  closestNote = -1
-  closestDist = np.Inf
-  for i, n in enumerate(relativeNotes):
-    if abs(logDist - n) < closestDist:
-      closestDist = logDist - n
-      closestNote = i
-  if closestNote != -1:
-    print("Closest note: " + noteNames[closestNote])
-    return closestNote
-  else:
-    print("No closest note...?")
-    return None
 
-lastWhistleTime = 0 # time zero -> "infinitely long ago"
+  # Find the closest note, by difference of log-distances
+  closestNote = min(enumerate(relativeNotes), key = lambda x: abs(logDist - x[1]))[0]
+  print("Closest note: " + noteNames[closestNote])
+  return closestNote
+
+
+# TODO: Maybe break into an object
+lastWhistleTime = None
 group = []
 def processWhistle(whistle, whistleLen, tonic):
   global lastWhistleTime, group # I am sorry.
@@ -98,9 +94,9 @@ def processWhistle(whistle, whistleLen, tonic):
   if note is not None:
     # Check timing, maybe start a new group
     now = time.clock()
-    if (now - lastWhistleTime) > maxGroupSpacing:
+    if lastWhistleTime is None or (now - lastWhistleTime) > maxGroupSpacing:
       group = [note]
-      print("Too long!")
+      print("Starting new whistle group (timed out)")
     else:
       group += [note]
     lastWhistleTime = now
@@ -114,9 +110,9 @@ def processWhistle(whistle, whistleLen, tonic):
       else:
         print("Failed to parse whistles.")
 
-  
+ 
 
-# Creates a data updater callback
+# Creates a data updater callback for AudioLazy
 def update_data():
   with AudioIO(api=api) as rec:
     for el in rec.record(rate=rate): # Appears to run at about 44100 hz
@@ -134,6 +130,7 @@ rospy.init_node("whistle_detector", anonymous = True)
 # Creates the data updater thread
 update_data.finish = False
 th = threading.Thread(target=update_data)
+th.daemon = True # Don't keep the program alive if this is the only thread
 th.start() # Actually start updating data
 
 # Set up some variables preserved between search iterations
