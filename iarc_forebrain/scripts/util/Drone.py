@@ -4,7 +4,7 @@ import rospy
 import tf
 import tf.transformations
 from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
-from iarc_arbiter.msg import RegisterBehavior, VelAlt
+from iarc_arbiter.msg import RegisterBehavior, VelAlt, PosCam
 from iarc_main.msg import Roomba
 from std_msgs.msg import String, Empty, Header
 
@@ -52,6 +52,7 @@ class Drone:
         self.takeoffPub = rospy.Publisher('/forebrain/cmd_takeoff', Empty, queue_size=0)
         self.landPub = rospy.Publisher('/forebrain/cmd_land', Empty, queue_size=0)
         self.velAltPub = rospy.Publisher('/forebrain/cmd_vel_alt', VelAlt, queue_size=0)
+        self.camPosPub = rospy.Publisher('/forebrain/cmd_cam_pos', PosCam, queue_size=0)
 
         rospy.Publisher('/arbiter/register', RegisterBehavior, latch=True, queue_size=10).publish(
             name='forebrain', fast=True)
@@ -282,3 +283,18 @@ class Drone:
         """
         self.navdata = msg
 
+    def look_at(self,x=0.0, y=0.0, z=0.0, frame='map', height = None):
+        if height is None:
+            height = self.last_height
+        else:
+            self.last_height = height
+        camMsg = PosCam()
+        pos_of_focus = PoseStamped()
+        pos_of_focus.pose.position.x = x
+        pos_of_focus.pose.position.y = y
+        pos_of_focus.pose.position.z = z
+        camMsg.pose_stamped.pose.position.z = height
+        camMsg.look_at_position = pos_of_focus
+        camMsg.pose_stamped.header.frame_id = frame
+        camMsg.look_at_position.header.frame_id = frame
+        self.camPosPub.publish(camMsg)
