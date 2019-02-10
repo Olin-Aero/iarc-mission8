@@ -287,7 +287,7 @@ class PIDPosCamController(object):
                                  rospy.get_param('~max_velocity', 1.0), 0.0, 2.0)
 
         self.config.add_variable("kp_turn", "Proportional Angular",
-                                 rospy.get_param('~kp_turn', 0.1), 0.0, 2.0)
+                                 rospy.get_param('~kp_turn', 1.0), 0.0, 2.0)
 
         self.config.add_variable("kp", "Proportional Linear",
                                  rospy.get_param('~kp', 0.2), 0.0, .5)

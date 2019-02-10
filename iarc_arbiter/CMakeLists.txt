@@ -53,7 +53,6 @@ add_message_files(
   RegisterBehavior.msg
   VelAlt.msg
   PosCam.msg
-  VelAltCamera.msg
 )
 
 ## Generate services in the 'srv' folder
