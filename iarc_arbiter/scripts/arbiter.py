@@ -42,15 +42,14 @@ class Arbiter:
 
         alt_pid = transformers.PIDAltController(self.tf, self.ddynrec)
         pos_pid = transformers.PIDPosController(self.tf, self.ddynrec, alt_pid)
-        pos_cam_pid = transformers.PIDPosCamController(self.tf, self.ddynrec, alt_pid)
-        print pos_pid.cmd_pos
+        pos_cam_pid = transformers.PIDPosCamController(self.tf, self.ddynrec, pos_pid)
         self.transformers = {
             'cmd_vel': (Twist, transformers.cmd_vel),
             'cmd_takeoff': (Empty, transformers.cmd_takeoff),
             'cmd_land': (Empty, transformers.cmd_land),
             'cmd_pos': (PoseStamped, pos_pid.cmd_pos),
             'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt),
-            'cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos)
+            'cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos_cam)
         }
         """:type : dict[str, (str, (Any) -> transformers.Command)]"""
 
