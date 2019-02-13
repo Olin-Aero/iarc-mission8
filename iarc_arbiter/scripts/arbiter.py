@@ -48,6 +48,7 @@ class Arbiter:
             'cmd_takeoff': (Empty, transformers.cmd_takeoff),
             'cmd_land': (Empty, transformers.cmd_land),
             'cmd_pos': (PoseStamped, pos_pid.cmd_pos),
+            'cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos),
             'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt)
         }
         """:type : dict[str, (str, (Any) -> transformers.Command)]"""

@@ -159,6 +159,31 @@ class Drone:
                 r.sleep()
                 self.posPub.publish(start_pos)
 
+    def move_relative(self, rel_x=0.0, rel_y=0.0, frame='map', rel_height=0.0, tol=0.4):
+        """
+        Tells the drone to move to a position relative to its current position on the field,
+        and blocks until the drone is within tol of the target, counting vertical and horizontal distance
+        """
+
+        prev_pos = self.get_pos(frame).pose.position
+
+        des_x, des_y, des_height = prev_pos.x + rel_x, prev_pos.y + rel_y, prev_pos.z + rel_height
+
+        r = rospy.Rate(20)
+        while not rospy.is_shutdown():
+            rel_pos = self.get_pos(frame).pose.position
+            dist = math.sqrt(
+                (rel_pos.x - des_x) ** 2 +
+                (rel_pos.y - des_y) ** 2 +
+                (rel_pos.z - des_height) ** 2)
+            if dist <= tol:
+                break
+
+            self.move_towards(des_x, des_y, frame, des_height)
+
+            r.sleep()
+
+
     def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.4):
         """
         Tells the drone to move to a specific position on the field, and blocks until the drone is
