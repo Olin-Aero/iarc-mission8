@@ -5,4 +5,4 @@ from util.Drone import Drone
 
 drone = Drone()
 drone.takeoff()
-drone.look_at(1.5,-2);
+drone.travel_and_look(des_x=4.0, des_y=-4.0, focus_x=1.0, focus_y=1.0);

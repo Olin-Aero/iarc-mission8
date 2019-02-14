@@ -113,7 +113,7 @@ class PIDPosController(object):
                                  rospy.get_param('~max_velocity', 1.0), 0.0, 2.0)
 
         self.config.add_variable("kp_turn", "Proportional Angular",
-                                 rospy.get_param('~kp_turn', 0.0), 0.0, 2.0)
+                                 rospy.get_param('~kp_turn', 1.0), 0.0, 2.0)
 
         self.config.add_variable("kp", "Proportional Linear",
                                  rospy.get_param('~kp', 0.2), 0.0, .5)
@@ -144,7 +144,7 @@ class PIDPosController(object):
         """
         self.last_odom = msg
 
-    def cmd_pos(self, msg):
+    def cmd_pos(self, msg, angle_error=None):
         """
         Calculates the commanded velocity given the desired position, with the header of the PoseStamped
         controlling which coordinate frame the commanded position is interpreted as being in.
@@ -211,21 +211,22 @@ class PIDPosController(object):
 
         # Preserve the z value of velocity
         vel.linear.z = self.alt_controller.calculate_z_vel(position.z)
+        if(angle_error == None):
+            # Turn drone toward the provided orientation
+            _, _, angle_err = tf.transformations.euler_from_quaternion(
+                [getattr(pose.pose.orientation, s) for s in 'xyzw'])
+            angle_err += self.config.angle_offset
 
-        # Turn drone toward the provided orientation
-        _, _, angle_err = tf.transformations.euler_from_quaternion(
-            [getattr(pose.pose.orientation, s) for s in 'xyzw'])
-        angle_err += self.config.angle_offset
-
-        # Normalize the angle
-        while angle_err <= -np.pi:
-            angle_err += 2 * np.pi
-        while angle_err > np.pi:
-            angle_err -= 2 * np.pi
-
+            # Normalize the angle
+            while angle_err <= -np.pi:
+                angle_err += 2 * np.pi
+            while angle_err > np.pi:
+                angle_err -= 2 * np.pi
+        else:
+            angle_err = angle_error
         vel.angular.z = self.config.kp_turn * angle_err
 
-        print("Calculated vel: {}".format(vel))
+        #print("Calculated vel: {}".format(vel))
 
         return Command(vel)
 
@@ -292,7 +293,7 @@ class PIDPosCamController(object):
         pose_sum.pose.orientation.y = quater[1]
         pose_sum.pose.orientation.z = quater[2]
         pose_sum.pose.orientation.w = quater[3]
-        return self.pos_controller.cmd_pos(pose_sum)
+        return self.pos_controller.cmd_pos(pose_sum, orientation_to_look_at)
 
 if __name__ == '__main__':
     test_msg = PoseStamped()

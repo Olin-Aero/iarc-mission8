@@ -283,18 +283,19 @@ class Drone:
         """
         self.navdata = msg
 
-    def look_at(self,x=0.0, y=0.0, z=0.0, frame='map', height = None):
+    def travel_and_look(self, des_x=0.0, des_y=0.0, focus_x=0.0, focus_y=0.0, frame='map', height = None):
         if height is None:
             height = self.last_height
         else:
             self.last_height = height
         camMsg = PosCam()
-        pos_of_focus = PoseStamped()
-        pos_of_focus.pose.position.x = x
-        pos_of_focus.pose.position.y = y
-        pos_of_focus.pose.position.z = z
+        camMsg.look_at_position.pose.position.x = focus_x
+        camMsg.look_at_position.pose.position.y = focus_y
+        camMsg.look_at_position.pose.position.z = 0.0
+
+        camMsg.pose_stamped.pose.position.x = des_x
+        camMsg.pose_stamped.pose.position.y = des_y
         camMsg.pose_stamped.pose.position.z = height
-        camMsg.look_at_position = pos_of_focus
         camMsg.pose_stamped.header.frame_id = frame
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
