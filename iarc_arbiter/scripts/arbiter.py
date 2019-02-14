@@ -161,6 +161,7 @@ class Arbiter:
         """
         if behavior != self.active_behavior_name:
             # Only messages from the active behavior are handled
+            rospy.loginfo("Command ignored from {}/{}".format(behavior, topic))
             return False
 
         _, transformer = self.transformers[topic]

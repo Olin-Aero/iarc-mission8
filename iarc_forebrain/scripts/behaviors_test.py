@@ -30,14 +30,14 @@ class BehaviorTest(object):
 		return True
 
 	def testMoveTo(self): # Tests absolute coordinate motion commands
-		self.drone.move_to(1.0, 0.0, 'launch', 2.0, 0.1) # TODO: Publish to /map once sim tf frames are fixed
+		self.drone.move_to(1.0, 0.0, 'odom', 2.0, 0.1) # TODO: Publish to /map once sim tf frames are fixed
 		self.drone.hover(3)
 		if not self.posEqual(1.0,0,2.0):
 			return False
 		return True
 
 	def testMoveRelative(self): # Tests relative coordinate motion commands
-		self.drone.move_relative(1.0, 0.0, 'launch', 2.0, 0.1) # TODO: Publish to /map once sim tf frames are fixed
+		self.drone.move_relative(1.0, 0.0, 'odom', 2.0, 0.1) # TODO: Publish to /map once sim tf frames are fixed
 		self.drone.hover(3)
 		if not self.posEqual(2.0,0,4.0,0.5):
 			return False
@@ -67,10 +67,10 @@ class BehaviorTest(object):
 		self.drone.takeoff(1)
 		self.drone.hover(3)
 		print "Moved!"
-		self.drone.move_relative(1.0, 0.0, 'launch', 1.0, 0.1)
+		self.drone.move_relative(1.0, 0.0, 'odom', 0.0, 0.1)
 		self.drone.hover(3)
 		print "Moved!"
-		self.drone.move_relative(1.0, 0.0, 'launch', 1.0, 0.1)
+		self.drone.move_relative(1.0, 0.0, 'odom', 0.0, 0.1)
 		self.drone.hover(3)
 		print "Landing..."
 
