@@ -285,14 +285,16 @@ class PIDPosCamController(object):
         self.last_time = rospy.Time(0)
 
     def cmd_pos_cam(self, msg):
+        """
+        inputs a pose for the drone to go to, and a position for the drone to face.
+        This outputs the error between where the drone is facing and the orientation desired
+        Note: it is formatted this way so that the function cmd_pos transforms the desired pose and 
+        orientation into the drones frame, which would transform the desired place twice.
+        Not transforming the position here would result in the position still being in the map frame
+        and not the drone frame.
+        """
         focus = self.pos_controller.transformPoseFull('base_link',msg.look_at_position,'odom')
         orientation_to_look_at = math.atan2(focus.pose.position.y,focus.pose.position.x)
-        quater = tf.transformations.quaternion_from_euler(0,0,orientation_to_look_at)
-        pose_sum = msg.pose_stamped
-        pose_sum.pose.orientation.x = quater[0]
-        pose_sum.pose.orientation.y = quater[1]
-        pose_sum.pose.orientation.z = quater[2]
-        pose_sum.pose.orientation.w = quater[3]
         return self.pos_controller.cmd_pos(pose_sum, orientation_to_look_at)
 
 if __name__ == '__main__':
