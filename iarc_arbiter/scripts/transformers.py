@@ -226,7 +226,7 @@ class PIDPosController(object):
             angle_err = angle_error
         vel.angular.z = self.config.kp_turn * angle_err
 
-        #print("Calculated vel: {}".format(vel))
+        print("Calculated vel: {}".format(vel))
 
         return Command(vel)
 
