@@ -8,18 +8,19 @@ import numpy as np
 
 '''
 
-Coordinate system: x is right, y is forward, z is up, distances are in feet
+Coordinate system: x is right, y is forward, z is up, distances are in meters,
+angles are measured counterclockwise from positive x (right) axis
 Direction goes from blue to red
 
 '''
 
-PLAYER_HEIGHT = 0 # Height of human player color targets off the ground in feet
+PLAYER_HEIGHT = 0 # Height of human player color targets off the ground in meters
 # FOCAL_X = 1000 # Camera focal length in pixels
 # FOCAL_Y = 1000 # Camera focal length in pixels
-FOCAL_X = 691 # Camera focal length in pixels
-FOCAL_Y = 689 # Camera focal length in pixels
-IMAGE_WIDTH = FOCAL_X
-IMAGE_HEIGHT = FOCAL_Y
+FOCAL_X = 520.6 #691 # Camera focal length in pixels
+FOCAL_Y = 514 #689 # Camera focal length in pixels
+IMAGE_WIDTH = 856
+IMAGE_HEIGHT = 480
 
 def nothing(x):
     pass
@@ -29,14 +30,13 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     Determines direction that human player is pointing and location of helmet
     returns (angle in degrees CCW from forward, helmet position vector in drone frame)
     """
-    # print(pitch)
+    print(pitch*180/math.pi)
     # pitch += math.pi/2
-    # print(z)
-    pitch = 60*math.pi/180 
-    z = 0.75
-
-    IMAGE_WIDTH = image.shape[0]
-    IMAGE_HEIGHT = image.shape[1]
+    print(z)
+    # pitch = 60*math.pi/180
+    # z = 1
+    # IMAGE_WIDTH = image.shape[1] #856
+    # IMAGE_HEIGHT = image.shape[0] #480
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -51,24 +51,23 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     p2 = locate(hsv, lower2, upper2)
 
     # Apply light blue color filter
-    lower3 = np.array([75, 200, 100])
-    upper3 = np.array([150, 255, 255])
-    p1 = locate(hsv, lower3, upper3)
+    # lower3 = np.array([75, 200, 100])
+    # upper3 = np.array([150, 255, 255])
+    # p1 = locate(hsv, lower3, upper3)
 
-    # Apply dark green color filter
-    lower4 = np.array([22, 84, 81])
-    upper4 = np.array([67, 255, 255])
-    p2 = locate(hsv, lower4, upper4)
+    # # Apply dark green color filter
+    # lower4 = np.array([22, 84, 81])
+    # upper4 = np.array([67, 255, 255])
+    # p2 = locate(hsv, lower4, upper4)
 
     if(p1 is None or p2 is None):
         return (None, None)
 
-    dx = p2[0]-p1[0]
-    dy = -p2[1]+p1[1] # image coordinate system is vertically flipped
-    dy = dy/math.cos(pitch)
-
     # Simple yaw estimate
-    yaw = math.atan2(dy, dx) - math.pi/2
+    # dx = p2[0]-p1[0]
+    # dy = -p2[1]+p1[1] # image coordinate system is vertically flipped
+    # dy = dy/math.cos(pitch)
+    # yaw = math.atan2(dy, dx) - math.pi/2
     # print("Simple yaw")
     # print(yaw*180/math.pi)
 
@@ -91,20 +90,22 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
     # print("Better yaw")
-    print(yaw*180/math.pi)
+    print("yaw %s" % (yaw*180/math.pi))
+    print("head %s" % (tvec_head))
+    print("hand %s" % (tvec_hand))
     return (yaw, tvec_head)
 
 def find_point(p, dz, pitch):
     ''' Locates point given coordinates in image, drone pitch, and height difference between drone and point.
-        Returns a vector in drone right-front-up coordinates (feet)
+        Returns a vector in drone right-front-up coordinates (meters)
     '''
     ang = math.atan2(p[1]-IMAGE_HEIGHT/2, FOCAL_Y)
     dist = (dz)/math.cos(pitch - ang)
     projectedDist = dist*math.cos(ang)
-    tvec_cam = np.array([projectedDist*(p[0]-IMAGE_WIDTH/2)/FOCAL_X, -projectedDist*(p[1]-IMAGE_HEIGHT/2)/FOCAL_Y, projectedDist, 1])
+    tvec_cam = np.array([projectedDist*(p[0]-IMAGE_WIDTH/2)/FOCAL_X, -projectedDist*(p[1]-IMAGE_HEIGHT/2)/FOCAL_Y, -projectedDist, 1])
     # print("camvec")
     # print(tvec_cam)
-    tvec_drone = np.dot(rotation_matrix(pitch, (-1, 0, 0)), tvec_cam)
+    tvec_drone = np.dot(rotation_matrix(pitch, (1, 0, 0)), tvec_cam)
     # print("dronevec")
     # print(tvec_drone)
     return tvec_drone

@@ -11,74 +11,55 @@ import math
 import cv2
 import sys
 from pointing_detection import pointing_detection
-from util.Drone import Drone
+from mode import Mode
+from Drone import Drone
 
 SAMPLE_PERIOD = .1
 CAM_PITCH = math.pi/2
-D = 1
 
-class FollowGesture:
+class FollowGesture(Mode):
 
     def __init__(self):
-        rospy.init_node('follow_gesture')
         self.bridge = CvBridge()
         self.pub = rospy.Publisher("/gesture_direction", Float64, queue_size=10)
         self.drone = Drone()
         self.prevTime = rospy.Time.now()
+        self.distance = 0
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
-        rospy.Subscriber("/ardrone/front/image_raw", Image, self.image_raw_callback)
+        rospy.Subscriber("/bebop/image_raw", Image, self.image_raw_callback)
 
     def image_raw_callback(self, msg):
+    	if not self.is_active():
+    		return
         try:
             if((rospy.Time.now()-self.prevTime).to_sec()<SAMPLE_PERIOD):
                 return
             self.prevTime = rospy.Time.now()
             frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            # frame = msg
-
-            pos = self.drone.get_pos()
-            
+            pos = self.drone.get_pos("odom")
             o = pos.pose.orientation
             orientation = euler_from_quaternion([o.w, o.x, o.y, o.z])
-
-            direction, helmet = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, False)
+            direction, helmet = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, True)
             if direction is None:
                 return
             self.pub.publish(direction)
 
-
-            dx = D*math.cos(direction+orientation[2])
-            dy = D*math.sin(direction+orientation[2])
+            dx = self.distance*math.cos(direction+orientation[2])
+            dy = self.distance*math.sin(direction+orientation[2])
             print(pos.pose.position.x+dx, pos.pose.position.y+dy)
             self.drone.move_towards(pos.pose.position.x+dx, pos.pose.position.y+dy)
+            # self.disable()
             key = cv2.waitKey(1)
 
         except CvBridgeError as e:
             print(e)
-      
-    def run(self):
-        # Keep the program running
-        # TODO wait for signal
-        rate = rospy.Rate(1) # 1 Hz
-        rate.sleep()
-        # while True:
-            # rate.sleep()
-        rospy.spin()
-            # ok, image = self.camera.read()
-            # if not ok:
-            #     print("Unable to open webcam...")
-            #     return
-            # # self.image_raw_callback(image)
-            # key = cv2.waitKey(1)
-            # if key == 27:
-            #     return
-            # break
 
-        # rospy.spin()
+    def enable(self, distance=1):
+        self.active = True
+        self.distance = distance
 
 # Start the node
 if __name__ == '__main__':
-    test = FollowGesture()
-    # test.camera = cv2.VideoCapture(0)  # "0" here means "the first webcam on your system"
-    test.run()
+    f = FollowGesture()
+    f.test()
