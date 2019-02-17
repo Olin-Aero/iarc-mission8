@@ -9,14 +9,6 @@ from std_msgs.msg import Empty, String
 
 import sys, select, termios, tty
 
-msgStart = """
-Running autonomous until you break it with a key:
-
-Cut all motors: 'b' or 'B'
-Hover and switch to teleop mode: 'h' or 'H'
-Land: spacebar (' ')
-"""
-
 msgTeleop = """
 You are now running teleop!
 
@@ -41,6 +33,8 @@ For Turning mode, hold down the shift key:
 
 takeoff: t
 land: spacebar
+Cut all motors: '=' or '+'
+Switch to autonomous mode: 'h' or 'H'
 
 anything else : stop
 
@@ -89,13 +83,13 @@ speedBindings = {
 }
 
 
+
 def getKey():
     tty.setraw(sys.stdin.fileno())
     select.select([sys.stdin], [], [], 0)
     key = sys.stdin.read(1)
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
     return key
-
 
 def vels(speed, turn):
     return "currently:\tspeed %s\tturn %s " % (speed, turn)
@@ -105,92 +99,110 @@ def land():
     for p in land_pubs:
         p.publish()
 
-def fly_teleop():
-    print (msgTeleop)
+######### Movement key handling
+x = 0
+y = 0
+z = 0
+th = 0
+status = 0
 
-    speed = rospy.get_param("~speed", 0.1)
-    turn = rospy.get_param("~turn", 0.2)
-    x = 0
-    y = 0
-    z = 0
-    th = 0
-    status = 0
+speed = rospy.get_param("~speed", 0.1)
+turn = rospy.get_param("~turn", 0.2)
 
-    print (vels(speed,turn))
+def get_movement(key):
+    global speed, turn, x, y, z, th, status
+    if key in moveBindings.keys():
+        x = moveBindings[key][0]
+        y = moveBindings[key][1]
+        z = moveBindings[key][2]
+        th = moveBindings[key][3]
+    elif key in speedBindings.keys():
+        speed = speed * speedBindings[key][0]
+        turn = turn * speedBindings[key][1]
+
+        print vels(speed, turn)
+        if status == 14:
+            print msgTeleop
+        status = (status + 1) % 15
+    else:
+        x = 0
+        y = 0
+        z = 0
+        th = 0
+
+    return Twist(
+            linear=Vector3(x=x * speed, y=y * speed, z=z * speed),
+            angular=Vector3(z=th * turn)
+            )
+
+#####################
+
+
+if __name__ == "__main__":
+    settings = termios.tcgetattr(sys.stdin)
+    print msgTeleop
+    rospy.init_node('estop')
+
+    pub = rospy.Publisher('/bebop/cmd_vel', Twist, queue_size=1)
+    takeoff_pub = rospy.Publisher('/bebop/takeoff', Empty, queue_size=1)
+    land_pubs = [rospy.Publisher('/bebop/land', Empty, queue_size=1),
+                 rospy.Publisher('/ardrone/land', Empty, queue_size=1)]
+    reset_pub = rospy.Publisher('/bebop/reset', Empty, queue_size=1)
+
+    flightStatus = False #autonomous code is in control when true
+
+    def callback_cmd_vel(msg):
+        if flightStatus == True:
+            pub.publish(msg)
+        else:
+            rospy.loginfo_throttle(1, "velocity command ignored\r")
+
+    def callback_takeoff(msg):
+        if flightStatus == True:
+            takeoff_pub.publish(msg)
+        else:
+            rospy.loginfo_throttle(1, "takeoff command ignored\r")
+
+    def callback_land(msg):
+        if flightStatus == True:
+            land()
+        else:
+            rospy.loginfo_throttle(1, "land command ignored\r")
+
+    takeoff_sub = rospy.Subscriber('takeoff', Empty, callback_takeoff)
+    land_sub = rospy.Subscriber('land', Empty, callback_land)
+    command_sub = rospy.Subscriber('cmd_vel', Twist, callback_cmd_vel)
+
     try:
-        while 1:
-            if key in moveBindings.keys():
-                x = moveBindings[key][0]
-                y = moveBindings[key][1]
-                z = moveBindings[key][2]
-                th = moveBindings[key][3]
-            elif key in speedBindings.keys():
-                speed = speed * speedBindings[key][0]
-                turn = turn * speedBindings[key][1]
+        while True: #while no issues
+            key = getKey()
 
-                print vels(speed, turn)
-                if status == 14:
-                    print msg
-                status = (status + 1) % 15
+            if key == '\x03':
+                break
+
+            if key == 'h' or key == 'H':
+                flightStatus = True
+                rospy.loginfo("In autonomous mode!")
             else:
-                x = 0
-                y = 0
-                z = 0
-                th = 0
-                if key == '\x03':
-                    break
-            activate_pub.publish('teleop')
+                flightStatus = False
 
-            twist = Twist(
-                linear=Vector3(x=x * speed, y=y * speed, z=z * speed),
-                angular=Vector3(z=th * turn)
-                )
+                # Handle reset
+                if key == '=' or key == '+':
+                    reset_pub.publish()
 
-            pub.publish(twist)
+                # Handle takeoff and landing
+                if key in takeoffLand.keys():
+                    if takeoffLand[key][0] == 1:
+                        takeoff_pub.publish()
+                    elif takeoffLand[key][1] == 1:
+                        land()
 
-            if key in takeoffLand.keys():
-                if takeoffLand[key][0] == 1:
-                    takeoff_pub.publish()
-                elif takeoffLand[key][1] == 1:
-                    land()
+                pub.publish(get_movement(key))
+
     except Exception as e:
         print e
 
     finally:
-        twist = Twist()
-        pub.publish(twist)
+        pub.publish(Twist())
         land()
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-
-if __name__ == "__main__":
-    settings = termios.tcgetattr(sys.stdin)
-
-    pub = rospy.Publisher('/teleop/cmd_vel', Twist, queue_size=1)
-    takeoff_pub = rospy.Publisher('/teleop/cmd_takeoff', Empty, queue_size=1)
-    land_pubs = [rospy.Publisher('/teleop/cmd_land', Empty, queue_size=1),
-                 rospy.Publisher('/land', Empty, queue_size=1),
-                 rospy.Publisher('/ardrone/land', Empty, queue_size=1)]
-    control_pub = rospy.Publisher()#to bebop
-    control_sub = rospy.Subscriber()#from controls ie iarc_forebrain
-
-    activate_pub = rospy.Publisher('/arbiter/activate_behavior', String, queue_size=1)
-    rospy.init_node('estop')
-
-    flightStatus = True
-
-    while flightStatus == True: #while no issues
-        key = getKey()
-
-        if key == 'b' or key == 'B':
-            flightStatus = False
-            #publish the reset topic to bebop to shut off motors
-        elif key == ' '
-            flightStatus = False
-            #stop publishing
-            land()
-        elif key == 'h' or key == 'H'
-            flightStatus = Flase
-            fly_teleop()
-            #stop publishing the controls to bebop, publish teleop
-        else:
-            control_pub.publish(control)
