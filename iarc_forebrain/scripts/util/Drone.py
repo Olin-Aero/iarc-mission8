@@ -284,6 +284,17 @@ class Drone:
         self.navdata = msg
 
     def travel_and_look(self, des_x=0.0, des_y=0.0, focus_x=0.0, focus_y=0.0, frame='map', height = None):
+        """
+        Tells the drone to move towards a given destination, and look at a given position
+        :param des_x: x position to go to
+        :param des_y: y position to go to
+        :param focus_x: x position to look at
+        :param focus_y: y position to look at
+        :param frame: The tf frame associated with the target
+        :param height: The height for the drone to be, if none, stays steady
+        
+        
+        """
         if height is None:
             height = self.last_height
         else:
@@ -299,3 +310,5 @@ class Drone:
         camMsg.pose_stamped.header.frame_id = frame
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
+
+    def 
