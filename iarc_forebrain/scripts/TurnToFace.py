@@ -2,7 +2,9 @@
 import rospy
 import math
 from util.Drone import Drone
+import tf
 
 drone = Drone()
 drone.takeoff()
-drone.travel_and_look(des_x=4.0, des_y=-4.0, focus_x=1.0, focus_y=1.0);
+quat = tf.transformations.quaternion_from_euler(0.0, 0.0, 1.0)
+drone.turn_to(quat);

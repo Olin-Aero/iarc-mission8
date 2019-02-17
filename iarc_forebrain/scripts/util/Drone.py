@@ -311,4 +311,12 @@ class Drone:
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
 
-    def 
+    def turn_to(self, orientationQuat, frame = 'map'):
+        pose_stamped = self.get_pos(frame)
+
+        pose_stamped.pose.orientation.x = orientationQuat[0]
+        pose_stamped.pose.orientation.y = orientationQuat[1]
+        pose_stamped.pose.orientation.z = orientationQuat[2]
+        pose_stamped.pose.orientation.w = orientationQuat[3]
+        
+        self.posPub.publish(pose_stamped)
