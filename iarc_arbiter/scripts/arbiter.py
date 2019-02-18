@@ -48,6 +48,7 @@ class Arbiter:
             'cmd_takeoff': (Empty, transformers.cmd_takeoff),
             'cmd_land': (Empty, transformers.cmd_land),
             'cmd_pos': (PoseStamped, pos_pid.cmd_pos),
+            'cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos),
             'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt)
         }
         """:type : dict[str, (str, (Any) -> transformers.Command)]"""
@@ -160,6 +161,7 @@ class Arbiter:
         """
         if behavior != self.active_behavior_name:
             # Only messages from the active behavior are handled
+            rospy.loginfo("Command ignored from {}/{}".format(behavior, topic))
             return False
 
         _, transformer = self.transformers[topic]
