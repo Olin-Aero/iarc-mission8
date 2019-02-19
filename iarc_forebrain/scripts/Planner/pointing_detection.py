@@ -30,9 +30,12 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     Determines direction that human player is pointing and location of helmet
     returns (angle in degrees CCW from forward, helmet position vector in drone frame)
     """
-    print(pitch*180/math.pi)
+    pitch = math.pi/2 # camera corrects
+    pitch -= math.pi/4 # drone camera angled downwards
+    z -= -1.25069182097 # TEMPORARY - drone initialized while on table
+    # print(pitch*180/math.pi)
     # pitch += math.pi/2
-    print(z)
+    # print(z)
     # pitch = 60*math.pi/180
     # z = 1
     # IMAGE_WIDTH = image.shape[1] #856

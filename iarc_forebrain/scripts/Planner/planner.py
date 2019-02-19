@@ -8,20 +8,27 @@ import sys
 from std_msgs.msg import String
 from mode import Mode
 from follow_gesture import FollowGesture
+from land import Land
+from move import Move
 
 
 class Planner:
 
-    def __init__(self, drone):
+    def __init__(self, drone='red'):
         self.drone = drone
         rospy.init_node(str(drone)+'_planner')
-        self.modes = {"idle": Mode(),"follow_gesture": FollowGesture()}
+        self.modes = {"idle": Mode(),"follow": FollowGesture(),
+                        "land": Land(),"takeoff": Land(takeoff=True),\
+                        "north": Move(0),"east": Move(3*math.pi/2),\
+                        "south": Move(math.pi), "west": Move(math.pi/2), \
+                        "stop": Move(0), "duck": Move(0,-1),\
+                        "jump": Move(0,1)}
         self.pub = rospy.Publisher("/"+drone+"_current_mode", String, queue_size=10)
         self.current_mode = self.modes["idle"]
-        rospy.Subscriber("/whistle", String, self.whistle_callback)
+        rospy.Subscriber("/voice", String, self.voice_callback)
 
-    def whistle_callback(self, msg):
-        ''' Whistle command format: [drone] [behavior] [parameters...] '''
+    def voice_callback(self, msg):
+        ''' Voice command format: [drone] [command] [parameters...] '''
         args = msg.data.split(" ")
         if args[0] != self.drone:
             return
@@ -29,7 +36,11 @@ class Planner:
             if self.current_mode.is_active():
                 self.current_mode.disable()
             self.current_mode = self.modes[args[1]]
-            self.current_mode.enable(*args[2:])
+            try:
+                self.current_mode.enable(*args[2:])
+            except:
+                print("Invalid parameters provided: %s" % msg.data)
+                return
             print(args[1])
             self.pub.publish(args[1])
         else:
@@ -38,13 +49,14 @@ class Planner:
     def run(self):
         rate = rospy.Rate(10) # 10Hz
         while not rospy.is_shutdown():
-            self.current_mode.update() # is this thread safe?
+            if self.current_mode.is_active():
+                self.current_mode.update() # is this thread safe?
             rate.sleep()
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner('alpha')
+    p = Planner('red')
     msg = String()
-    msg.data = "alpha follow_gesture 10"
-    p.whistle_callback(msg)
+    msg.data = "red follow 10"
+    # p.voice_callback(msg)
     p.run()

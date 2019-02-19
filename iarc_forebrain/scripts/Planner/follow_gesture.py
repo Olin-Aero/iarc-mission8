@@ -49,15 +49,16 @@ class FollowGesture(Mode):
             dy = self.distance*math.sin(direction+orientation[2])
             print(pos.pose.position.x+dx, pos.pose.position.y+dy)
             self.drone.move_towards(pos.pose.position.x+dx, pos.pose.position.y+dy)
-            # self.disable()
+            self.disable()
             key = cv2.waitKey(1)
 
         except CvBridgeError as e:
             print(e)
 
-    def enable(self, distance=1):
+    def enable(self, distance='0', units='meters'):
         self.active = True
-        self.distance = distance
+        self.distance = self.parse(distance, units)
+        print('distance: ' + str(self.distance))
 
 # Start the node
 if __name__ == '__main__':

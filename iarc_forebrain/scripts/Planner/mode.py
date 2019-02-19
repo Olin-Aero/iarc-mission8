@@ -29,3 +29,13 @@ class Mode:
         while not rospy.is_shutdown():
             self.update()
             rate.sleep()
+
+    def parse(self, value='0', units='meters'):
+        value = float(value)
+        if units == 'inches' or units == 'inch':
+            value *= 0.0254
+        if units == 'feet' or units == 'foot':
+            value *= 0.3048
+        if units == 'centimeters' or units == 'centimeter':
+            value *= 0.01
+        return value
