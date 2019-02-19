@@ -8,7 +8,7 @@
 	<node name="iarc_simulator" pkg="iarc_sim_2d" cwd="node" type="sim.py" output="screen">
     </node>
 	
-	<node name="cmd_vel_fwd" pkg="topic_tools" type="relay" args="/cmd_vel /drone/cmd_vel" />
+	<node name="cmd_vel_fwd" pkg="topic_tools" type="relay" args="/bebop/cmd_vel /drone/cmd_vel" />
 
 	<node name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 drone base_link 30" />
 
