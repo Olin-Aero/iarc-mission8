@@ -48,10 +48,14 @@ class VoiceInterface:
 
 def listen():
     r = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Say something!")
-        audio = r.listen(source)
-    print("Parsing...")
+    r.energy_threshold = 500 # 300 is default
+    try:
+        with sr.Microphone() as source:
+            print("Say something!")
+            audio = r.listen(source, timeout=1, phrase_time_limit=None)
+        print("Parsing...")
+    except sr.WaitTimeoutError as e:
+        return []
     try:
         words = r.recognize_sphinx(audio, grammar='command.gram').split(" ")
         print(words)
