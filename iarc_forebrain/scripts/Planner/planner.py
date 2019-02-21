@@ -10,37 +10,41 @@ from mode import Mode
 from follow_gesture import FollowGesture
 from land import Land
 from move import Move
+from Drone import Drone
 
 
 class Planner:
 
-    def __init__(self, drone='red'):
-        self.drone = drone
-        rospy.init_node(str(drone)+'_planner')
-        self.modes = {"idle": Mode(),"follow": FollowGesture(),
-                        "land": Land(),"takeoff": Land(takeoff=True),\
-                        "north": Move(0),"east": Move(3*math.pi/2),\
-                        "south": Move(math.pi), "west": Move(math.pi/2), \
-                        "stop": Move(0), "duck": Move(0,-1),\
-                        "jump": Move(0,1)}
-        self.pub = rospy.Publisher("/"+drone+"_current_mode", String, queue_size=10)
+    def __init__(self, color='red'):
+        self.color = color
+        print(color+'_planner')
+        rospy.init_node(color+'_planner')
+        self.drone = Drone()
+        drone = self.drone
+        self.modes = {"idle": Mode(drone),"follow": FollowGesture(drone),
+                        "land": Land(drone),"takeoff": Land(drone, takeoff=True),\
+                        "north": Move(drone, 0),"east": Move(drone, 3*math.pi/2),\
+                        "south": Move(drone, math.pi), "west": Move(drone, math.pi/2), \
+                        "stop": Move(drone,0), "duck": Move(drone, 0,-1),\
+                        "jump": Move(drone,0,1)}
+        self.pub = rospy.Publisher("/"+color+"_current_mode", String, queue_size=10)
         self.current_mode = self.modes["idle"]
         rospy.Subscriber("/voice", String, self.voice_callback)
 
     def voice_callback(self, msg):
-        ''' Voice command format: [drone] [command] [parameters...] '''
+        ''' Voice command format: [color] [command] [parameters...] '''
         args = msg.data.split(" ")
-        if args[0] != self.drone:
+        if args[0] != self.color:
             return
         if args[1] in self.modes:
             if self.current_mode.is_active():
                 self.current_mode.disable()
             self.current_mode = self.modes[args[1]]
-            try:
-                self.current_mode.enable(*args[2:])
-            except:
-                print("Invalid parameters provided: %s" % msg.data)
-                return
+            # try:
+            self.current_mode.enable(*args[2:])
+            # except:
+            #     print("Invalid parameters provided: %s" % msg.data)
+            #     return
             print(args[1])
             self.pub.publish(args[1])
         else:

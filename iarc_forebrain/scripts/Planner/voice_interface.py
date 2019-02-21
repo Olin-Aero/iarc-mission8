@@ -48,7 +48,7 @@ class VoiceInterface:
 
 def listen():
     r = sr.Recognizer()
-    r.energy_threshold = 500 # 300 is default
+    r.energy_threshold = 400 # 300 is default
     try:
         with sr.Microphone() as source:
             print("Say something!")

@@ -73,13 +73,13 @@ class WhitleDetector(object):
     # Each command has three parts: drone name, direction, distance.
     # These convert the four whistled tones into each of those parts.
     drones = ["alpha", "bravo", "charlie", "delta"]
-    dirs = ["north", "east", "south", "west"]
+    commands = ["north", "east", "south", "west", "west"]
     dists = ["0.5", "1", "2", "4"]
 
     if len(group) != 3:
       return None
     
-    cmd = " ".join([drones[group[0]], dirs[group[1]], dists[group[2]]])
+    cmd = " ".join([drones[group[0]], commands[group[1]], dists[group[2]]])
     return cmd
 
   def freqToNote(self, freq, tonic, whistleAvg):

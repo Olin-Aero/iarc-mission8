@@ -1,10 +1,12 @@
 ''' A high level behavior for the drone to carry out '''
 import rospy
+from Drone import Drone
 
 class Mode:
-    def __init__(self):
+    def __init__(self, drone):
     	''' Called once when program starts '''
     	self.active = False
+        self.drone = drone
 
     def enable(self):
     	''' Called once each time mode becomes active '''

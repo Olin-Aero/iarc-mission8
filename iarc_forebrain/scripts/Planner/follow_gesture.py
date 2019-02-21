@@ -19,10 +19,10 @@ CAM_PITCH = math.pi/2
 
 class FollowGesture(Mode):
 
-    def __init__(self):
+    def __init__(self, drone):
         self.bridge = CvBridge()
         self.pub = rospy.Publisher("/gesture_direction", Float64, queue_size=10)
-        self.drone = Drone()
+        self.drone = drone
         self.prevTime = rospy.Time.now()
         self.distance = 0
         rate = rospy.Rate(1) # 1 Hz
@@ -62,5 +62,5 @@ class FollowGesture(Mode):
 
 # Start the node
 if __name__ == '__main__':
-    f = FollowGesture()
+    f = FollowGesture(Drone())
     f.test()
