@@ -1,0 +1,19 @@
+uint8 CID_NULL=0
+uint8 CID_PERSON=1
+uint8 CID_ENEMY=2
+uint8 CID_DRONE=3 # friendly drone
+uint8 CID_BIN=4
+uint8 CID_QR=5
+
+string source # source camera to detect from
+uint8 cid # requested class to look for
+bool track # track after detection
+# float thresh # TODO: support detection threshold
+# float timeout # TODO : support detection timeout
+---
+float32 x # bounding box left, normalized 0.0-1.0
+float32 y # bounding box top 
+float32 w # bounding box width
+float32 h # bounding box height
+uint8 cid # detected class type
+bool success # whether or not the detection was successful
