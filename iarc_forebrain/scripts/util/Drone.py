@@ -309,7 +309,7 @@ class Drone:
         """
         self.navdata = msg
 
-    def travel_and_look(self, des_x=0.0, des_y=0.0, focus_x=0.0, focus_y=0.0, frame='map', height = None):
+    def travel_and_look(self, des_x=0.0, des_y=0.0, focus_x=0.0, focus_y=0.0, frame='map', height = None, tol=0.4):
         """
         Tells the drone to move towards a given destination, and look at a given position
         :param des_x: x position to go to
@@ -336,6 +336,17 @@ class Drone:
         camMsg.pose_stamped.header.frame_id = frame
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
+	
+        rel_pos = self.get_pos(frame).pose.position
+        dist = math.sqrt(
+            (rel_pos.x - des_x) ** 2 +
+            (rel_pos.y - des_y) ** 2 +
+            (rel_pos.z - height) ** 2)
+        if dist <= tol:
+            return True
+        else:
+            return False
+
 
     def turn_to(self, orientationQuat, frame = 'map'):
         pose_stamped = self.get_pos(frame)
