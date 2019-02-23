@@ -144,7 +144,7 @@ class PIDPosController(object):
         """
         self.last_odom = msg
 
-    def cmd_pos(self, msg, angle_error=None):
+    def cmd_pos(self, msg, angle_err=None):
         """
         Calculates the commanded velocity given the desired position, with the header of the PoseStamped
         controlling which coordinate frame the commanded position is interpreted as being in.
@@ -211,19 +211,16 @@ class PIDPosController(object):
 
         # Preserve the z value of velocity
         vel.linear.z = self.alt_controller.calculate_z_vel(position.z)
-        if(angle_error == None):
+        if(angle_err == None):
             # Turn drone toward the provided orientation
             _, _, angle_err = tf.transformations.euler_from_quaternion(
                 [getattr(pose.pose.orientation, s) for s in 'xyzw'])
             angle_err += self.config.angle_offset
-
-            # Normalize the angle
-            while angle_err <= -np.pi:
-                angle_err += 2 * np.pi
-            while angle_err > np.pi:
-                angle_err -= 2 * np.pi
-        else:
-            angle_err = angle_error
+        # Normalize the angle
+        while angle_err <= -np.pi:
+            angle_err += 2 * np.pi
+        while angle_err > np.pi:
+            angle_err -= 2 * np.pi
         vel.angular.z = self.config.kp_turn * angle_err
 
         print("Calculated vel: {}".format(vel))
@@ -276,7 +273,7 @@ class PIDPosCamController(object):
         """
         :type tfl: TransformListener
         :type ddynrec: DDynamicReconfigure
-        :type alt_controller: PIDAltController
+        :type pos_controller: PIDPosController
         """
         self.tf = tfl
         self.config = ddynrec

@@ -337,9 +337,14 @@ class Drone:
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
 
-    def turn_to(self, orientationQuat, frame = 'map'):
+    def turn_to(self, angle, frame = 'map'):
+        """
+        Tells the drone to turn to face a particular direction.
+        :param angle: the euler angle for the drone to face.
+        :param frame: The tf frame associated with the target
+        """
         pose_stamped = self.get_pos(frame)
-
+        orientationQuat = tf.transformations.quaternion_from_euler(0,0,angle)
         pose_stamped.pose.orientation.x = orientationQuat[0]
         pose_stamped.pose.orientation.y = orientationQuat[1]
         pose_stamped.pose.orientation.z = orientationQuat[2]
