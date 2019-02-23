@@ -292,6 +292,7 @@ class PIDPosCamController(object):
         """
         focus = self.pos_controller.transformPoseFull('base_link',msg.look_at_position,'odom')
         orientation_to_look_at = math.atan2(focus.pose.position.y,focus.pose.position.x)
+	pose_sum = msg.pose_stamped
         return self.pos_controller.cmd_pos(pose_sum, orientation_to_look_at)
 
 if __name__ == '__main__':
