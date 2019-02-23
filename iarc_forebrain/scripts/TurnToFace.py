@@ -6,5 +6,4 @@ import tf
 
 drone = Drone()
 drone.takeoff()
-quat = tf.transformations.quaternion_from_euler(0.0, 0.0, 1.0)
-drone.turn_to(quat);
+drone.turn_to(1.0);
