@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 import rospy
 from std_msgs.msg import String
@@ -49,6 +49,9 @@ class VoiceInterface:
 def listen():
     r = sr.Recognizer()
     r.energy_threshold = 400 # 300 is default
+    r.pause_threshold = 0.3  # 0.8, seconds of non-speaking audio before a phrase is considered complete
+    r.phrase_threshold = 0.1  # 0.3, minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
+    r.non_speaking_duration = 0.2  # seconds of non-speaking audio to keep on both sides of the recording
     try:
         with sr.Microphone() as source:
             print("Say something!")
