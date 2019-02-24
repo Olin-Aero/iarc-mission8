@@ -7,6 +7,7 @@
 git clone https://github.com/AutonomyLab/parrot_arsdk.git
 git clone https://github.com/AutonomyLab/bebop_autonomy.git
 sudo apt-get install python python-all-dev python-pip build-essential swig git libpulse-dev libasound2-dev
+sudo apt-get install python-pyaudio python3-pyaudio
 ```
 
 
