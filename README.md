@@ -1,15 +1,17 @@
 # iarc-mission8
 [![Build Status](https://travis-ci.com/Olin-Aero/iarc-mission8.svg?branch=master)](https://travis-ci.com/Olin-Aero/iarc-mission8)
 
-Semester 1 integration targets
+## Build Instructions
 
-- [ ] Drone.py - Eric
-- [ ] Bebop
-- [x] Map visualization
-- [ ] QR code stitching - Nathan
-- [ ] Pointing direction stuff - Paul and David
-- [ ] Whistle commands - Adam
-  - [ ] “go”
-  - [ ] “stop”
-  - [ ] “camera”
-- [ ] Object detection (running with default classes) - Lydia (Eric supporting)
+```bash
+git clone https://github.com/AutonomyLab/parrot_arsdk.git
+git clone https://github.com/AutonomyLab/bebop_autonomy.git
+sudo apt-get install python python-all-dev python-pip build-essential swig git libpulse-dev libasound2-dev
+```
+
+
+## Run Instructions
+
+```bash
+roslaunch iarc_main onboarding_ardrone.launch
+```

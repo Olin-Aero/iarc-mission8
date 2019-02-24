@@ -99,7 +99,7 @@ def main():
     images = []
     # images here are a placeholder until real detection callback exists
     for index in range(4):
-        file = os.path.join(os.path.expanduser('~/Downloads'),"QROfficial","%s_2.jpg" %(index+1))
+        file = os.path.join(pkgRoot,"figs","QROfficial","%s_2.jpg" %(index+1))
         images.append(cv2.imread(file))
 
     detector = QRDetector()
@@ -108,7 +108,9 @@ def main():
     # show image ...
     for i, img in enumerate(cropped_images):
         cv2.imshow('image-{}'.format(i), img)
+        cv2.imwrite('/tmp/FinalImage{}.png'.format(i),img)
     cv2.waitKey(0)
+
 
 if __name__ == "__main__":
     main()
