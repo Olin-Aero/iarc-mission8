@@ -13,3 +13,18 @@ Semester 1 integration targets
   - [ ] “stop”
   - [ ] “camera”
 - [ ] Object detection (running with default classes) - Lydia (Eric supporting)
+=======
+
+## Build Instructions
+
+```bash
+git clone https://github.com/AutonomyLab/parrot_arsdk.git
+git clone https://github.com/AutonomyLab/bebop_autonomy.git
+```
+
+
+## Run Instructions
+
+```bash
+roslaunch iarc_main onboarding_ardrone.launch
+```
