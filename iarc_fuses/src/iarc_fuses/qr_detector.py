@@ -40,8 +40,11 @@ class QRDetector():
         deltay = box[1][1] - box[0][1] # gets the change in the y axis
         deltax = box[1][0] - box[0][0] # gets the change in the x axis
         alpha = atan(float(deltax) / float(deltay)) # determines the angle from horizontal of the box
+        print(alpha)
         width,height, _ = image.shape # gets the width and height of the image
+        print(width,height)
         diagonal = int(sqrt(width**2 + height**2)) # gets the diagonal so that no information is lost when rotating the image
+        print(diagonal)
         blankImage = np.zeros((diagonal,diagonal,3), np.uint8) # initializes a blank image with height and width equal to the diagonal of the original image
         x_offset = diagonal / 2 - width / 2 # the offset of the image, making the center of the image the same as the center of the blank image
         y_offset = diagonal / 2 - height / 2
@@ -85,6 +88,7 @@ class QRDetector():
 
     def __call__(self, image):
         # saves the images so that QRCombiner can access them.
+        cv2.imwrite( 'Image.jpg', image )
         b1 = self.imageToBinary(image) # gets the white part of the image
         box = self.getBox(b1) # gets a rectangle around the box
         rotatedImage = self.getRotatedImage(image,box) # rotates the image so that the rectangle is flat
@@ -99,7 +103,7 @@ def main():
     images = []
     # images here are a placeholder until real detection callback exists
     for index in range(4):
-        file = os.path.join(pkgRoot,"figs","QROfficial","%s_2.jpg" %(index+1))
+        file = os.path.join(pkgRoot,"images", "%s_2.png" %(index+1))
         images.append(cv2.imread(file))
 
     detector = QRDetector()
