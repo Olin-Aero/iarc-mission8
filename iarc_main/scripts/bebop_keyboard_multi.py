@@ -1,5 +1,5 @@
+#!/usr/bin/env python2
 import roslib
-
 roslib.load_manifest('teleop_twist_keyboard')
 import rospy
 
@@ -8,83 +8,82 @@ from std_msgs.msg import Empty, String
 
 import sys, select, termios, tty
 
-""" DONT RUN THIS CODE W/O DIETER OR DAVID """
+""" Class for representing a bebop drone """
+
+msgTeleop = """
+You are now running teleop!
+
+Reading from the keyboard and Publishing to Twist!
+---------------------------
+Moving around (strafing):
+   u    i    o
+   j    k    l
+   m    ,    .
+--------------------------
+Up, Down, Turning
+
+    w
+  a   d
+    s
+
+For Turning mode, hold down the shift key:
+---------------------------
+   U    I    O
+   J    K    L
+   M    <    >
+
+takeoff: t
+land: spacebar
+Cut all motors: '=' or '+'
+Switch to autonomous mode: 'h' or 'H'
+
+anything else : stop
+
+q/z : increase/decrease max speeds by 10%
+r/v : increase/decrease only linear speed by 10%
+e/c : increase/decrease only angular speed by 10%
+
+CTRL-C to quit
+"""
+
+takeoffLand = {
+    't': (1, 0),
+    ' ': (0, 1)
+}
+
+moveBindings = {
+    'I': (1, 0, 0, 0),
+    'O': (1, 0, 0, -1),
+    'J': (0, 0, 0, 1),
+    'L': (0, 0, 0, -1),
+    'U': (1, 0, 0, 1),
+    '<': (-1, 0, 0, 0),
+    '>': (-1, 0, 0, 1),
+    'M': (-1, 0, 0, -1),
+    'o': (1, -1, 0, 0),
+    'i': (1, 0, 0, 0),
+    'j': (0, 1, 0, 0),
+    'l': (0, -1, 0, 0),
+    'u': (1, 1, 0, 0),
+    ',': (-1, 0, 0, 0),
+    '.': (-1, -1, 0, 0),
+    'm': (-1, 1, 0, 0),
+    'w': (0, 0, 1, 0),
+    's': (0, 0, -1, 0),
+    'a': (0, 0, 0, 1),
+    'd': (0, 0, 0, -1),
+}
+
+speedBindings = {
+    'q': (1.1, 1.1),
+    'z': (.9, .9),
+    'r': (1.1, 1),
+    'v': (.9, 1),
+    'e': (1, 1.1),
+    'c': (1, .9),
+}
 
 class Drone:
-    """ Class for representing a bebop drone """
-
-    msgTeleop = """
-    You are now running teleop!
-
-    Reading from the keyboard and Publishing to Twist!
-    ---------------------------
-    Moving around (strafing):
-       u    i    o
-       j    k    l
-       m    ,    .
-    --------------------------
-    Up, Down, Turning
-
-        w
-      a   d
-        s
-
-    For Turning mode, hold down the shift key:
-    ---------------------------
-       U    I    O
-       J    K    L
-       M    <    >
-
-    takeoff: t
-    land: spacebar
-    Cut all motors: '=' or '+'
-    Switch to autonomous mode: 'h' or 'H'
-
-    anything else : stop
-
-    q/z : increase/decrease max speeds by 10%
-    r/v : increase/decrease only linear speed by 10%
-    e/c : increase/decrease only angular speed by 10%
-
-    CTRL-C to quit
-    """
-
-    takeoffLand = {
-        't': (1, 0),
-        ' ': (0, 1)
-    }
-
-    moveBindings = {
-        'I': (1, 0, 0, 0),
-        'O': (1, 0, 0, -1),
-        'J': (0, 0, 0, 1),
-        'L': (0, 0, 0, -1),
-        'U': (1, 0, 0, 1),
-        '<': (-1, 0, 0, 0),
-        '>': (-1, 0, 0, 1),
-        'M': (-1, 0, 0, -1),
-        'o': (1, -1, 0, 0),
-        'i': (1, 0, 0, 0),
-        'j': (0, 1, 0, 0),
-        'l': (0, -1, 0, 0),
-        'u': (1, 1, 0, 0),
-        ',': (-1, 0, 0, 0),
-        '.': (-1, -1, 0, 0),
-        'm': (-1, 1, 0, 0),
-        'w': (0, 0, 1, 0),
-        's': (0, 0, -1, 0),
-        'a': (0, 0, 0, 1),
-        'd': (0, 0, 0, -1),
-    }
-
-    speedBindings = {
-        'q': (1.1, 1.1),
-        'z': (.9, .9),
-        'r': (1.1, 1),
-        'v': (.9, 1),
-        'e': (1, 1.1),
-        'c': (1, .9),
-    }
 
     def __init__(self, namespace_in, namespace_out, bind):
         """ initializes the drone class
@@ -110,9 +109,9 @@ class Drone:
         self.land_pub = rospy.Publisher('/' + self.namespace_out + '/land', Empty, queue_size=1)
         self.reset_pub = rospy.Publisher('/' + self.namespace_out + '/reset', Empty, queue_size=1)
 
-        self.cmd_sub = rospy.Subscriber('/' + self.namespace_in + '/cmd_vel', Twist, callback_cmd_vel)
-        self.takeoff_sub = rospy.Subscriber('/' + self.namespace_in +'/takeoff', Empty, callback_takeoff)
-        self.land_sub = rospy.Subscriber('/' + self.namespace_in + '/land', Empty, callback_land)
+        self.cmd_sub = rospy.Subscriber('/' + self.namespace_in + '/cmd_vel', Twist, self.callback_cmd_vel)
+        self.takeoff_sub = rospy.Subscriber('/' + self.namespace_in +'/takeoff', Empty, self.callback_takeoff)
+        self.land_sub = rospy.Subscriber('/' + self.namespace_in + '/land', Empty, self.callback_land)
 
 
     def callback_cmd_vel(self, msg):
@@ -160,9 +159,9 @@ class Drone:
             self.speed = self.speed * speedBindings[key][0]
             self.turn = self.turn * speedBindings[key][1]
 
-            print get_vels(self.speed, self.turn)
+            print self.get_vels()
             if self.status == 14:
-                print msgTeleop
+                print (msgTeleop)
             self.status = (self.status + 1) % 15
         else:
             self.x = 0
@@ -170,10 +169,15 @@ class Drone:
             self.z = 0
             self.th = 0
 
-        cmd_pub.publish(Twist(
+        self.cmd_pub.publish(Twist(
                 linear=Vector3(x=self.x * self.speed, y=self.y * self.speed, z=self.z * self.speed),
                 angular=Vector3(z=self.th * self.turn)
                 ))
+
+    def __str__(self):
+        return "Drone controlling " + str(self.namespace_out)
+
+    __repr__ = __str__
 
 def getKey():
     tty.setraw(sys.stdin.fileno())
@@ -185,13 +189,14 @@ def getKey():
 if __name__ == "__main__":
     settings = termios.tcgetattr(sys.stdin)
     print msgTeleop
+    rospy.init_node('estop')
 
     # init all drones used
-    drone1 = Drone('cmd_bebop1', 'bebop1', '1')
-    drone2 = Drone('cmd_bebop2', 'bebop2', '2')
-    drone3 = Drone('cmd_bebop3', 'bebop3', '3')
-    drone4 = Drone('cmd_bebop4', 'bebop4', '4')
-    all_drones = [drone1, drone2, drone3, drone4]
+    all_drones = [  Drone('alexa', 'bebop', '1'),
+                    Drone('cortana', 'bebop2', '2'),
+                    # Drone('alexa', 'bebop', '1'),
+                    # Drone('alexa', 'bebop', '1'),
+                    ]
 
     # start with all drones active
     active_drones = all_drones
@@ -224,25 +229,27 @@ if __name__ == "__main__":
 
                 # handle landing and taking off
                 if key in takeoffLand.keys():
-                    if Drone.takeoffLand[key][0] == 1:
+                    if takeoffLand[key][0] == 1:
                         for d in active_drones:
                             d.takeoff_pub.publish()
-                    elif Drone.takeoffLand[key][1] == 1:
+                    elif takeoffLand[key][1] == 1:
                         for d in active_drones:
                             d.land_pub.publish()
 
                 # handles keys for all active drones
-                if key = '0':
+                if key == '0':
                     active_drones = all_drones
+                    print active_drones
                 else:
-                    for d in active_drones:
-                        if key = d.bind:
-                            active_drones = [drone for drone in all_drones if drone.bind == d.bind]
+                    selected_drones = [drone for drone in all_drones if drone.bind == key]
+                    if selected_drones:
+                        active_drones = selected_drones
+                        print active_drones
                     for d in active_drones:
                         d.handle_key(key)
 
     except Exception as e:
-        print e
+        print (e)
 
     # hovers and then lands drone if run loop is quit
     finally:
