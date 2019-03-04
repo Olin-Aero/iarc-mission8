@@ -4,6 +4,14 @@
 #include <opencv2/core.hpp>
 #include "ba.hpp"
 
+// Note :
+// Compiling + Linking to G2O May require nasty Eigen-related issues:
+// see http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html
+// defined by default to make sure it will compile, but may not be necessary on others' systems.
+#define EIGEN_MAX_STATIC_ALIGN_BYTES 0
+#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT 
+#define EIGEN_DONT_VECTORIZE
+
 /* G2O */
 #include <g2o/core/sparse_optimizer.h>
 #include <g2o/core/block_solver.h>
@@ -48,6 +56,13 @@ namespace iarc{
 		cv::Mat dsc;
 		BoW bow;
 		//g2o::VertexSE3Expmap v;
+		bool match(Frame& o){
+			// "weak" BoW check
+			if (!bow.match(o.bow)) return false;
+			// TODO : implement "strong" check
+			// TODO : return std::vector<size_t> match_indices
+			return false;
+		}
 	};
 
 	struct Edge{
@@ -152,7 +167,7 @@ namespace iarc{
 
 			// search loop closure candidate
 			for(auto& prv : frame){
-				if(!prv.bow.match(nxt.bow)) continue;
+				if(!prv.match(nxt)) continue;
 				float err = p2p_err(prv, nxt); // assume mean inlier reprojection error
 				if(0.1f > err || err > 1.0f) continue; // error too big (erroneous or unstable match) or too small (not worth BA)
 				// match + "adequate" pose error
