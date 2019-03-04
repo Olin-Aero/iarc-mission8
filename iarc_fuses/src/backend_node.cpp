@@ -29,6 +29,10 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <image_transport/camera_subscriber.h>
+#include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
+#include <cv_bridge/cv_bridge.h>
 
 namespace iarc{
 	struct Landmark{
@@ -55,6 +59,7 @@ namespace iarc{
 		cv::Mat kpt;
 		cv::Mat dsc;
 		BoW bow;
+		Frame(Pose& pose, cv::Mat& img); // TODO : convert img --> {img,kpt,dsc,bow}
 		//g2o::VertexSE3Expmap v;
 		bool match(Frame& o){
 			// "weak" BoW check
@@ -162,8 +167,10 @@ namespace iarc{
 			return false;
 		}
 
-		void insert(Frame& nxt){
+		bool insert(Frame& nxt){
 			// if(! is_keyframe(nxt) ) return;
+			
+			bool need_update = false;
 
 			// search loop closure candidate
 			for(auto& prv : frame){
@@ -171,7 +178,10 @@ namespace iarc{
 				float err = p2p_err(prv, nxt); // assume mean inlier reprojection error
 				if(0.1f > err || err > 1.0f) continue; // error too big (erroneous or unstable match) or too small (not worth BA)
 				// match + "adequate" pose error
-				if(loop_close()) break; // successful loop closure
+				if(loop_close()){
+					need_update = true;
+				   	break; // successful loop closure
+				}
 			}
 
 			// automatically insert relative edge from previous recorded base position
@@ -187,6 +197,8 @@ namespace iarc{
 
 			// finalize & cache frame
 			frame.push_back(nxt);
+
+			return need_update;
 		}
 
 	};
@@ -194,6 +206,14 @@ namespace iarc{
 	class BackendManager{
 		PoseGraph graph;
 		std::vector<Landmark> landmark;
+
+		bool insert(Frame& frame){
+			bool need_update = graph.insert( frame );
+			if(need_update){
+				// graph.update( landmark )
+			}
+			return need_update;
+		}
 	};
 
 	/* ROS Start */
@@ -202,7 +222,9 @@ namespace iarc{
 		using info_t=sensor_msgs::CameraInfo;
 		using pose_t=geometry_msgs::PoseStamped;
 
-		message_filters::Subscriber<pose_t> pose_sub;
+		message_filters::Subscriber<pose_t> pose_sub; // TODO : NOTE : Now that I think about it, it's probably better to get pose from TF and ask for interpolation.
+		// this way, actual image-stamp synchronized pose could be attained.
+
 		message_filters::Subscriber<img_t> img_sub;
 		message_filters::Subscriber<info_t> info_sub;
 		message_filters::TimeSynchronizer<pose_t,img_t,info_t> sync;
@@ -233,10 +255,43 @@ namespace iarc{
 
 	class BackEndManagerROS{
 		BackendManager mgr;
-		ros::NodeHandle nh;
-		std::vector<FrameSub> subs; // subscribers
+		ros::NodeHandle nh_;
+		//std::vector<FrameSub> subs; // subscribers
+		image_transport::ImageTransport it_;
+		tf::TransformListener tf_;
 
-		BackEndManagerROS();
+		std::vector<image_transport::CameraSubscriber> sub;
+
+		void data_cb(std::string& src, const sensor_msgs::ImageConstPtr& img_msg, const sensor_msgs::CameraInfoConstPtr& info_msg){
+			/* convert TF */
+			tf::StampedTransform xform;
+			Eigen::Isometry3d pose;
+			tf_.lookupTransform("map", info_msg->header.frame_id, info_msg->header.stamp, xform); 
+			tf::transformTFToEigen(xform, pose);
+
+			/* convert img */
+			auto cv_ptr = cv_bridge::toCvShare(img_msg, "bgr8");
+			auto frame = Frame{Pose{info_msg->header.stamp.toSec(), src, pose}, cv_ptr->image}
+
+			bool need_update = mgr.insert( frame );
+			if(need_update){
+				// update_robot_transforms()
+				// update_landmark_transforms()
+				// publish_robot_transforms()
+				// publish_landmark_transforms()
+			}
+
+			// NOTE : cv_ptr->image will not be valid from this point onwards
+		}
+
+		BackEndManagerROS(ros::NodeHandle& nh):
+			nh_(nh), it_(nh_){
+				// TODO : nh_priv_.get_param( list_of_sources ))
+				for(auto& src : {"a","b","c"}){
+					sub = this->it_.subscribeCamera(src, 10, boost::bind(&BackEndManagerROS::data_cb, *this, src, _1, _2));
+				}
+
+		}
 	};
 
 }
