@@ -5,6 +5,9 @@ from sensor_msgs.msg import Image, CameraInfo
 from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
+from iarc_fuses.object_track import Object_Tracker
+import numpy as np
+import cv2
 
 class NullDetector(object):
     def __init__(self):
@@ -15,8 +18,61 @@ class NullDetector(object):
 class NullTracker(object):
     def __init__(self):
         pass
-    def __call__(self, img, box):
-        return box
+    def init(self, img, box):
+        """ 
+        Initialize the tracker with the input image and the bounding box.
+
+        Returns:
+            any state-related metadata required for later tracking 
+        """
+        return None
+    def __call__(self, img, box, meta):
+        """
+        Returns:
+            box, state
+        """
+        return box, meta
+
+def convert_box(box_in):
+    """
+    TODO : handle format arguments, i.e.
+    #format_in='y,x,y,x',
+    #format_out='cx,cy,w,h'
+    """
+    y0, x0, y1, x1 = box_in
+    cx = (x0+x1)/2.0
+    cy = (y0+y1)/2.0
+    w  = float(y1-y0)
+    h  = float(x1-x0)
+    return [cx,cy,w,h]
+
+def convert_box_2(box_in):
+    """
+    TODO : handle format arguments, i.e.
+    #format_in='cx,cy,w,h'
+    #format_out='y,x,y,x',
+    """
+    cx,cy,w,h = box_in
+    x0 = cx - w / 2.0
+    y0 = cy - h / 2.0
+    x1 = cx + w / 2.0
+    y1 = cy + h / 2.0
+
+    return [y0,x0,y1,x1]
+
+def draw_tfbox(img, box, cls=None):
+    h,w = img.shape[:2]
+    yxyx = box
+    yxyx = np.multiply(yxyx, [h,w,h,w])
+    yxyx = np.round(yxyx).astype(np.int32)
+    y0,x0,y1,x1 = yxyx
+    cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
+    if cls is not None:
+        org = ( max(x0,0), min(y1,h) )
+        cv2.putText(img, cls, org, 
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255),
+                1, cv2.LINE_AA
+                )
 
 class CameraHandle(object):
     def __init__(self, src, bridge, callback):
@@ -56,14 +112,17 @@ class CameraHandle(object):
         self.callback_(self.src_, img, data.header.stamp)
 
 class Track(object):
-    def __init__(self, src, cid, img, box, stamp):
+    def __init__(self, src, cid, img, box, stamp, meta=None):
         self.src_ = src
         self.cid_ = cid
         self.img_ = img
         self.box_ = box
         self.stamp_ = stamp
+        self.meta_ = meta
 
         self.cnt_ = 1 # count the number of frames seen
+    def __repr__(self):
+        return '[{}]{}-({})'.format(self.src_, self.cid_, self.box_)
 
 class TrackerNode(object):
     def __init__(self):
@@ -74,7 +133,8 @@ class TrackerNode(object):
         # Processing Handles
         #self.det_ = NullDetector()
         self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON})
-        self.trk_ = NullTracker()
+        self.trk_ = Object_Tracker()
+        #self.trk_ = NullTracker()
 
         # ROS Handles
         self.cvbr_ = CvBridge()
@@ -91,6 +151,19 @@ class TrackerNode(object):
         # - Friendly Drone ( <= ? )
         # - Enemy Drone ( <= ? )
         # - Bin/QR ( <= 4 )
+
+    def filter_detection(self, req, din):
+        dout = []
+        for (cid, box, score) in zip(din['class'], din['box'], din['score']):
+            if (req.cid is not req.CID_NULL) and (str(req.cid) is not str(cid)):
+                # class mismatch
+                continue
+            if score < 0.5:
+                # insufficient confidence
+                continue
+            box = convert_box(box)
+            dout.append( (cid, box) )
+        return dout
 
     def detect_cb(self, req):
         src = req.source
@@ -118,9 +191,7 @@ class TrackerNode(object):
             return res_fail
 
         # TODO : maybe support multi-class detection in the future
-        # filter by class match
-        dres = [(cid, box) for (cid, box) in zip(dres['class'], dres['box'])
-                if (req.cid is req.CID_NULL) or (str(req.cid) is str(cid))]
+        dres = self.filter_detection(req, dres)
 
         if len(dres) <= 0:
             rospy.loginfo('Detector has found no matching objects for request: {}'.format(req))
@@ -134,7 +205,9 @@ class TrackerNode(object):
         if (req.track):
             # initialize tracking that object
             # TODO : filter for already tracked objects?
-            self.track_.append( Track(src, cid, img, box, stamp) )
+            print('box->', box)
+            meta = self.trk_.init(img, box)
+            self.track_.append( Track(src, cid, img, box, stamp, meta) )
 
         # finally, success!
         return DetectResponse(x=x,y=y,w=w,h=h, cid=int(cid), success=True)
@@ -152,17 +225,31 @@ class TrackerNode(object):
             # should usually not reach here, maybe the first few frames
             return
 
-        for track in self.track_:
-            track.box_ = self.trk_(img, track.box_)
-            track.cnt_ += 1
-            track.stamp_ = rospy.Time.now()
+        for t in self.track_:
+            tres = self.trk_(img, t.box_, t.meta_)
+            tscore = self.trk_.get_confidence(t.meta_)
+            print('tscore', tscore)
+
+            if tscore > 0.2:
+                t.box_, t.meta_ = tres
+                t.cnt_ += 1
+                t.stamp_ = stamp
+                print('box-->', t.box_)
 
         # filter tracks
         # TODO : support tenacious tracking? (recovery from loss / re-detection)
         # TODO : set timeout (10.0 = MAGIC)
-        self.track_ = [t for t in self.track_ if (t.box_ is not None) and (rospy.Time.now() - track.stamp_).to_sec() < 10.0]
+        self.track_ = [t for t in self.track_ if (t.box_ is not None) and (stamp - t.stamp_).to_sec() < 10.0]
+
+        #if len(self.track_) > 0:
+        #    print self.track_
 
         # TODO : publish tracks
+        for t in self.track_:
+            draw_tfbox(img, convert_box_2(t.box_), cls=None)
+
+        cv2.imshow('win', img) 
+        cv2.waitKey(1)
 
         # pixel --> ray
         # x_rel, y_rel = loc2d
