@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import rospy
 from cv_bridge import CvBridge
+from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
+from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
@@ -139,6 +141,7 @@ class TrackerNode(object):
         # ROS Handles
         self.cvbr_ = CvBridge()
         self.srv_ = rospy.Service('detect', Detect, self.detect_cb)
+        self.pub_ = rospy.Publisher('dbg', PointStamped, queue_size=10)
 
         # Register Camera Handlers
         self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in srcs}
@@ -247,6 +250,15 @@ class TrackerNode(object):
         # TODO : publish tracks
         for t in self.track_:
             draw_tfbox(img, convert_box_2(t.box_), cls=None)
+
+            iw, ih = cam.model_.width, cam.model_.height
+            cx, cy = np.multiply(t.box_[:2], [iw,ih])
+            ray3d  = cam.model_.projectPixelTo3dRay([cx, cy])
+
+            self.pub_.publish(PointStamped(
+                header=Header(frame_id=cam.model_.tfFrame(), stamp=stamp),
+                point=Point(*ray3d)
+                ))
 
         cv2.imshow('win', img) 
         cv2.waitKey(1)
