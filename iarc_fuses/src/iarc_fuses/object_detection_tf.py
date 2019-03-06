@@ -6,35 +6,73 @@ import tensorflow as tf
 import cv2
 import time
 
-class ObjectDetectorTFSSD(object):
+class ObjectDetectorTF(object):
+    """
+    Thin wrapper around the Tensorflow Object Detection API.
+    Heavily inspired by the [provided notebook][1].
+
+    Note:
+        [1]: https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
+    """
     def __init__(self,
             root='/tmp',
             #model='ssd_mobilenet_v1_coco_11_06_2017',
             model='ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
-            use_gpu=False
+            use_gpu=False,
+            cmap=None,
+            shape=(480,640,3)
             ):
+        """
+        Arguments:
+            root(str): persistent data directory; override to avoid initialization overhead.
+            model(str): model name; refer to the [model zoo][2].
+            use_gpu(bool): Enable vision processing execution on the GPU.
+            cmap(dict): Alternative class definitions; remap known classes for convenience.
+            shape(tuple): (WxHx3) shape used for warmup() to pre-allocate tensor.
+
+        Note:
+            [2]: https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md
+        """
         # cache arguments
         self.root_  = root
         self.model_ = model
         self.use_gpu_ = use_gpu
+        self.shape_ = shape
 
         # load model
         ckpt_file = self._maybe_download_ckpt()
         self.graph_ = self._load_graph(ckpt_file)
         self.input_, self.output_ = self._build_pipeline(self.graph_)
-
-        label_file = os.path.join('data', 'mscoco_label_map.pbtxt')
-        n_classes = 90
+        self.cmap_ = cmap
 
     def __call__(self, img):
+        """
+        Run object detection.
+
+        Arguments:
+            img(A(N?,W,H,3)): image to run inference on; may optionally be batched.
+        Returns:
+            output(dict): {'box':A(N,M,4), 'class':A(N,M), 'score':A(N,M)}
+        """
         if img.ndim == 3:
             # single image configuration
             outputs = self.__call__(img[None,...])
             return {k:v[0] for k,v in outputs.iteritems()}
         outputs = self.run(self.output_, {self.input_:img})
+        if self.cmap_ is not None:
+            # map to alternative class definitions
+            outputs['class'] = [[ str(self.cmap_[x] if (x in self.cmap_) else x) for x in xs] for xs in outputs['class']]
+            outputs['class'] = np.array(outputs['class'], dtype=str)
         return outputs
 
     def _maybe_download_ckpt(self):
+        """
+        WARN: internal.
+
+        Check if model file exists; download if not available.
+        Returns:
+            ckpt_file(str): path to the checkpoint, from which to load graph.
+        """
         ckpt_file = os.path.join(self.root_, self.model_,
                 'frozen_inference_graph.pb')
         model_tar_basename = '{}.tar.gz'.format(self.model_)
@@ -57,6 +95,15 @@ class ObjectDetectorTFSSD(object):
         return ckpt_file
 
     def _load_graph(self, ckpt_file):
+        """
+        WARN: internal.
+
+        Load Graph from file.
+        Arguments:
+            ckpt_file(str): result from _maybe_download_ckpt()
+        Returns:
+            graph(tf.Graph): computational tensorflow Graph
+        """
         detection_graph = tf.Graph()
         with detection_graph.as_default():
             od_graph_def = tf.GraphDef()
@@ -67,10 +114,20 @@ class ObjectDetectorTFSSD(object):
         return detection_graph
 
     def _build_pipeline(self, graph):
+        """
+        WARN: internal.
+
+        Parse graph into inputs and outputs.
+        Arguments:
+            graph(tf.Graph): result from _load_graph()
+        Returns:
+            x(tf.Placeholder): NHWC input image tensor (batched)
+            y(dict): output(dict): {'box':A(N,M,4), 'class':A(N,M), 'score':A(N,M), 'num':M=A(N)}
+        """
         x = None
         y = {}
         with graph.as_default():
-            get = lambda s : graph.get_tensor_by_name(s)
+            get = lambda s: graph.get_tensor_by_name(s)
             x = get('image_tensor:0')
             y['box'] = get('detection_boxes:0')
             y['score'] = get('detection_scores:0')
@@ -79,9 +136,11 @@ class ObjectDetectorTFSSD(object):
         return x, y
 
     def warmup(self):
-        self.__call__(np.zeros(shape=(1,480,640,3), dtype=np.uint8))
+        """ Allocate resources on the GPU as a warm-up """
+        self.__call__(np.zeros(shape=(1,)+self.shape_, dtype=np.uint8))
 
     def initialize(self):
+        """ Create Session and warmup """
         with self.graph_.as_default():
             if self.use_gpu_:
                 self.sess_ = tf.Session(graph=self.graph_)
@@ -95,11 +154,25 @@ class ObjectDetectorTFSSD(object):
     def run(self, *args, **kwargs):
         return self.sess_.run(*args, **kwargs)
 
+def draw_tfbox(img, box, cls=None):
+    h,w = img.shape[:2]
+    yxyx = box
+    yxyx = np.multiply(yxyx, [h,w,h,w])
+    yxyx = np.round(yxyx).astype(np.int32)
+    y0,x0,y1,x1 = yxyx
+    cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
+    if cls is not None:
+        org = ( max(x0,0), min(y1,h) )
+        cv2.putText(img, cls, org, 
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255),
+                1, cv2.LINE_AA
+                )
+
 def test_image():
     """
     Simple test script; requires /tmp/image1.jpg
     """
-    app = ObjectDetectorTFSSD()
+    app = ObjectDetectorTF()
     app.initialize()
 
     img = cv2.imread('/tmp/image1.jpg')
@@ -111,19 +184,16 @@ def test_image():
     box   = res['box'][msk]
     score = res['score'][msk]
 
-    for box_ in box:
+    for box_, cls_ in zip(box, cls):
         #ry0,rx0,ry1,rx1 = box_ # relative
-        yxyx = box_
-        yxyx = np.multiply(yxyx, [h,w,h,w])
-        yxyx = np.round(yxyx).astype(np.int32)
-        y0,x0,y1,x1 = yxyx
-        cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
+        draw_tfbox(img, box_, str(cls_))
 
     cv2.imshow('win', img)
     cv2.waitKey(0)
 
 def test_camera():
-    app = ObjectDetectorTFSSD(use_gpu=False)
+    """ Simple test srcipt; requires /dev/video0 """
+    app = ObjectDetectorTF(use_gpu=False, cmap={1:'person'})
     app.initialize()
 
     cam = cv2.VideoCapture(0)
@@ -145,21 +215,18 @@ def test_camera():
         cls   = res['class'][msk]
         box   = res['box'][msk]
         score = res['score'][msk]
-        for box_ in box:
+        for box_, cls_ in zip(box, cls):
             #ry0,rx0,ry1,rx1 = box_ # relative
-            yxyx = box_
-            yxyx = np.multiply(yxyx, [h,w,h,w])
-            yxyx = np.round(yxyx).astype(np.int32)
-            y0,x0,y1,x1 = yxyx
-            cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
+            draw_tfbox(img, box_, str(cls_))
         cv2.imshow('win', img)
         k = cv2.waitKey(1)
         if k in [ord('q'), 27]:
             print('quitting...')
             break
-        print('average fps : {}'.format( np.mean(fps[-100:])) )
+        print('average fps: {}'.format( np.mean(fps[-100:])) )
 
 def main():
+    #test_image()
     test_camera()
 
 if __name__ == "__main__":
