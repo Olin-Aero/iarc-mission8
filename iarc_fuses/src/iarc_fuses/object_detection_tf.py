@@ -45,6 +45,8 @@ class ObjectDetectorTF(object):
         self.input_, self.output_ = self._build_pipeline(self.graph_)
         self.cmap_ = cmap
 
+        self.initialize()
+
     def __call__(self, img):
         """
         Run object detection.
@@ -173,7 +175,6 @@ def test_image():
     Simple test script; requires /tmp/image1.jpg
     """
     app = ObjectDetectorTF()
-    app.initialize()
 
     img = cv2.imread('/tmp/image1.jpg')
     h,w = img.shape[:2]
@@ -194,7 +195,6 @@ def test_image():
 def test_camera():
     """ Simple test srcipt; requires /dev/video0 """
     app = ObjectDetectorTF(use_gpu=False, cmap={1:'person'})
-    app.initialize()
 
     cam = cv2.VideoCapture(0)
 

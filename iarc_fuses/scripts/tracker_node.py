@@ -4,6 +4,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
+from iarc_fuses.object_detection_tf import ObjectDetectorTF
 
 class NullDetector(object):
     def __init__(self):
@@ -55,12 +56,14 @@ class CameraHandle(object):
         self.callback_(self.src_, img, data.header.stamp)
 
 class Track(object):
-    def __init__(self, src, cid, box, stamp):
+    def __init__(self, src, cid, img, box, stamp):
         self.src_ = src
         self.cid_ = cid
+        self.img_ = img
         self.box_ = box
-        self.cnt_ = 1 # count the number of frames seen
         self.stamp_ = stamp
+
+        self.cnt_ = 1 # count the number of frames seen
 
 class TrackerNode(object):
     def __init__(self):
@@ -69,12 +72,13 @@ class TrackerNode(object):
         rospy.loginfo('Tracker Received Sources : {}'.format(srcs))
 
         # Processing Handles
-        self.det_ = NullDetector()
+        #self.det_ = NullDetector()
+        self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON})
         self.trk_ = NullTracker()
 
         # ROS Handles
         self.cvbr_ = CvBridge()
-        self.srv_ = rospy.Service('detect', Detect, detect_cb)
+        self.srv_ = rospy.Service('detect', Detect, self.detect_cb)
 
         # Register Camera Handlers
         self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in srcs}
@@ -92,27 +96,34 @@ class TrackerNode(object):
         src = req.source
         res_fail = DetectResponse(success=False)
         if not src in self.cam_:
+            rospy.loginfo('Got Detection Request for [{}] but data does not exit yet'.format(src))
             return res_fail
 
-        if self.cam_[src].img_ is None:
+        # parse input data
+        img   = self.cam_[src].img_
+        stamp = self.cam_[src].stamp_
+        if (img is None) or (stamp is None):
             return res_fail
         
-        dt = (rospy.Time.now() - self.cam_[src].stamp).to_sec()
+        dt = (rospy.Time.now() - self.cam_[src].stamp_).to_sec()
         if dt > 0.5:  # << TODO : MAGIC
             # more than 500ms passed since last image received:
             # image cannot be processed.
             # TODO : support post-request detection as action?(timeout)
             return res_fail
 
-        dres = self.det_( self.cam_[src].img_ )
+        dres = self.det_( img )
         if dres is None:
+            rospy.loginfo('Detector failed for request : {}'.format(req))
             return res_fail
 
         # TODO : maybe support multi-class detection in the future
         # filter by class match
-        dres = [(cid,box) for (cid,box) in dres if (req.cid is req.CID_NULL) or (req.cid is cid)]
+        dres = [(cid, box) for (cid, box) in zip(dres['class'], dres['box'])
+                if (req.cid is req.CID_NULL) or (str(req.cid) is str(cid))]
 
         if len(dres) <= 0:
+            rospy.loginfo('Detector has found no matching objects for request: {}'.format(req))
             return res_fail
 
         # sort by box area
@@ -123,10 +134,10 @@ class TrackerNode(object):
         if (req.track):
             # initialize tracking that object
             # TODO : filter for already tracked objects?
-            self.track_.append( Track(src, cid, box) )
+            self.track_.append( Track(src, cid, img, box, stamp) )
 
         # finally, success!
-        return DetectResponse(x=x,y=y,w=w,h=h, cid=cid, success=True)
+        return DetectResponse(x=x,y=y,w=w,h=h, cid=int(cid), success=True)
 
     def data_cb(self, src, img, stamp):
         # TODO : save data in cam_ and run data_cb in step()
