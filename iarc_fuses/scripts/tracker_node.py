@@ -8,16 +8,19 @@ from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.object_track import Object_Tracker
+from iarc_fuses.utils import draw_bbox
 import numpy as np
 import cv2
 
 class NullDetector(object):
+    """ example class for generic Detector() implementation """
     def __init__(self):
         pass
     def __call__(self, img):
         return (0.0, 0.0)
 
 class NullTracker(object):
+    """ example class for generic Tracker() implementation """
     def __init__(self):
         pass
     def init(self, img, box):
@@ -30,8 +33,13 @@ class NullTracker(object):
         return None
     def __call__(self, img, box, meta):
         """
+        Arguments:
+            img(A(H,W,3)): Input image.
+            box(A(4)): [cx,cy,w,h] encoded box
+            meta(?): Extra information field to maintain tracking state.
         Returns:
-            box, state
+            box(A(4)): [cx,cy,w,h] new encoded box
+            state
         """
         return box, meta
 
@@ -61,20 +69,6 @@ def convert_box_2(box_in):
     y1 = cy + h / 2.0
 
     return [y0,x0,y1,x1]
-
-def draw_tfbox(img, box, cls=None):
-    h,w = img.shape[:2]
-    yxyx = box
-    yxyx = np.multiply(yxyx, [h,w,h,w])
-    yxyx = np.round(yxyx).astype(np.int32)
-    y0,x0,y1,x1 = yxyx
-    cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
-    if cls is not None:
-        org = ( max(x0,0), min(y1,h) )
-        cv2.putText(img, cls, org, 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255),
-                1, cv2.LINE_AA
-                )
 
 class CameraHandle(object):
     def __init__(self, src, bridge, callback):
@@ -218,6 +212,11 @@ class TrackerNode(object):
     def data_cb(self, src, img, stamp):
         # TODO : save data in cam_ and run data_cb in step()
         # instead of inside the callback. May run into strange race conditions.
+        now = rospy.Time.now()
+        if (now - stamp).to_sec() > 0.1:
+            rospy.loginfo_throttle(1.0, 'incoming data too old: [{}]-{}'.format(src, stamp) )
+            # too old
+            return
 
         if not (src in self.cam_):
             # should usually not reach here - error
@@ -249,7 +248,7 @@ class TrackerNode(object):
 
         # TODO : publish tracks
         for t in self.track_:
-            draw_tfbox(img, convert_box_2(t.box_), cls=None)
+            draw_bbox(img, convert_box_2(t.box_), cls=None)
 
             iw, ih = cam.model_.width, cam.model_.height
             cx, cy = np.multiply(t.box_[:2], [iw,ih])
@@ -271,8 +270,14 @@ class TrackerNode(object):
     def publish(self):
         pass
 
+    def step(self):
+        pass
+
     def run(self):
-        rospy.spin()
+        r = rospy.Rate(50)
+        while not rospy.is_shutdown():
+            self.step()
+        #rospy.spin()
 
 def main():
     rospy.init_node('tracker')
