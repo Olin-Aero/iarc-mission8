@@ -124,12 +124,13 @@ class TrackerNode(object):
     def __init__(self):
         # parse sources
         srcs = rospy.get_param('~srcs', [])
+        self.dbg_ = rospy.get_param('~dbg', False)
         rospy.loginfo('Tracker Received Sources : {}'.format(srcs))
 
         # Processing Handles
         #self.det_ = NullDetector()
         self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON})
-        self.trk_ = Object_Tracker()
+        self.trk_ = Object_Tracker(use_gpu=True)
         #self.trk_ = NullTracker()
 
         # ROS Handles
@@ -237,6 +238,9 @@ class TrackerNode(object):
                 t.cnt_ += 1
                 t.stamp_ = stamp
                 print('box-->', t.box_)
+            else:
+                # lost track
+                t.box_ = None
 
         # filter tracks
         # TODO : support tenacious tracking? (recovery from loss / re-detection)
@@ -259,8 +263,9 @@ class TrackerNode(object):
                 point=Point(*ray3d)
                 ))
 
-        cv2.imshow('win', img) 
-        cv2.waitKey(1)
+        if self.dbg_:
+            cv2.imshow('win', img) 
+            cv2.waitKey(1)
 
         # pixel --> ray
         # x_rel, y_rel = loc2d
