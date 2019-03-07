@@ -58,6 +58,7 @@ class Drone:
         rospy.sleep(0.1)
         rospy.Publisher('/arbiter/activate_behavior', String, latch=True, queue_size=10).publish(
             'forebrain')
+        rospy.sleep(0.5)
 
         self.navdata = None
         if Navdata is not None:
@@ -88,7 +89,7 @@ class Drone:
 
         self.takeoffPub.publish(Empty())
 
-        rospy.sleep(0.1)
+        rospy.sleep(0.5)
 
         if tol > 0:
             r = rospy.Rate(10)
@@ -182,6 +183,7 @@ class Drone:
             self.move_towards(des_x, des_y, frame, des_height)
 
             r.sleep()
+
 
     def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.4):
         """

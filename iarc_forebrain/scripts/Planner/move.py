@@ -18,9 +18,10 @@ class Move(Mode):
             dx = self.distance*math.cos(self.angle)
             dy = self.distance*math.sin(self.angle)
             self.target = (pos.x+dx, pos.y+dy, pos.z)
-            print('MOVE: %s, %s' % (dx, dy))
+            print('MOVE: dx = %s, dy = %s' % (dx, dy))
         else:
             self.target = (pos.x, pos.y, pos.z+self.dz*self.distance)
+            print('MOVE: dz = %s' % self.dz*self.distance)
         self.active = True
 
     def update(self):
