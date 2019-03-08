@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(iarc_fuses)
 
+set( CMAKE_EXPORT_COMPILE_COMMANDS "ON" )
+set( G2O_ROOT /usr/local/ )
+set( CMAKE_CXX_FLAGS "-std=c++17 -Wall -o2 -march=native" )
+list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules )
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -12,7 +17,19 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   tf
   tf2_ros
+  image_transport
+  image_geometry
+  tf_conversions
+  sensor_msgs
+  geometry_msgs
+  cv_bridge
+
 )
+
+find_package( G2O ) #REQUIRED PATHS /usr/local)
+find_package( OpenCV 3.4 REQUIRED )
+find_package( Eigen3 REQUIRED )
+find_package( Cholmod )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -104,7 +121,7 @@ catkin_python_setup()
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES iarc_fuses
 #  CATKIN_DEPENDS roscpp rospy tf tf2_ros
 #  DEPENDS system_lib
@@ -117,8 +134,11 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+ include
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+  ${CHOLMOD_INCLUDE_DIR}
+  ${G2O_INCLUDE_DIR}
 )
 
 ## Declare a C++ library
@@ -134,7 +154,10 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/iarc_fuses_node.cpp)
+add_executable(backend_simple_node 
+	src/backend_node_simple.cpp
+	src/loop_closure.cpp
+	)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -147,9 +170,13 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(
+	backend_simple_node
+	${catkin_LIBRARIES}
+    ${OpenCV_LIBS}
+    g2o_core g2o_types_slam3d g2o_solver_csparse g2o_stuff g2o_csparse_extension g2o_types_sba
+    ${CHOLMOD_LIBRARIES}
+	)
 
 #############
 ## Install ##

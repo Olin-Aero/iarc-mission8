@@ -60,14 +60,14 @@ namespace iarc{
 		cv::Mat dsc;
 		BoW bow;
 		Frame(Pose& pose, cv::Mat& img); // TODO : convert img --> {img,kpt,dsc,bow}
-		//g2o::VertexSE3Expmap v;
-		bool match(Frame& o){
-			// "weak" BoW check
-			if (!bow.match(o.bow)) return false;
-			// TODO : implement "strong" check
-			// TODO : return std::vector<size_t> match_indices
-			return false;
-		}
+	//g2o::VertexSE3Expmap v;
+	bool match(Frame& o){
+		// "weak" BoW check
+		if (!bow.match(o.bow)) return false;
+		// TODO : implement "strong" check
+		// TODO : return std::vector<size_t> match_indices
+		return false;
+	}
 	};
 
 	struct Edge{
@@ -80,7 +80,7 @@ namespace iarc{
 	// indicating that the visual relative pose cannot be computed
 	// (i.e. the two poses are NOT related apart from graph)
 	float p2p_err(const Frame& a, const Frame& b);
-	
+
 	struct BASolver{
 		g2o::SparseOptimizer optimizer;
 
@@ -159,7 +159,7 @@ namespace iarc{
 
 
 			// 2. Run G2o Optimization
-		    // std::cout << "starting optimize" << std::endl;
+			// std::cout << "starting optimize" << std::endl;
 			// optimizer.setVerbose( true );
 			// optimizer.initializeOptimization();
 			// optimizer.optimize(10);
@@ -169,7 +169,7 @@ namespace iarc{
 
 		bool insert(Frame& nxt){
 			// if(! is_keyframe(nxt) ) return;
-			
+
 			bool need_update = false;
 
 			// search loop closure candidate
@@ -180,7 +180,7 @@ namespace iarc{
 				// match + "adequate" pose error
 				if(loop_close()){
 					need_update = true;
-				   	break; // successful loop closure
+					break; // successful loop closure
 				}
 			}
 
@@ -266,8 +266,19 @@ namespace iarc{
 			/* convert TF */
 			tf::StampedTransform xform;
 			Eigen::Isometry3d pose;
-			tf_.lookupTransform("map", info_msg->header.frame_id, info_msg->header.stamp, xform); 
-			tf::transformTFToEigen(xform, pose);
+
+			try{
+				tf_.lookupTransform("map", info_msg->header.frame_id, info_msg->header.stamp, xform); 
+				tf::transformTFToEigen(xform, pose);
+			}catch(tf::LookupException& e){
+				return;
+			}catch(tf::TransformException& e){
+				return;
+			}catch(tf::ExtrapolationException e){
+				return;
+			}catch(tf::ConnectivityException& e){
+				return;
+			}
 
 			/* convert img */
 			auto cv_ptr = cv_bridge::toCvShare(img_msg, "bgr8");
@@ -291,7 +302,7 @@ namespace iarc{
 					sub = this->it_.subscribeCamera(src, 10, boost::bind(&BackEndManagerROS::data_cb, *this, src, _1, _2));
 				}
 
-		}
+			}
 	};
 
 }
