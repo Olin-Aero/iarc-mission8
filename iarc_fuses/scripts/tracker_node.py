@@ -125,12 +125,13 @@ class TrackerNode(object):
         # parse sources
         srcs = rospy.get_param('~srcs', [])
         self.dbg_ = rospy.get_param('~dbg', False)
+        self.use_gpu_ = rospy.get_param('~use_gpu', True)
         rospy.loginfo('Tracker Received Sources : {}'.format(srcs))
 
         # Processing Handles
         #self.det_ = NullDetector()
-        self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON})
-        self.trk_ = Object_Tracker(use_gpu=True)
+        self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON}, use_gpu=self.use_gpu_)
+        self.trk_ = Object_Tracker(use_gpu=self.use_gpu_)
         #self.trk_ = NullTracker()
 
         # ROS Handles
