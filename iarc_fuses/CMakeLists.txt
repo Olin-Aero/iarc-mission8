@@ -3,7 +3,7 @@ project(iarc_fuses)
 
 set( CMAKE_EXPORT_COMPILE_COMMANDS "ON" )
 set( G2O_ROOT /usr/local/ )
-set( CMAKE_CXX_FLAGS "-std=c++17 -Wall -o2 -march=native" )
+set( CMAKE_CXX_FLAGS "-std=c++17 -Wall")# -march=native" )
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules )
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -170,11 +170,22 @@ add_executable(backend_simple_node
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+set(G2O_LIBS_RELEASE g2o_core g2o_types_slam3d g2o_solver_csparse g2o_stuff g2o_csparse_extension g2o_types_sba)
+set(G2O_LIBS_DBG g2o_core_d g2o_types_slam3d_d g2o_solver_csparse_d g2o_stuff_d g2o_csparse_extension_d g2o_types_sba_d)
+
+if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    set(G2O_LIBS ${G2O_LIBS_DBG})
+else()
+    set(G2O_LIBS ${G2O_LIBS_RELEASE})
+endif()
+
+message("g2o libs : ${G2O_LIBS}")
+
 target_link_libraries(
 	backend_simple_node
 	${catkin_LIBRARIES}
     ${OpenCV_LIBS}
-    g2o_core g2o_types_slam3d g2o_solver_csparse g2o_stuff g2o_csparse_extension g2o_types_sba
+    ${G2O_LIBS}
     ${CHOLMOD_LIBRARIES}
 	)
 

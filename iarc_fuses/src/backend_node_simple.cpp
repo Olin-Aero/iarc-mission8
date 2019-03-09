@@ -1,6 +1,6 @@
-#define EIGEN_MAX_STATIC_ALIGN_BYTES 0
-#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT 
-#define EIGEN_DONT_VECTORIZE
+//#define EIGEN_MAX_STATIC_ALIGN_BYTES 0
+//#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT 
+//#define EIGEN_DONT_VECTORIZE
 
 #include <ros/ros.h>
 #include <message_filters/subscriber.h>
@@ -16,128 +16,154 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
+#include <std_srvs/Empty.h>
 
 #include "loop_closure.hpp"
 
 class BackEndNodeSimple{
   private:
-      ros::NodeHandle& nh_;
-      image_transport::CameraSubscriber sub_;
-      image_transport::ImageTransport it_;
-      tf::TransformListener tf_;
-      tf::TransformBroadcaster tfb_;
+	  ros::NodeHandle& nh_;
+	  image_transport::CameraSubscriber sub_;
+	  image_transport::ImageTransport it_;
+	  tf::TransformListener tf_;
+	  tf::TransformBroadcaster tfb_;
 
-      std::vector<Eigen::Isometry3d> poses, poses_gt;
-      std::vector<cv::Mat> imgs;
+	  std::vector<Eigen::Isometry3d> poses, poses_gt;
+	  std::vector<cv::Mat> imgs;
+	  ros::ServiceServer srv_;
+	  bool lc_req_;
 
   public:
-      BackEndNodeSimple(ros::NodeHandle& nh)
-          :nh_(nh),it_(nh){
-              sub_ = it_.subscribeCamera("hmm", 10, &BackEndNodeSimple::data_cb, this);
-          }
+	  BackEndNodeSimple(ros::NodeHandle& nh)
+		  :nh_(nh),it_(nh), lc_req_(false){
+			  sub_ = it_.subscribeCamera("hmm", 10, &BackEndNodeSimple::data_cb, this);
+			  srv_ = nh_.advertiseService("run_lc",
+					  &BackEndNodeSimple::loop_closure_cb, this);
+		  }
 
-      void data_cb(
-              const sensor_msgs::ImageConstPtr& img_msg,
-              const sensor_msgs::CameraInfoConstPtr& info_msg){
-          auto cv_ptr = cv_bridge::toCvShare(img_msg, "bgr8");
+	  bool loop_closure_cb(
+			  std_srvs::EmptyRequest&,
+			  std_srvs::EmptyResponse& 
+			  ){
+		  lc_req_ = true;
+		  return true;
+	  }
 
-          // take care of transforms
-          tf::StampedTransform xform, xform_gt;
-          Eigen::Isometry3d pose, pose_gt;
+	  void data_cb(
+			  const sensor_msgs::ImageConstPtr& img_msg,
+			  const sensor_msgs::CameraInfoConstPtr& info_msg){
+		  auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
 
-          try{
-              tf_.waitForTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
-              tf_.lookupTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, xform_gt); 
+		  // take care of transforms
+		  tf::StampedTransform xform, xform_gt;
+		  Eigen::Isometry3d pose, pose_gt;
 
-              tf_.waitForTransform("noise", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
-              tf_.lookupTransform("noise", info_msg->header.frame_id, info_msg->header.stamp, xform); 
+		  try{
+			  tf_.waitForTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
+			  tf_.lookupTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, xform_gt); 
 
-              tf::transformTFToEigen(xform.inverse(), pose);
-              tf::transformTFToEigen(xform_gt.inverse(), pose_gt);
+			  tf_.waitForTransform("noise", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
+			  tf_.lookupTransform("noise", info_msg->header.frame_id, info_msg->header.stamp, xform); 
 
-              if(imgs.size() == 0){
-                  // start with truth info
-                  tf::transformTFToEigen(xform_gt.inverse(), pose);
-              }else{
-                  tf::transformTFToEigen(xform.inverse(), pose);
-              }
+			  tf::transformTFToEigen(xform, pose);
+			  tf::transformTFToEigen(xform_gt, pose_gt);
 
-          }catch(tf::LookupException& e){
-              std::cout << e.what() << std::endl;
-              return;
-          }catch(tf::TransformException& e){
-              std::cout << e.what() << std::endl;
-              return;
-          }catch(tf::ExtrapolationException e){
-              std::cout << e.what() << std::endl;
-              return;
-          }catch(tf::ConnectivityException& e){
-              std::cout << e.what() << std::endl;
-              return;
-          }
+			  if(imgs.size() == 0){
+				  // start with truth info
+				  tf::transformTFToEigen(xform_gt, pose);
+			  }else{
+				  tf::transformTFToEigen(xform, pose);
+			  }
+			  //std::cout << "good" << std::endl;
+			  poses.push_back(pose); 
+			  poses_gt.push_back(pose_gt);
+			  imgs.push_back( cv_ptr->image );
+		  }catch(tf::LookupException& e){
+			  std::cout << e.what() << std::endl;
+		  }catch(tf::TransformException& e){
+			  std::cout << e.what() << std::endl;
+		  }catch(tf::ExtrapolationException e){
+			  std::cout << e.what() << std::endl;
+		  }catch(tf::ConnectivityException& e){
+			  std::cout << e.what() << std::endl;
+		  }
 
-          poses.push_back(pose); 
-          poses_gt.push_back(pose_gt);
-          imgs.push_back( cv_ptr->image );
-      }
+	  }
 
-      void step(){
-          Eigen::Isometry3d opt_pose;
-          if(imgs.size() > 200){
-              Frame d0, d1; // should technically be managed by self
-              bool lc_suc = loop_closure(
-                      poses, opt_pose, 
-                      imgs.front(), imgs.back(),
-                      //imgs[ std::max(0, int(imgs.size()) - 20)],
-                      //imgs.back(),
-                      d0, d1, true);
-              std::cout << "LC Suc : " << lc_suc << std::endl;
-              if(lc_suc){
-                  tf::Transform xform;
-                  tf::transformEigenToTF(opt_pose.inverse(), xform);
-                  tf::StampedTransform xform_stamped(xform, ros::Time::now(), "odom", "camera_optical_lc_post");
-                  tfb_.sendTransform(xform_stamped);
+	  void step(){
+		  if(!lc_req_) return;
+		  if(poses.size() <= 2) return;
 
-                  tf::Transform xform_pre;
-                  tf::transformEigenToTF(poses.back().inverse(), xform_pre);
-                  tf::StampedTransform xform_stamped_pre(
-                          xform_pre, ros::Time::now(), "odom", "camera_optical_lc_pre");
-                  tfb_.sendTransform(xform_stamped_pre);
+          Eigen::Isometry3d p0=poses.front(), p1=poses.back();
 
-                  tf::Transform xform_gt;
-                  tf::transformEigenToTF(poses_gt.back().inverse(), xform_gt);
-                  tf::StampedTransform xform_stamped_gt(
-                          xform_gt, ros::Time::now(), "odom", "camera_optical_lc_gt");
-                  tfb_.sendTransform(xform_stamped_gt);
+		  Eigen::Isometry3d opt_pose;
+		  //if(imgs.size() > 200){
+		  Frame d0, d1; // should technically be managed by self
 
-                  cv::imshow("lc0", imgs.front());
-                  cv::imshow("lc1", imgs.back());
-                  cv::waitKey(1);
+		  //auto&& p2 = {p0,p1};
 
-                  poses.clear();
-                  imgs.clear();
+		  bool lc_suc = loop_closure(
+				  poses, opt_pose, 
+				  //p2, opt_pose,
+				  imgs.front(), imgs.back(),
+				  //imgs[ std::max(0, int(imgs.size()) - 20)],
+				  //imgs.back(),
+				  d0, d1, true);
+		  // WxH = 856x480
+		  std::cout << "OptPose = " << std::endl << opt_pose.matrix() << std::endl;
 
+		  std::cout << "LC Suc : " << lc_suc << std::endl;
+		  if(lc_suc){
 
-              }
-          }
-      }
+			  ros::Time now = ros::Time::now();
 
-      void run(){
-          cv::namedWindow("lc0", cv::WINDOW_NORMAL);
-          cv::namedWindow("lc1", cv::WINDOW_NORMAL);
-          ros::Rate rate(10);
-          while(ros::ok()){
-              ros::spinOnce();
-              step();
-              rate.sleep();
-          }
-          ros::shutdown();
-      }
-};
+			  tf::Transform xform;
+			  tf::transformEigenToTF(opt_pose, xform);
+			  tf::StampedTransform xform_stamped(
+					  xform, now,
+					  "odom", "camera_optical_lc_post");
+			  tfb_.sendTransform(xform_stamped);
 
-int main(int argc, char* argv[]){
-    ros::init(argc, argv, "loop_closure_node");
-    ros::NodeHandle nh;
-    BackEndNodeSimple node(nh);
-    node.run();
-}
+			  tf::Transform xform_pre;
+			  tf::transformEigenToTF(p1, xform_pre);
+			  tf::StampedTransform xform_stamped_pre(
+					  xform_pre, now,
+					  "odom", "camera_optical_lc_pre");
+			  tfb_.sendTransform(xform_stamped_pre);
+
+			  tf::Transform xform_gt;
+			  tf::transformEigenToTF(poses_gt.back(), xform_gt);
+			  tf::StampedTransform xform_stamped_gt(
+					  xform_gt, now,
+					  "odom", "camera_optical_lc_gt");
+			  tfb_.sendTransform(xform_stamped_gt);
+
+			  //cv::imshow("lc0", imgs.front());
+			  //cv::imshow("lc1", imgs.back());
+			  //cv::waitKey(1);
+
+			  poses.clear();
+			  imgs.clear();
+			  lc_req_ = false;
+		  }
+	  }
+
+	  void run(){
+		  //cv::namedWindow("lc0", cv::WINDOW_NORMAL);
+		  //cv::namedWindow("lc1", cv::WINDOW_NORMAL);
+		  ros::Rate rate(10);
+		  while(ros::ok()){
+			  ros::spinOnce();
+			  step();
+			  rate.sleep();
+		  }
+		  ros::shutdown();
+	  }
+	  };
+
+	  int main(int argc, char* argv[]){
+		  ros::init(argc, argv, "loop_closure_node");
+		  ros::NodeHandle nh;
+		  BackEndNodeSimple node(nh);
+		  node.run();
+	  }
