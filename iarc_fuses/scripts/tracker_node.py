@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import rospy
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
@@ -215,7 +215,9 @@ class TrackerNode(object):
         # TODO : save data in cam_ and run data_cb in step()
         # instead of inside the callback. May run into strange race conditions.
         now = rospy.Time.now()
-        if (now - stamp).to_sec() > 0.1:
+        if (now - stamp).to_sec() > 0.5:
+            print 'now', now
+            print 'stamp', stamp
             rospy.loginfo_throttle(1.0, 'incoming data too old: [{}]-{}'.format(src, stamp) )
             # too old
             return
