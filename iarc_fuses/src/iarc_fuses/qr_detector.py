@@ -15,13 +15,16 @@ class QRDetector():
 
     def imageToBinary(self,image):
         # inputse an image to get the whites of a digital screen
-        whiteLowerBound = (249,210,160) # a high blue value was used because computers tend to make white very blue.
-        whiteUpperBound = (255,255,255)
+        whiteLowerBound = (240,245,240) # a high blue value was used because computers tend to make white very blue.
+        whiteUpperBound = (255,255,255) # IMPORTANT NOTE: I set it to (220,210,160) for paper. Testing it on ipads, it should be set to (249,210,160)!!
         b1 = cv2.inRange(image, whiteLowerBound, whiteUpperBound) # gets a binary image of the white in the picture
+        cv2.imshow("this",b1)
+        cv2.waitKey(0)
         return b1
 
-    def getBox(self,b1):
+    def getBox(self,b1,image):
         # inputs a binary image to get the largest rectangle in the image
+        img = image.copy()
         ret, thresh = cv2.threshold(b1, 127, 255, 0)
         _, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) # gets the contours of the image
         maxArea = 0 # initializes the highest area
@@ -33,22 +36,25 @@ class QRDetector():
         rect = cv2.minAreaRect(maxCnt) # gets a rectangular bounding box
         box = cv2.boxPoints(rect)
         box = np.int0(box) # makes it into an array of points
+        cv2.drawContours(img, [box], 0, (0,255,0), 3)
+        cv2.imshow("this",img)
+        cv2.waitKey(0)
         return box
 
     def getRotatedImage(self,image,box):
         # inputs an image and the box around the qr quadrant to get a rotated version of the image corresponding to the box
         deltay = box[1][1] - box[0][1] # gets the change in the y axis
         deltax = box[1][0] - box[0][0] # gets the change in the x axis
-        alpha = atan(float(deltax) / float(deltay)) # determines the angle from horizontal of the box
-        print(alpha)
+        if(deltay == 0):
+            alpha = pi / 2
+        else:
+            alpha = atan(float(deltax) / float(deltay)) # determines the angle from horizontal of the box
         width,height, _ = image.shape # gets the width and height of the image
-        print(width,height)
         diagonal = int(sqrt(width**2 + height**2)) # gets the diagonal so that no information is lost when rotating the image
-        print(diagonal)
         blankImage = np.zeros((diagonal,diagonal,3), np.uint8) # initializes a blank image with height and width equal to the diagonal of the original image
         x_offset = diagonal / 2 - width / 2 # the offset of the image, making the center of the image the same as the center of the blank image
         y_offset = diagonal / 2 - height / 2
-        blankImage[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image # adds the image to the blank image
+        blankImage[x_offset:x_offset+image.shape[0], y_offset:y_offset+image.shape[1]] = image # adds the image to the blank image
         rows,cols,_= blankImage.shape # gets the numer of rows and columns of the bigger image
         M = cv2.getRotationMatrix2D((cols/2,rows/2),degrees(-alpha),1) # makes a rotation matrix using -alpha to get the box to be parellel to the x axis
         rotatedImage = cv2.warpAffine(blankImage,M,(cols,rows)) # multipies the rotation matrix by the image to get the final rotated image
@@ -90,10 +96,10 @@ class QRDetector():
         # saves the images so that QRCombiner can access them.
         cv2.imwrite( 'Image.jpg', image )
         b1 = self.imageToBinary(image) # gets the white part of the image
-        box = self.getBox(b1) # gets a rectangle around the box
+        box = self.getBox(b1,image) # gets a rectangle around the box
         rotatedImage = self.getRotatedImage(image,box) # rotates the image so that the rectangle is flat
         b1Rotated = self.imageToBinary(rotatedImage) # converts the rotated image to a binary based on white
-        boxRotated = self.getBox(b1Rotated) # uses this new image to create a box that is flat with the x-axis
+        boxRotated = self.getBox(b1Rotated,rotatedImage) # uses this new image to create a box that is flat with the x-axis
         croppedImage = self.getCroppedImage(rotatedImage,boxRotated) # crops the image around the qr quadrant
         return croppedImage
 
@@ -103,7 +109,7 @@ def main():
     images = []
     # images here are a placeholder until real detection callback exists
     for index in range(4):
-        file = os.path.join(pkgRoot,"images", "%s_2.png" %(index+1))
+        file = os.path.join(pkgRoot,"images", "Paper%s.jpg" %(index+1))
         images.append(cv2.imread(file))
 
     detector = QRDetector()
@@ -113,6 +119,7 @@ def main():
     for i, img in enumerate(cropped_images):
         cv2.imshow('image-{}'.format(i), img)
         cv2.imwrite('/tmp/FinalImage{}.png'.format(i),img)
+        break
     cv2.waitKey(0)
 
 

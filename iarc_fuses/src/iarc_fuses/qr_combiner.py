@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 from PIL import Image
 import os
 import rospy
@@ -49,8 +51,7 @@ def main():
 
     for i in range(4):
         # NOTE: Get the images from the IARC google drive
-        images.append(Image.open("/tmp","Image2-%d.png" % (i)))
-    print images
+        images.append(Image.open("/tmp/FinalImage%d.png" % (i)))
 
     comb = QRCombiner()
     print comb( images )
