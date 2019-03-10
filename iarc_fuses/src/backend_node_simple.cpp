@@ -28,9 +28,10 @@ class BackEndNodeSimple{
 	  tf::TransformListener tf_;
 	  tf::TransformBroadcaster tfb_;
 
-	  std::vector<Eigen::Isometry3d> poses, poses_gt;
+	  std::vector<Eigen::Isometry3d> poses;
 	  std::vector<cv::Mat> imgs;
 	  ros::ServiceServer srv_;
+      ros::Time prv_;
 	  bool lc_req_;
 
   public:
@@ -52,31 +53,26 @@ class BackEndNodeSimple{
 	  void data_cb(
 			  const sensor_msgs::ImageConstPtr& img_msg,
 			  const sensor_msgs::CameraInfoConstPtr& info_msg){
+
+          if( (info_msg->header.stamp - prv_).toSec() < 0.25 ){
+              return;
+          }
+          prv_ = info_msg->header.stamp;
+
 		  auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
 
+
 		  // take care of transforms
-		  tf::StampedTransform xform, xform_gt;
-		  Eigen::Isometry3d pose, pose_gt;
+		  tf::StampedTransform xform;
+		  Eigen::Isometry3d pose;
 
 		  try{
 			  tf_.waitForTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
-			  tf_.lookupTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, xform_gt); 
+			  tf_.lookupTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, xform); 
+              tf::transformTFToEigen(xform, pose);
 
-			  tf_.waitForTransform("noise", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
-			  tf_.lookupTransform("noise", info_msg->header.frame_id, info_msg->header.stamp, xform); 
-
-			  tf::transformTFToEigen(xform, pose);
-			  tf::transformTFToEigen(xform_gt, pose_gt);
-
-			  if(imgs.size() == 0){
-				  // start with truth info
-				  tf::transformTFToEigen(xform_gt, pose);
-			  }else{
-				  tf::transformTFToEigen(xform, pose);
-			  }
 			  //std::cout << "good" << std::endl;
 			  poses.push_back(pose); 
-			  poses_gt.push_back(pose_gt);
 			  imgs.push_back( cv_ptr->image );
 		  }catch(tf::LookupException& e){
 			  std::cout << e.what() << std::endl;
@@ -110,7 +106,7 @@ class BackEndNodeSimple{
 				  //imgs.back(),
 				  d0, d1, true);
 		  // WxH = 856x480
-		  std::cout << "OptPose = " << std::endl << opt_pose.matrix() << std::endl;
+		  //std::cout << "OptPose = " << std::endl << opt_pose.matrix() << std::endl;
 
 		  std::cout << "LC Suc : " << lc_suc << std::endl;
 		  if(lc_suc){
@@ -131,13 +127,6 @@ class BackEndNodeSimple{
 					  "odom", "camera_optical_lc_pre");
 			  tfb_.sendTransform(xform_stamped_pre);
 
-			  tf::Transform xform_gt;
-			  tf::transformEigenToTF(poses_gt.back(), xform_gt);
-			  tf::StampedTransform xform_stamped_gt(
-					  xform_gt, now,
-					  "odom", "camera_optical_lc_gt");
-			  tfb_.sendTransform(xform_stamped_gt);
-
 			  //cv::imshow("lc0", imgs.front());
 			  //cv::imshow("lc1", imgs.back());
 			  //cv::waitKey(1);
@@ -151,7 +140,7 @@ class BackEndNodeSimple{
 	  void run(){
 		  //cv::namedWindow("lc0", cv::WINDOW_NORMAL);
 		  //cv::namedWindow("lc1", cv::WINDOW_NORMAL);
-		  ros::Rate rate(10);
+		  ros::Rate rate(4);
 		  while(ros::ok()){
 			  ros::spinOnce();
 			  step();

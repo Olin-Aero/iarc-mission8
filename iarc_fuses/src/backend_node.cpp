@@ -8,9 +8,6 @@
 // Compiling + Linking to G2O May require nasty Eigen-related issues:
 // see http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html
 // defined by default to make sure it will compile, but may not be necessary on others' systems.
-#define EIGEN_MAX_STATIC_ALIGN_BYTES 0
-#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT 
-#define EIGEN_DONT_VECTORIZE
 
 /* G2O */
 #include <g2o/core/sparse_optimizer.h>

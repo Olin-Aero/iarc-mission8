@@ -3,7 +3,7 @@ project(iarc_fuses)
 
 set( CMAKE_EXPORT_COMPILE_COMMANDS "ON" )
 set( G2O_ROOT /usr/local/ )
-set( CMAKE_CXX_FLAGS "-std=c++17 -Wall")# -march=native" )
+set( CMAKE_CXX_FLAGS "-std=c++14 -Wall -O2")# -march=native" )
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules )
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   tf
   tf2_ros
+  tf2_geometry_msgs
   image_transport
   image_geometry
   tf_conversions
@@ -159,6 +160,10 @@ add_executable(backend_simple_node
 	src/loop_closure.cpp
 	)
 
+add_executable(sphinx_logger
+    src/sphinx_logger.cpp
+    )
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -189,6 +194,10 @@ target_link_libraries(
     ${CHOLMOD_LIBRARIES}
 	)
 
+target_link_libraries(
+    sphinx_logger
+	${catkin_LIBRARIES}
+    )
 #############
 ## Install ##
 #############

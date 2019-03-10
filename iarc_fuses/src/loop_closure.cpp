@@ -1,9 +1,4 @@
 // for std
-
-//#define EIGEN_MAX_STATIC_ALIGN_BYTES 0
-//#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT 
-//#define EIGEN_DONT_VECTORIZE
-
 #include <iostream>
 #include <cmath>
 
@@ -252,7 +247,7 @@ bool loop_closure(
         optimizer.addEdge( edge );
         edges.push_back( edge );
 
-        //edge->computeError();
+        edge->computeError();
         //std::cout << edge->chi2() << std::endl;
     }
 
@@ -281,49 +276,56 @@ bool loop_closure(
 	// TODO : do I need to add pose-based edges?
 
 	Eigen::Matrix<double,6,1> odom_Hv;
-	float spi2 = 1.0 / pow(0.1, 2);
-	float sri2 = 1.0 / pow(0.02, 2);
+	//float spi2 = 1.0 / pow(0.01, 2);
+	//float sri2 = 1.0 / pow(0.01, 2);
+	float spi2 = 1.0;
+	float sri2 = 1.0;
 
 	odom_Hv << sri2, sri2, sri2, spi2, spi2, spi2;
-	//std::cout << odom_Hv << std::endl;
-	Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
-	//Eigen::Matrix<double,6,6> odom_H = Eigen::Matrix<double,6,6>::Identity();
-    std::cout << odom_H << std::endl;
 
-#if 1
 	for(size_t i=1; i < poses.size(); ++i){
-		g2o::EdgeSE3* edge = new g2o::EdgeSE3();
-		//g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
+		//g2o::EdgeSE3* edge = new g2o::EdgeSE3();
+        Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
+		g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
 
 		g2o::VertexSE3Expmap* v0 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i-1));
 		g2o::VertexSE3Expmap* v1 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
 
 		edge->setVertex(0, v0);
 		edge->setVertex(1, v1);
-		edge->setMeasurement( g2o::SE3Quat(v1->estimate() * v0->estimate().inverse()) );
+
+		edge->setMeasurement( g2o::SE3Quat(
+                    v1->estimate() * v0->estimate().inverse() ));
+
+        //g2o::SE3Quat err_ = v1->estimate().inverse() * edge->measurement() * v0->estimate();
+        //g2o::Vector6 errv = err_.log();
+        //std::cout << "manual error" << errv.dot(odom_H * errv) << std::endl;
+
+
+		//edge->setMeasurement( g2o::SE3Quat(v0->estimate() * v1->estimate().inverse()) );
+		//edge->setMeasurement( g2o::SE3Quat(v0->estimate().inverse() * v1->estimate()) );
+		//edge->setMeasurement( g2o::SE3Quat(v1->estimate().inverse() * v0->estimate()) );
+
         //SE3Quat error_= v1->estimate().inverse()*<C>*v0->estimate();
         // C = <v1->estimate() * v0->estimate().inverse()>
 
-        Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
 
 		edge->setInformation(odom_H);
-        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        edge->setRobustKernel( new g2o::RobustKernelHuber() );
 
-		//edge->setMeasurement( g2o::SE3Quat(v0->estimate()).inverse() * g2o::SE3Quat(v1->estimate()) );
-		// xyz - rpy
+        //edge->setMeasurement( g2o::SE3Quat(v0->estimate()).inverse() * g2o::SE3Quat(v1->estimate()) );
+        // xyz - rpy
         edge->computeError();
-
         double chi2 = edge->chi2();
-        std::cout << "[pose] " << chi2 << std::endl;
-        if ( std::isfinite(chi2) && chi2 < 200 ){
+        // std::cout << "[pose] " << chi2 << std::endl;
+        if ( std::isfinite(chi2) ){
             optimizer.addEdge( edge );
+        }else{
+            // should not reach here
+            delete edge;
         }
-        //if (edge->chi2() < 100.0){
-        //}else{
-        //    delete edge;
-        //}
+
 	}
-#endif
 
 	// run optimization
 	std::cout << "starting optimize" << std::endl;
@@ -334,7 +336,7 @@ bool loop_closure(
 
     g2o::VertexSE3Expmap* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
     Eigen::Isometry3d pose = v->estimate();
-    std::cout << "Pose = " << std::endl << pose.inverse().matrix() << std::endl;
+    std::cout << "Final Pose = " << std::endl << pose.inverse().matrix() << std::endl;
 
 	optimized_pose = pose.inverse();
 
