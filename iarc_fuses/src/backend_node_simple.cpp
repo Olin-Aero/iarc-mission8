@@ -17,12 +17,17 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <std_srvs/Empty.h>
+#include <nav_msgs/Path.h>
 
 #include "loop_closure.hpp"
 
 class BackEndNodeSimple{
   private:
 	  ros::NodeHandle& nh_;
+
+      ros::Publisher p0_pub_;
+      ros::Publisher p1_pub_;
+
 	  image_transport::CameraSubscriber sub_;
 	  image_transport::ImageTransport it_;
 	  tf::TransformListener tf_;
@@ -40,6 +45,10 @@ class BackEndNodeSimple{
 			  sub_ = it_.subscribeCamera("hmm", 10, &BackEndNodeSimple::data_cb, this);
 			  srv_ = nh_.advertiseService("run_lc",
 					  &BackEndNodeSimple::loop_closure_cb, this);
+
+              // TODO : publish before & after trajectories
+              p0_pub_ = nh_.advertise<nav_msgs::Path>("trajectory_0", 10);
+              p1_pub_ = nh_.advertise<nav_msgs::Path>("trajectory_1", 10);
 		  }
 
 	  bool loop_closure_cb(
