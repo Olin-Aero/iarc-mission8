@@ -22,6 +22,8 @@ struct Frame{
     cv::Mat img;
 	std::vector<cv::Point2f> kpt;
 	cv::Mat dsc;
+    Eigen::Isometry3d pose;
+    // no_align_bullshit here needed?
 };
 
 bool loop_closure(

@@ -28,7 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package( G2O ) #REQUIRED PATHS /usr/local)
-find_package( OpenCV 3.4 REQUIRED )
+find_package( OpenCV 3.3 REQUIRED )
 find_package( Eigen3 REQUIRED )
 find_package( Cholmod )
 

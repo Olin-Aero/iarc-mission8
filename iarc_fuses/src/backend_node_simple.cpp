@@ -34,10 +34,8 @@ class BackEndNodeSimple{
       image_transport::CameraSubscriber sub_;
       image_transport::ImageTransport it_;
       tf::TransformListener tf_;
-      tf::TransformBroadcaster tfb_;
+      tf::TransformBroadcaster tfb_; // TODO : use tf2
 
-      std::vector<Eigen::Isometry3d> poses;
-      std::vector<cv::Mat> imgs;
       ros::ServiceServer srv_;
       ros::Time prv_;
       bool lc_req_;
@@ -47,12 +45,33 @@ class BackEndNodeSimple{
       cv::Ptr<cv::ORB> orb;
       cv::Ptr<cv::DescriptorMatcher> matcher_;
 
+      std::string map_frame_;
+      std::string odom_frame_;
+      bool new_kf_;
+
+      std::vector<std::string> srcs_; // observation sources
+      Eigen::Isometry3d T_o2m_;
+
   public:
       BackEndNodeSimple(ros::NodeHandle& nh)
           :nh_(nh),it_(nh), lc_req_(false){
+              // dealing with fixed map frame for now
+              // TODO : consider multi-robot configuration
+              map_frame_ = "map";
+              odom_frame_ = "odom";
+
+              // T_a2b = source frame a, target frame b
+              T_o2m_ = Eigen::Isometry3d::Identity(); // map coordinates
+
+              new_kf_ = false;
+              // TODO: nh_.getParam<>( srcs_ ... ) to get camera sources
+
               sub_ = it_.subscribeCamera("hmm", 10, &BackEndNodeSimple::data_cb, this);
               srv_ = nh_.advertiseService("run_lc",
                       &BackEndNodeSimple::loop_closure_cb, this);
+
+              // TODO : Backend state management 
+              // srv_ = nh_advertiseService("reset_lc", ...) << reset keyframe data or cache
 
               // TODO : publish before & after trajectories
               p0_pub_ = nh_.advertise<nav_msgs::Path>("trajectory_0", 10);
@@ -60,12 +79,15 @@ class BackEndNodeSimple{
 
               orb = cv::ORB::create();
               matcher_=cv::DescriptorMatcher::create( "BruteForce-Hamming" );
+
           }
 
       bool loop_closure_cb(
               std_srvs::EmptyRequest&,
               std_srvs::EmptyResponse& 
               ){
+          // debug: enforce loop closure
+          // (not really happening right now)
           lc_req_ = true;
           return true;
       }
@@ -73,6 +95,10 @@ class BackEndNodeSimple{
       int nmatch(const cv::Mat& dsc0, const cv::Mat& dsc1,
               float lowe_ratio=0.8
               ){
+          // returns number of matches across dsc0<->dsc1
+          // TODO: support cross-matching verification
+          // and epipolar geometry validation.
+
           std::vector< std::vector<cv::DMatch> > matches_knn;
           matcher_->knnMatch(dsc0, dsc1, matches_knn, 2);
 
@@ -83,20 +109,21 @@ class BackEndNodeSimple{
               }
           }
           return n;
-
-          // TODO : recycle match results from here ^^
+          // TODO : recycle match results from here
       }
 
-      bool is_keyframe(const Frame& d1){
-          if (kfs_.size() <= 0) return true;
+      bool is_keyframe(const Frame& kf1){
+          if (kfs_.size() <= 0) return true; // no pervious frame to compare to
 
-          const Frame& d0 = kfs_.back();
+          const Frame& kf0 = kfs_.back();
 
-          int ixn = nmatch(d0.dsc, d1.dsc);
-          int uxn = ( d0.kpt.size() + d1.kpt.size() - ixn);
+          int ixn = nmatch(kf0.dsc, kf1.dsc);
+          int uxn = ( kf0.kpt.size() + kf1.kpt.size() - ixn);
           float iou = float(ixn) / uxn;
 
           // "insignificant" overlap with previous frame == keyframe
+          // threshold = < 10%
+          // TODO : tune
           return iou < 0.1;
       }
 
@@ -111,26 +138,29 @@ class BackEndNodeSimple{
 
           auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
 
-          // populate frame
-          Frame d1;
+          // populate frame, visual data
+          Frame kf1;
           std::vector<cv::KeyPoint> kpt0, kpt1;
-          orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, d1.dsc);
-          for(auto& p : kpt0){d1.kpt.push_back(p.pt);}
+          kf1.img = cv_ptr->image;
+          orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, kf1.dsc);
+          for(auto& p : kpt0){kf1.kpt.push_back(p.pt);}
 
-          if(!is_keyframe(d1)) return;
-
-          // take care of transforms
-          tf::StampedTransform xform;
-          Eigen::Isometry3d pose;
+          if(!is_keyframe(kf1)) return;
 
           try{
-              tf_.waitForTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
-              tf_.lookupTransform("odom", info_msg->header.frame_id, info_msg->header.stamp, xform); 
+              // take care of transforms
+              tf::StampedTransform xform;
+              Eigen::Isometry3d pose;
+
+              // populate frame, geometric data
+              tf_.waitForTransform(odom_frame_, info_msg->header.frame_id, info_msg->header.stamp, ros::Duration(0.1));
+              tf_.lookupTransform(odom_frame_, info_msg->header.frame_id, info_msg->header.stamp, xform); 
               tf::transformTFToEigen(xform, pose);
 
               //std::cout << "good" << std::endl;
-              poses.push_back(pose); 
-              imgs.push_back( cv_ptr->image );
+              kf1.pose = pose;
+              kfs_.push_back(std::move(kf1)); // TODO : verify kf1 copy/assignment persistence
+              new_kf_ = true; // yay, new keyframe!!
           }catch(tf::LookupException& e){
               std::cout << e.what() << std::endl;
           }catch(tf::TransformException& e){
@@ -145,60 +175,99 @@ class BackEndNodeSimple{
 
       void step(){
           //if(!lc_req_) return;
-          if(poses.size() <= 2) return;
-          //if(!new_kf_) return;
+          if(kfs_.size() <= 2) return;
+          if(!new_kf_) return;
 
-          // i0 = search_lc();
-          // d0 = kfs_[i0];
-          // d1 = kfs_.back();
-          // bool lc_suc = loop_closure(poses, d0, d1, opt_pose, false);
+          // prepare loop closure
+          int lc_idx = 0;
+          auto& kf1 = kfs_.back();
 
-          Eigen::Isometry3d p0=poses.front(), p1=poses.back();
+          // search loop closure
+          for(auto& kf0 : kfs_){
+              // TODO : search backwards?
+              
+              // object-level pointer-match check
+              // don't match against self since it's stupid
+              if(&kf0 == &kf1) continue;
 
-          Eigen::Isometry3d opt_pose;
-          //if(imgs.size() > 200){
-          Frame d0, d1; // should technically be managed by self
+              // evaluate jaccard score
+              // TODO: avoid code repetition
+              // TODO: employ weak-strong sequential matches to avoid overprocessing
+              // Look into BoW
+              int ixn = nmatch(kf0.dsc,  kf1.dsc);
+              int uxn = (kf0.kpt.size() + kf1.kpt.size() - ixn);
+              float iou = float(ixn) / uxn;
 
-          // d0 = ??
-          // d1 = new_frame_
-          // 1 ) detect_loop_closure
-          // for (auto& f : kfs_){ if(loop_detected(f, 
+              if(iou > 0.1){ 
+                  // TODO: magic; verified by plotting, but not exactly intuitive.
+                  break;
+              }
+              ++lc_idx;
+          }
 
+          if(lc_idx >= kfs_.size()){
+              // no loop closure candidate detected
+              return;
+          }
+
+          // optimization data
+          Frame& kf0 = kfs_[lc_idx];
+
+          std::vector<Eigen::Isometry3d> lc_poses; // subvector of loop chain poses
+          for(auto it=kfs_.begin()+lc_idx; it != kfs_.end(); ++it){
+              lc_poses.push_back( it->pose );
+          }
+
+          Eigen::Isometry3d prv_pose1 = lc_poses.back();
+          Eigen::Isometry3d opt_pose1;
+
+          // run loop closure resolution (BA)
+          // TODO: make non-stupid function signature
+          // bool loop_closure(std::vector<Frame>& kfs_, ...)
           bool lc_suc = loop_closure(
-                  poses, opt_pose, 
-                  //p2, opt_pose,
-                  imgs.front(), imgs.back(),
-                  //imgs[ std::max(0, int(imgs.size()) - 20)],
-                  //imgs.back(),
-                  d0, d1, true);
-          // WxH = 856x480
-          //std::cout << "OptPose = " << std::endl << opt_pose.matrix() << std::endl;
+                  lc_poses, opt_pose1,
+                  kf0.img, kf1.img,
+                  kf0, kf1, false);
 
-          std::cout << "LC Suc : " << lc_suc << std::endl;
+          std::cout << "Loop Closure Success: " << lc_suc << std::endl;
+
           if(lc_suc){
+              // NOTE:
+              // prv_pose1 = T_b2o
+              // opt_pose1 = T_b2o'
+              // T_o2m_ * T_b2o' = T_b2m_
+              // T_o2m_' * T_b2o = T_b2m_
+              // T_o2m_ * T_b2o' = T_o2m_' * T_b2o
+              // T_o2m_' = T_o2m_ * T_b2o' * T_b2o^{-1}
+              T_o2m_ = T_o2m_ * opt_pose1 * prv_pose1.inverse();
 
-              ros::Time now = ros::Time::now();
+              ros::Time now = ros::Time::now(); // use stamp?
 
               tf::Transform xform;
-              tf::transformEigenToTF(opt_pose, xform);
+              tf::transformEigenToTF(T_o2m_, xform);
               tf::StampedTransform xform_stamped(
-                      xform, now,
-                      "odom", "camera_optical_lc_post");
+                      xform, now, // TODO: not now?
+                      map_frame_, odom_frame_);
               tfb_.sendTransform(xform_stamped);
 
-              tf::Transform xform_pre;
-              tf::transformEigenToTF(p1, xform_pre);
-              tf::StampedTransform xform_stamped_pre(
-                      xform_pre, now,
-                      "odom", "camera_optical_lc_pre");
-              tfb_.sendTransform(xform_stamped_pre);
+              //tf::Transform xform;
+              //tf::transformEigenToTF(opt_pose1, xform);
+              //tf::StampedTransform xform_stamped(
+              //        xform, now,
+              //        odom_frame_, "camera_optical_lc_post");
+              //tfb_.sendTransform(xform_stamped);
+
+              //tf::Transform xform_pre;
+              //tf::transformEigenToTF(prv_pose1, xform_pre);
+              //tf::StampedTransform xform_stamped_pre(
+              //        xform_pre, now,
+              //        odom_frame_, "camera_optical_lc_pre");
+              //tfb_.sendTransform(xform_stamped_pre);
 
               //cv::imshow("lc0", imgs.front());
               //cv::imshow("lc1", imgs.back());
               //cv::waitKey(1);
 
-              poses.clear();
-              imgs.clear();
               lc_req_ = false;
           }
       }
