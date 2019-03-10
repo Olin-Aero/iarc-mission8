@@ -3,10 +3,12 @@ import math
 import rospy
 import tf
 import tf.transformations
-from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
+from bebop_msgs.msg import Ardrone3PilotingStateAttitudeChanged as AttitudeChanged
+from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, PointStamped, Quaternion
 from iarc_arbiter.msg import RegisterBehavior, VelAlt
 from iarc_main.msg import Roomba
 from std_msgs.msg import String, Empty, Header
+
 
 try:
     from ardrone_autonomy.msg import Navdata
@@ -22,6 +24,7 @@ class Drone:
         """
         :type tfl: tf.TransformListener
         """
+        
         rospy.loginfo("name: {}".format(rospy.get_name()))
 
         if rospy.get_name().endswith('/unnamed'):
@@ -36,6 +39,7 @@ class Drone:
 
         # Remembered control state
         self.last_height = 0.0
+        self.prev_orient = 0.1
 
         self.prev_target_facing_angle = None  # in radian
 
@@ -46,6 +50,8 @@ class Drone:
             rospy.sleep(1.0)
         else:
             self.tf = tfl
+
+        rospy.Subscriber('/bebop/states/ardrone3/PilotingState/AttitudeChanged', AttitudeChanged, self._on_attitude_data)
 
         self.posPub = rospy.Publisher('/forebrain/cmd_pos', PoseStamped, queue_size=0)
         self.velPub = rospy.Publisher('/forebrain/cmd_vel', Twist, queue_size=0)
@@ -165,10 +171,23 @@ class Drone:
         Tells the drone to move to a position relative to its current position on the field,
         and blocks until the drone is within tol of the target, counting vertical and horizontal distance
         """
-
         prev_pos = self.get_pos(frame).pose.position
 
         des_x, des_y, des_height = prev_pos.x + rel_x, prev_pos.y + rel_y, prev_pos.z + rel_height
+
+        listener = tf.TransformListener()
+        listener.waitForTransform("/odom", "/base_link", rospy.Time(0),rospy.Duration(4.0))
+
+        pose_stamped = self.get_pos(frame)
+        prev_pos = pose_stamped.pose.position # Previous position
+
+        des_x, des_y, des_height = prev_pos.x + rel_x, prev_pos.y + rel_y, prev_pos.z + rel_height
+        ps = PointStamped()
+        ps.header = pose_stamped.header
+        ps.point = Point()
+        ps.point.x, ps.point.y, ps.point.z = rel_x, rel_y, rel_height
+        des_pointstamped = listener.transformPoint("odom", ps)
+        des_x, des_y, des_height = des_pointstamped.point.x, des_pointstamped.point.y, des_pointstamped.point.z
 
         r = rospy.Rate(20)
         while not rospy.is_shutdown():
@@ -183,7 +202,6 @@ class Drone:
             self.move_towards(des_x, des_y, frame, des_height)
 
             r.sleep()
-
 
     def move_to(self, des_x=0.0, des_y=0.0, frame='map', height=0.0, tol=0.4):
         """
@@ -307,4 +325,11 @@ class Drone:
         :param (Navdata) msg:
         """
         self.navdata = msg
+
+    def _on_attitude_data(self, msg):
+        """
+        :param (Ardrone3PilotingStateAttitudeChanged) msg:
+        """
+        orient = tf.transformations.quaternion_from_euler(msg.roll, msg.pitch, msg.yaw)
+        self.prev_orient = orient
 

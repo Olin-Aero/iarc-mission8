@@ -31,6 +31,8 @@ class voiceToDrone():
 
     def moveDrone(self,drone,words):
         pos = drone.get_pos().pose.position
+        orient = drone.get_pos().pose.orient
+        
         try:
             distance = float(words[2])
         except ValueError:
