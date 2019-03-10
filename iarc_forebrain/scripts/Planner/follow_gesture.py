@@ -30,7 +30,7 @@ class FollowGesture(Mode):
         self.detected = False
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
-        rospy.Subscriber("/ardrone/front/image_raw", Image, self.image_raw_callback)
+        rospy.Subscriber("/bebop/image_raw", Image, self.image_raw_callback)
 
     def image_raw_callback(self, msg):
     	if self.detected or not self.is_active():
