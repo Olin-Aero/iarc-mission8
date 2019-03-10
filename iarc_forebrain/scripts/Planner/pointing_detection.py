@@ -10,13 +10,11 @@ import numpy as np
 
 Coordinate system: x is right, y is forward, z is up, distances are in meters,
 angles are measured counterclockwise from positive x (right) axis
-Direction goes from blue to red
+Direction goes from red (helmet) to blue (hand)
 
 '''
 
 PLAYER_HEIGHT = 0 # Height of human player color targets off the ground in meters
-# FOCAL_X = 1000 # Camera focal length in pixels
-# FOCAL_Y = 1000 # Camera focal length in pixels
 FOCAL_X = 520.6 #691 # Camera focal length in pixels
 FOCAL_Y = 514 #689 # Camera focal length in pixels
 IMAGE_WIDTH = 856
@@ -28,30 +26,34 @@ def nothing(x):
 def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     """
     Determines direction that human player is pointing and location of helmet
-    returns (angle in degrees CCW from forward, helmet position vector in drone frame)
+    pitch = 0 when camera pointed downwards, pitch = pi/2 when camera horizontal
+    z = drone height off the ground in meters
+    if visualize = true, then the annotated image will be displayed
+    returns (angle in degrees CCW from +x axis, helmet position vector in drone frame)
     """
-    pitch = math.pi/2 # camera corrects
-    pitch -= math.pi/4 # drone camera angled downwards
-    z -= -1.25069182097 # TEMPORARY - drone initialized while on table
-    # print(pitch*180/math.pi)
-    # pitch += math.pi/2
-    # print(z)
-    # pitch = 60*math.pi/180
-    # z = 1
-    # IMAGE_WIDTH = image.shape[1] #856
-    # IMAGE_HEIGHT = image.shape[0] #480
+    pitch = math.pi/2 # camera automatically stabilizes, so pitch is constant
+    pitch -= math.pi/4 # drone camera is angled downwards
+    # z -= -1.25069182097 # TEMPORARY - offset when drone initialized while on table
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    # Apply blue color filter
-    lower1 = np.array([98, 95, 76])
-    upper1 = np.array([111, 255, 255])
-    p1 = locate(hsv, lower1, upper1)
+    # Apply blue color filter (webcam)
+    # lower1 = np.array([98, 95, 76])
+    # upper1 = np.array([111, 255, 255])
 
-    # Apply red color filter
-    lower2 = np.array([171, 62, 116])
-    upper2 = np.array([10, 255, 255])
-    p2 = locate(hsv, lower2, upper2)
+    # Apply blue color filter (drone cam)
+    lower1 = np.array([98, 50, 76])
+    upper1 = np.array([120, 255, 255])
+    p2 = locate(hsv, lower1, upper1)
+
+    # Apply red color filter (webcam)
+    # lower2 = np.array([171, 62, 116])
+    # upper2 = np.array([10, 255, 255])
+    
+    # Apply red color filter (bebop cam)
+    lower2 = np.array([171, 90, 190])
+    upper2 = np.array([20, 255, 255])
+    p1 = locate(hsv, lower2, upper2)
 
     # Apply light blue color filter
     # lower3 = np.array([75, 200, 100])
@@ -78,8 +80,6 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     tvec_head = find_point(p1, z-PLAYER_HEIGHT, pitch)
     tvec_hand = find_point(p2, z-PLAYER_HEIGHT, pitch)
 
-    # print("Helmet position")
-    # print(tvec_head)
     dx = tvec_hand[0] - tvec_head[0]
     dy = tvec_hand[1] - tvec_head[1]
     yaw = math.atan2(dy, dx) #- math.pi/2
@@ -92,10 +92,9 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
         cv2.circle(image, p2, 10, (0, 0, 255), -1)
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
-    # print("Better yaw")
-    print("yaw %s" % (yaw*180/math.pi))
-    print("head %s" % (tvec_head))
-    print("hand %s" % (tvec_hand))
+    print("Gesture yaw: %s" % (yaw*180/math.pi))
+    print("Head coordinates: %s" % (tvec_head))
+    print("Hand coordinates: %s" % (tvec_hand))
     return (yaw, tvec_head)
 
 def find_point(p, dz, pitch):
@@ -106,11 +105,7 @@ def find_point(p, dz, pitch):
     dist = (dz)/math.cos(pitch - ang)
     projectedDist = dist*math.cos(ang)
     tvec_cam = np.array([projectedDist*(p[0]-IMAGE_WIDTH/2)/FOCAL_X, -projectedDist*(p[1]-IMAGE_HEIGHT/2)/FOCAL_Y, -projectedDist, 1])
-    # print("camvec")
-    # print(tvec_cam)
     tvec_drone = np.dot(rotation_matrix(pitch, (1, 0, 0)), tvec_cam)
-    # print("dronevec")
-    # print(tvec_drone)
     return tvec_drone
 
 def locate(image, lower, upper):

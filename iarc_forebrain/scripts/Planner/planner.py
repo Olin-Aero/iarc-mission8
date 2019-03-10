@@ -40,11 +40,14 @@ class Planner:
             if self.current_mode.is_active():
                 self.current_mode.disable()
             self.current_mode = self.modes[args[1]]
-            # try:
-            self.current_mode.enable(*args[2:])
-            # except:
-            #     print("Invalid parameters provided: %s" % msg.data)
-            #     return
+            try:
+                self.current_mode.enable(*args[2:])
+            except TypeError as e:
+                print("Invalid parameters provided: %s" % msg.data)
+                return
+            except Exception as e:
+                print(e)
+                return
             print(args[1])
             self.pub.publish(args[1])
         else:

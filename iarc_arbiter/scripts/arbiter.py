@@ -10,6 +10,7 @@ from std_msgs.msg import Empty, String
 from tf import TransformListener
 
 import transformers
+import filters
 
 
 class Arbiter:
@@ -26,7 +27,7 @@ class Arbiter:
     """
 
     def __init__(self):
-        # The Null behavior will aafutomatically process a 0-velocity Twist at 10hz
+        # The Null behavior will automatically process a 0-velocity Twist at 10hz
         self.null_behavior = Behavior(self.process_command, 'zero', freq=10)
 
         self.behaviors = {'zero': self.null_behavior}
@@ -60,9 +61,9 @@ class Arbiter:
             behavior.subscribe(self.transformers)
             self.behaviors[b] = behavior
 
-        # Secondary behaviors are filters that are always active on the Command before it is published.
-        # Examples include last-minute obstacle avoidance, speed limiters, or arena boundary constraints.
-        self.secondaries = []
+        # Filters constrain final output before it goes to the drone.
+        # Potential examples include last-minute obstacle avoidance, speed limiters, or arena boundary constraints.
+        self.filters = [filters.make_speed_filter(0.1, 0.5, 0.5)]
 
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=0)
         self.takeoff_pub = rospy.Publisher('/takeoff', Empty, queue_size=0)
@@ -167,10 +168,8 @@ class Arbiter:
         _, transformer = self.transformers[topic]
 
         # Convert to a transformers.Command
-        cmd = transformer(raw_cmd)  # type: transformers.Command
-
-        # Apply secondary behaviors
-        for func in self.secondaries:
+        cmd = transformer(raw_cmd)  # type: transformers.Filters constrain final output before it goes to the drone.
+        for func in self.filters:
             cmd = func(cmd)
 
         # Publish the result to the ROS network

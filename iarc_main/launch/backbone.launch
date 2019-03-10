@@ -5,8 +5,8 @@
     </node>
     <node name="move_base_relay" ns="goto_click" pkg="iarc_main" type="follow_click.py" output="screen"/>
 
-    <node pkg="tf" type="static_transform_publisher" name="map_frame"
-          args="0 0 0 0 0 0 odom map 200"/>
+<!--    <node pkg="tf" type="static_transform_publisher" name="map_frame"
+          args="0 0 0 0 0 0 odom map 200"/>-->
 
     <node pkg="tf" type="static_transform_publisher" name="launch_frame"
           args="0 0 0 0 0 0 odom launch 200"/>
