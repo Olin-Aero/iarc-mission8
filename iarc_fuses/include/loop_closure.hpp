@@ -19,6 +19,7 @@
 #include <g2o/types/sba/types_six_dof_expmap.h>
 
 struct Frame{
+    cv::Mat img;
 	std::vector<cv::Point2f> kpt;
 	cv::Mat dsc;
 };
