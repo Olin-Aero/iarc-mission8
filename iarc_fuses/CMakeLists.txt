@@ -158,6 +158,7 @@ include_directories(
 add_executable(backend_simple_node 
 	src/backend_node_simple.cpp
 	src/loop_closure.cpp
+    src/matcher.cpp
 	)
 
 add_executable(sphinx_logger

@@ -28,6 +28,7 @@
 #include <nav_msgs/Path.h>
 
 #include "loop_closure.hpp"
+#include "matcher.hpp"
 
 void eig2msg(
         const Eigen::Isometry3d& e,
@@ -59,7 +60,8 @@ class BackEndNodeSimple{
       std::vector<Frame> kfs_;
 
       cv::Ptr<cv::ORB> orb;
-      cv::Ptr<cv::DescriptorMatcher> matcher_;
+      //cv::Ptr<cv::DescriptorMatcher> matcher_;
+      std::shared_ptr<Matcher> matcher_;
 
       std::string map_frame_;
       std::string odom_frame_;
@@ -98,8 +100,7 @@ class BackEndNodeSimple{
               p1_pub_ = nh_.advertise<nav_msgs::Path>("trajectory_1", 10);
 
               orb = cv::ORB::create();
-              matcher_=cv::DescriptorMatcher::create( "BruteForce-Hamming" );
-
+              // matcher_=cv::DescriptorMatcher::create( "BruteForce-Hamming" );
           }
 
       bool loop_closure_cb(
@@ -112,43 +113,21 @@ class BackEndNodeSimple{
           return true;
       }
 
-      int nmatch(
-              const cv::Mat& dsc0, const cv::Mat& dsc1,
-              std::vector<cv::DMatch>& matches,
-              float lowe_ratio=0.8
-              ){
-          // returns number of matches across dsc0<->dsc1
-          // TODO: support cross-matching verification
-          // and epipolar geometry validation.
-
-          std::vector< std::vector<cv::DMatch> > matches_knn;
-          matcher_->knnMatch(dsc0, dsc1, matches_knn, 2);
-
-          int n = 0;
-          for(auto& m2 : matches_knn){
-              if(m2[0].distance < lowe_ratio * m2[1].distance){
-                  matches.push_back( m2[0] );
-                  ++n;
-              }
-          }
-          return n;
-          // TODO : recycle match results from here
-      }
-
-      bool is_keyframe(const Frame& kf1){
+      bool is_keyframe(const Frame& kf1, std::vector<cv::DMatch>& match){
           if (kfs_.size() <= 0) return true; // no pervious frame to compare to
-
           const Frame& kf0 = kfs_.back();
 
           std::vector<cv::DMatch> matches;
-          int ixn = 2 * nmatch(kf0.dsc, kf1.dsc, matches);
-          int uxn = ( kf0.kpt.size() + kf1.kpt.size() - ixn);
+          matcher_->match(kf0, kf1, match, true, false);
+
+          int ixn = 2 * match.size();
+          int uxn = (kf0.kpt.size() + kf1.kpt.size() - ixn);
           float iou = float(ixn) / uxn;
 
           // "insignificant" overlap with previous frame == keyframe
-          // threshold = < 10%
+          // threshold = < 33% ?
           // TODO : tune
-          return iou < 0.33;
+          return ( iou < 0.33 ) && ( kf1.kpt.size() > 100 );
       }
 
       void data_cb(
@@ -163,6 +142,11 @@ class BackEndNodeSimple{
           auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
           cam_.fromCameraInfo(info_msg);
 
+          if(!matcher_){
+              matcher_ = std::make_shared<Matcher>(
+                      cv::Mat(cam_.intrinsicMatrix()) );
+          }
+
           // populate frame, visual data
           Frame kf1;
           std::vector<cv::KeyPoint> kpt1;
@@ -170,7 +154,8 @@ class BackEndNodeSimple{
           orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, kf1.dsc);
           for(auto& p : kpt1){kf1.kpt.push_back(p.pt);}
 
-          if(!is_keyframe(kf1)) return;
+          std::vector<cv::DMatch> match; // TODO : info discarded here
+          if(!is_keyframe(kf1, match)) return;
 
           try{
               // take care of transforms
@@ -239,11 +224,15 @@ class BackEndNodeSimple{
               // TODO: avoid code repetition
               // TODO: employ weak-strong sequential matches to avoid overprocessing
               // Look into BoW
-              int ixn = 2*nmatch(kf0.dsc,  kf1.dsc, matches);
+              matcher_->match(kf0, kf1, matches, true, true);
+              int ixn = 2*matches.size();
               int uxn = (kf0.kpt.size() + kf1.kpt.size() - ixn);
               float iou = float(ixn) / uxn;
 
-              if(iou > 0.2){ 
+              std::cout << "iou" << iou << std::endl;
+              std::cout << "ixn" << ixn << std::endl;
+
+              if(iou > 0.05){ 
                   // TODO: magic; verified by plotting, but not exactly intuitive.
                   //lc_idx = std::distance(it, kfs_.rend())-1;
                   //lc_idx = std::distance(it, kfs_.end());
