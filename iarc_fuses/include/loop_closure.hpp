@@ -20,24 +20,44 @@
 
 struct Frame{
     cv::Mat img;
-	std::vector<cv::Point2f> kpt;
-	cv::Mat dsc;
+    std::vector<cv::Point2f> kpt;
+    cv::Mat dsc;
     Eigen::Isometry3d pose;
     // no_align_bullshit here needed?
 };
 
+struct FramePair{
+    // References
+    Frame& kf0_;
+    Frame& kf1_;
+    std::vector<cv::DMatch>& m_;
+
+    // Data Cache
+    std::vector<cv::Point2f> kpt0, kpt1;
+
+    FramePair(Frame& kf0, Frame& kf1, std::vector<cv::DMatch>& m):
+        kf0_(kf0), kf1_(kf0), m_(m){
+
+            for(auto& match : m_){
+                kpt0.push_back( kf0.kpt[match.queryIdx]);
+                kpt1.push_back( kf1.kpt[match.trainIdx]);
+            }
+
+        }
+};
+
 bool loop_closure(
-		const std::vector<Eigen::Isometry3d>& poses,
-		std::vector<Eigen::Isometry3d>& opt_poses,
-		const cv::Mat& img0,
-		const cv::Mat& img1,
+        const std::vector<Eigen::Isometry3d>& poses,
+        std::vector<Eigen::Isometry3d>& opt_poses,
+        const cv::Mat& img0,
+        const cv::Mat& img1,
         const cv::Mat& K,
 
-		// params to maybe use in the future
-		Frame& d0,
-		Frame& d1,
-		bool proc=true
-		);
+        // params to maybe use in the future
+        Frame& d0,
+        Frame& d1,
+        bool proc=true
+        );
 
 float jaccard(
         Frame& d0,
