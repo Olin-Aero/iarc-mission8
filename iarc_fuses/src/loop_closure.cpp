@@ -6,6 +6,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <boost/concept_check.hpp>
 
 // for g2o
@@ -71,6 +72,7 @@ Eigen::Vector2d cam_map(g2o::CameraParameters& cp, const Eigen::Vector3d& trans_
 bool strong_match(
         const cv::Mat&,
         const cv::Mat&,
+        const cv::Mat& K,
         Frame& d0,
         Frame& d1,
         // return matching indices into d0->kpt, d1->kpt
@@ -83,24 +85,55 @@ bool strong_match(
     std::vector< std::vector<cv::DMatch> > matches_knn;
     matcher->knnMatch(d0.dsc, d1.dsc, matches_knn, 2);
 
+    std::vector<cv::Point2d> p0, p1;
+
+    std::vector<std::pair<int, int>> m_raw;
     for(auto& m2 : matches_knn){
         if(m2[0].distance < lowe_ratio * m2[1].distance){
-            m.push_back(std::make_pair(m2[0].queryIdx, m2[0].trainIdx));
+            m_raw.push_back(std::make_pair(m2[0].queryIdx, m2[0].trainIdx));
+            p0.push_back( d0.kpt[m2[0].queryIdx] );
+            p1.push_back( d1.kpt[m2[0].trainIdx] );
         }
     }
 
-    float ixn = m.size();
-    float uxn = d0.kpt.size() + d1.kpt.size() - ixn;
+    // epipolar filter
+    cv::Mat msk;
+    //cv::Mat Fmat = cv::findFundamentalMat(p0, p1, cv::FM_RANSAC, 2.0, 0.999, msk);
+    cv::findEssentialMat(p0, p1, K,
+            cv::RANSAC, 0.999, 1.0, msk);
+    //std::cout << msk.size << std::endl;
+
+    // apply filter
+    m.clear();
+    for(int i=0; i<msk.rows; ++i){
+        if(!msk.at<char>(i)) continue;
+        m.push_back(m_raw[i]);
+    }
+
+    float iou = jaccard(d0, d1, m);
+    std::cout << "IOU" << iou << std::endl;
+    return (iou > 0.1) && (m.size() > 25);
+}
+
+float jaccard(
+        Frame& d0,
+        Frame& d1,
+        std::vector<std::pair<int, int>>& m
+        ){
+    float ixn = 2 * m.size();
+    float uxn = d0.kpt.size()+d1.kpt.size()-ixn;
     float iou = (ixn / uxn);
-    return iou > 0.2;
-    //return (m.size() >= 20);
+
+    return iou;
 }
 
 bool loop_closure(
         const std::vector<Eigen::Isometry3d>& poses,
-        Eigen::Isometry3d& optimized_pose,
+        //Eigen::Isometry3d& optimized_pose,
+        std::vector<Eigen::Isometry3d>& opt_poses,
         const cv::Mat& img0,
         const cv::Mat& img1,
+        const cv::Mat& K,
 
         // params to maybe use in the future
         Frame& d0,
@@ -128,7 +161,7 @@ bool loop_closure(
         return false;
     }
     std::vector< std::pair<int,int> > m;
-    if(! strong_match(img0, img1, d0, d1, m)){
+    if(! strong_match(img0, img1, K, d0, d1, m)){
         std::cout << "STRONG MATCH FAILED" << std::endl;
         return false;
     }
@@ -142,6 +175,9 @@ bool loop_closure(
     g2o::OptimizationAlgorithmLevenberg* algorithm = new
         g2o::OptimizationAlgorithmLevenberg( g2o::make_unique<g2o::BlockSolver_6_3>(
                     std::move(linear_solver)));
+    //g2o::OptimizationAlgorithmGaussNewton* algorithm = new
+    //    g2o::OptimizationAlgorithmGaussNewton ( g2o::make_unique<g2o::BlockSolver_6_3>(
+    //                std::move(linear_solver)));
     optimizer.setAlgorithm( algorithm );
 
     // set intrinsic camera parameter
@@ -179,7 +215,7 @@ bool loop_closure(
     const int pose_idx0 = 0;
     const int pose_idx1 = (idx-1);
     const int lmk_idx0 = idx;
-    std::cout << "lmk_idx0" << lmk_idx0 << std::endl;
+    //std::cout << "lmk_idx0 : " << lmk_idx0 << std::endl;
 
     // set euclidean landmark feature point, based on img1
     for(size_t i = 0; i < m.size(); ++i)
@@ -235,6 +271,8 @@ bool loop_closure(
 
     // first frame
     std::vector<g2o::EdgeProjectXYZ2UV*> edges;
+    std::vector<g2o::EdgeSE3Expmap*> odom_edges;
+
     for(size_t i = 0; i < m.size(); ++i)
     {
         double pxl_x = d0.kpt[m[i].first].x;
@@ -246,15 +284,18 @@ bool loop_closure(
         edge->setVertex(1, dynamic_cast<g2o::VertexSE3Expmap*>
                 (optimizer.vertex(pose_idx0)) ); // observation pose
         edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
-        edge->setInformation( Eigen::Matrix2d::Identity() );
+        edge->setInformation( 1.0 * Eigen::Matrix2d::Identity() );
         edge->setParameterId(0, 0);
 
         // kernel function
+
         edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        //edge->setRobustKernel( new g2o::RobustKernelTukey() );
+
         optimizer.addEdge( edge );
         edges.push_back( edge );
 
-        edge->computeError();
+        //edge->computeError();
         //std::cout << edge->chi2() << std::endl;
     }
 
@@ -271,11 +312,12 @@ bool loop_closure(
         edge->setVertex( 1, dynamic_cast<g2o::VertexSE3Expmap*>
                 (optimizer.vertex(pose_idx1)) );
         edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
-        edge->setInformation( Eigen::Matrix2d::Identity() );
+        edge->setInformation( 1.0 * Eigen::Matrix2d::Identity() );
         edge->setParameterId(0, 0);
 
         // keneral function
         edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        //edge->setRobustKernel( new g2o::RobustKernelTukey() );
         optimizer.addEdge( edge );
         edges.push_back( edge );
     }
@@ -283,17 +325,17 @@ bool loop_closure(
     // TODO : do I need to add pose-based edges?
 
     Eigen::Matrix<double,6,1> odom_Hv;
-    float spi2 = 1.0 / pow(0.1, 2);
-    float sri2 = 1.0 / pow(0.1, 2);
+    float spi2 = 1.0 / pow(0.1 * (M_PI/180.0), 2);
+    float sri2 = 1.0 / pow(0.1 * (M_PI/180.0), 2);
     //float spi2 = 1.0;
     //float sri2 = 1.0;
 
     odom_Hv << sri2, sri2, sri2, spi2, spi2, spi2;
 
     for(size_t i=1; i < poses.size(); ++i){
-        //g2o::EdgeSE3* edge = new g2o::EdgeSE3();
-        Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
         g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
+
+        Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
 
         g2o::VertexSE3Expmap* v0 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i-1));
         g2o::VertexSE3Expmap* v1 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
@@ -303,6 +345,7 @@ bool loop_closure(
 
         edge->setMeasurement( g2o::SE3Quat(
                     v1->estimate() * v0->estimate().inverse() ));
+        //edge->setMeasurement(v1->estimate() * v0->estimate().inverse() );
 
         //g2o::SE3Quat err_ = v1->estimate().inverse() * edge->measurement() * v0->estimate();
         //g2o::Vector6 errv = err_.log();
@@ -316,7 +359,6 @@ bool loop_closure(
         //SE3Quat error_= v1->estimate().inverse()*<C>*v0->estimate();
         // C = <v1->estimate() * v0->estimate().inverse()>
 
-
         edge->setInformation(odom_H);
         edge->setRobustKernel( new g2o::RobustKernelHuber() );
 
@@ -324,9 +366,9 @@ bool loop_closure(
         // xyz - rpy
         edge->computeError();
         double chi2 = edge->chi2();
-        // std::cout << "[pose] " << chi2 << std::endl;
         if ( std::isfinite(chi2) ){
             optimizer.addEdge( edge );
+            odom_edges.push_back( edge );
         }else{
             // should not reach here
             delete edge;
@@ -336,16 +378,38 @@ bool loop_closure(
 
     // run optimization
     std::cout << "starting optimize" << std::endl;
-    optimizer.setVerbose(false);
+    optimizer.setVerbose(true);
     optimizer.initializeOptimization();
-    optimizer.optimize(10);
+    int res = optimizer.optimize(50);
+
+    optimizer.computeActiveErrors();
+    std::cout << "active-chi2" << optimizer.activeChi2() << std::endl;
+    std::cout << "active-robust-chi2" << optimizer.activeRobustChi2() << std::endl;
+    std::cout << "chi2" << optimizer.chi2() << std::endl;
+
+    if(res <= 0) return false;
+    if(optimizer.activeRobustChi2() > 1000) return false; //TODO : tune
+
     std::cout << "finish optimize" << std::endl;
 
     g2o::VertexSE3Expmap* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
     Eigen::Isometry3d pose = v->estimate();
     std::cout << "Final Pose1 = " << std::endl << pose.inverse().matrix() << std::endl;
 
-    optimized_pose = pose.inverse();
+    opt_poses.clear();
+    for(int i=pose_idx0; i<=pose_idx1; ++i){
+        auto* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(i) );
+        opt_poses.push_back(v->estimate().inverse());
+    }
+
+    for(auto& e : edges){
+        e->computeError();
+        std::cout << "ve : " << e->chi2() << std::endl;
+    }
+    for(auto& e : odom_edges){
+        e->computeError();
+        std::cout << "oe : " << e->chi2() << std::endl;
+    }
 
     //for( size_t i = 0; i < m.size(); ++i )
     //{

@@ -41,7 +41,7 @@ int main(int argc, char* argv[]){
     ros::Publisher pub = nh.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
 
     geometry_msgs::PoseStamped msg;
-    msg.header.frame_id = "odom";
+    msg.header.frame_id = "map";
     msg.header.stamp = ros::Time::now(); //??
 
     std::string str;

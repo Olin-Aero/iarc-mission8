@@ -28,14 +28,21 @@ struct Frame{
 
 bool loop_closure(
 		const std::vector<Eigen::Isometry3d>& poses,
-		Eigen::Isometry3d& optimized_pose,
+		std::vector<Eigen::Isometry3d>& opt_poses,
 		const cv::Mat& img0,
 		const cv::Mat& img1,
+        const cv::Mat& K,
 
 		// params to maybe use in the future
 		Frame& d0,
 		Frame& d1,
 		bool proc=true
 		);
+
+float jaccard(
+        Frame& d0,
+        Frame& d1,
+        std::vector<std::pair<int, int>>& m
+        );
 
 #endif
