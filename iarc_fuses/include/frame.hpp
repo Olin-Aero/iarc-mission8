@@ -10,6 +10,7 @@ struct Frame{
     std::vector<cv::Point2f> kpt;
     cv::Mat dsc;
     Eigen::Isometry3d pose;
+    std::vector<float> z;
     // no_align_bullshit here needed?
 };
 

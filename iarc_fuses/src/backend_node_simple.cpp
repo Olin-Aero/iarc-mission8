@@ -23,12 +23,14 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/core/eigen.hpp>
 
 #include <std_srvs/Empty.h>
 #include <nav_msgs/Path.h>
 
 #include "loop_closure.hpp"
 #include "matcher.hpp"
+#include "tracker.hpp"
 
 void eig2msg(
         const Eigen::Isometry3d& e,
@@ -39,6 +41,99 @@ void eig2msg(
     tf2::fromMsg(xfm_msg, xfm_tf);
     tf2::toMsg(xfm_tf, p);
 }
+
+struct Subframes{
+    // keyframe data
+    const Frame& kf0_; // reference keyframe
+    std::vector<float> z_; // lmk depth
+
+    // subframes data
+    std::vector<size_t> idx_;
+    std::vector<Frame> sfs_;
+    std::vector<cv::Point2f> pt_;
+
+    Subframes(const Frame& kf0):kf0_(kf0){
+        sfs_.push_back(kf0);
+        for(auto& p : kf0_.kpt){pt_.push_back(p);}// initialize tracking points
+        //std::iota(idx_.begin(), idx_.end(), 0);   // initialize tracking indices
+        for(size_t i=0; i<pt_.size(); ++i){idx_.push_back(i);}
+        z_ = std::vector<float>(pt_.size(), 1.0); // initialize default depth to 1
+    }
+
+    void insert(const Frame& sf, Tracker& tracker_){
+        std::vector<cv::Point2f> sub_pt;
+        std::vector<size_t> sub_idx;
+        tracker_.track(sfs_.back().img, sf.img, pt_, 2.0,
+                sub_pt, sub_idx);
+
+        std::vector<size_t> new_idx;
+        cv::Mat P1 = cv::Mat::eye(3, 4, CV_32F);
+        cv::Mat T2 = cv::Mat::eye(4, 4, CV_32F);
+       
+        cv::eigen2cv(
+                (kf0_.pose.inverse()*sfs_.back().pose).matrix(),
+                T2);
+        cv::Mat P2 = T2.rowRange(0,3).colRange(0,4);
+        P2.convertTo(P2, CV_32F);
+
+        for(int i=0; i<idx_.size(); ++i){
+            int kf_idx = idx_[i]; // corresponding index referencing keyframe points
+
+            bool trk_suc = (std::find(sub_idx.begin(), sub_idx.end(), i) != sub_idx.end());
+            if (trk_suc){
+                new_idx.push_back(kf_idx);
+            }else if (sfs_.size() >= 2){
+                // tracking lost! triangulate with last known connected position.
+                cv::Mat lmk(4, 1, CV_32F);
+                //std::cout << "[P1]" << P1.size << "-" << P1.type() << std::endl;
+                //std::cout << "[P2]" << P2.size << "-" << P2.type() << std::endl;
+                //std::cout << P1.rows << ',' << P1.cols << ',' << P2.rows << ',' << P2.cols << std::endl;
+
+                cv::triangulatePoints(P1, P2,
+                        std::vector<cv::Point2f>({kf0_.kpt[kf_idx]}),
+                        std::vector<cv::Point2f>({pt_[i]}), lmk);
+
+                // acquire point depth
+                z_[kf_idx] = lmk.at<float>(2) / lmk.at<float>(3);
+                //std::cout << "[z]" << z_[kf_idx] << std::endl;
+            }
+        }
+
+        // update data
+        sfs_.push_back(sf);
+        idx_.swap(new_idx);
+        pt_.swap(sub_pt);
+    }
+
+    void finalize(){
+        if(sfs_.size() < 2) return;
+
+        cv::Mat P1 = cv::Mat::eye(3, 4, CV_32F);
+        cv::Mat T2 = cv::Mat::eye(4, 4, CV_32F);
+        cv::eigen2cv(
+                (kf0_.pose.inverse()*sfs_.back().pose).matrix(),
+                T2);
+        cv::Mat P2 = T2.rowRange(0,3).colRange(0,4);
+        P2.convertTo(P2, CV_32F);
+
+        for(auto& i : idx_){
+            cv::Mat lmk(4, 1, CV_32F);
+            cv::triangulatePoints(P1, P2,
+                    std::vector<cv::Point2f>({kf0_.kpt[i]}),
+                    std::vector<cv::Point2f>({pt_[i]}), lmk);
+
+            z_[i] = lmk.at<float>(2) / lmk.at<float>(3);
+
+            //std::cout << "tri " << z_[i] << std::endl;
+            if( z_[i] == 0 || !std::isfinite(z_[i])){
+                std::cout << kf0_.kpt[i] << ';' << pt_[i] << '|';
+                std::cout << lmk.at<float>(2) << ',' << lmk.at<float>(3) << std::endl;
+                z_[i] = 1.0;
+            }
+        }
+
+    }
+};
 
 class BackEndNodeSimple{
   private:
@@ -58,13 +153,19 @@ class BackEndNodeSimple{
       bool lc_req_;
 
       std::vector<Frame> kfs_;
+      std::shared_ptr<Subframes> sfs_;
+
+      std::vector<cv::Point2f> trk_pt_;
+      std::vector<size_t> trk_idx_;
 
       cv::Ptr<cv::ORB> orb;
       //cv::Ptr<cv::DescriptorMatcher> matcher_;
       std::shared_ptr<Matcher> matcher_;
+      std::shared_ptr<Tracker> tracker_;
 
       std::string map_frame_;
       std::string odom_frame_;
+
       bool new_kf_;
 
       std::vector<std::string> srcs_; // observation sources
@@ -130,6 +231,20 @@ class BackEndNodeSimple{
           return ( iou < 0.33 ) && ( kf1.kpt.size() > 100 );
       }
 
+      bool is_subframe(const Frame& kf1, const std::vector<cv::DMatch>& match){
+          if (kfs_.size() <= 0) return false; // no pervious frame to compare to
+          const Frame& kf0 = kfs_.back();
+
+          int ixn = 2 * match.size();
+          int uxn = (kf0.kpt.size() + kf1.kpt.size() - ixn);
+          float iou = float(ixn) / uxn;
+
+          // "insignificant" overlap with previous frame == keyframe
+          // threshold = < 33% ?
+          // TODO : tune
+          return ( iou < 0.6 ) && ( kf1.kpt.size() > 100 );
+      }
+
       void data_cb(
               const sensor_msgs::ImageConstPtr& img_msg,
               const sensor_msgs::CameraInfoConstPtr& info_msg){
@@ -143,6 +258,7 @@ class BackEndNodeSimple{
           cam_.fromCameraInfo(info_msg);
 
           if(!matcher_){
+              // initialize matcher if it doesn't exist yet
               matcher_ = std::make_shared<Matcher>(
                       cv::Mat(cam_.intrinsicMatrix()) );
           }
@@ -155,7 +271,14 @@ class BackEndNodeSimple{
           for(auto& p : kpt1){kf1.kpt.push_back(p.pt);}
 
           std::vector<cv::DMatch> match; // TODO : info discarded here
-          if(!is_keyframe(kf1, match)) return;
+          
+          if(!is_keyframe(kf1, match)){
+              //std::cout << "# subframes : " << sfs_->sfs_.size() << std::endl;
+              if(is_subframe(kf1, match)){
+                  sfs_->insert(kf1, *tracker_);
+              }
+              return;
+          }
 
           try{
               // take care of transforms
@@ -170,8 +293,14 @@ class BackEndNodeSimple{
 
               //std::cout << "good" << std::endl;
               kf1.pose = pose;
-              kfs_.push_back(std::move(kf1)); // TODO : verify kf1 copy/assignment persistence
+              if(kfs_.size() > 0){
+                  // update keyframe z-depth from aggregate subframe info
+                  sfs_->finalize();
+                  kfs_.back().z.swap( sfs_->z_ );
+              }
+              kfs_.push_back(kf1); // TODO : verify kf1 copy/assignment persistence
               new_kf_ = true; // yay, new keyframe!!
+              sfs_.reset(new Subframes(kfs_.back()));
               std::cout << "KF " << kfs_.size() << std::endl;
           }catch(tf::LookupException& e){
               std::cout << e.what() << std::endl;
@@ -195,8 +324,9 @@ class BackEndNodeSimple{
               tfb_.sendTransform(xform_stamped);
               return;
           }
+
+          // clear new-kf flag
           new_kf_ = false;
-          //if(!lc_req_) return;
 
           // prepare loop closure
           //int lc_idx = 0;

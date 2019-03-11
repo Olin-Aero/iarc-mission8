@@ -203,7 +203,7 @@ bool loop_closure(
         // probably makes computation more efficient.
 
         //v->setEstimate( g2o::SE3Quat( p.linear(), p.translation() ) );
-        v->setEstimate(g2o::SE3Quat( p.rotation(), p.translation() ).inverse());
+        v->setEstimate(g2o::SE3Quat( p.linear(), p.translation() ).inverse());
         v->setMarginalized(false);
         optimizer.addVertex( v );
 
@@ -228,7 +228,8 @@ bool loop_closure(
         double pxl_x = d0.kpt[m[i].first].x;
         double pxl_y = d0.kpt[m[i].first].y;
 
-        double z = 1.0;
+        double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
+        //std::cout << "z : " << z << std::endl;
         double x = ( pxl_x - cx ) * z / fx;
         double y = ( pxl_y - cy ) * z / fy;
 
@@ -296,9 +297,8 @@ bool loop_closure(
         edges.push_back( edge );
 
         //edge->computeError();
-        //std::cout << edge->chi2() << std::endl;
+        //std::cout << "ve-pre-0 " << edge->chi2() << std::endl;
     }
-
 
     // last frame
     for(size_t i = 0; i < m.size(); ++i)
@@ -320,6 +320,9 @@ bool loop_closure(
         //edge->setRobustKernel( new g2o::RobustKernelTukey() );
         optimizer.addEdge( edge );
         edges.push_back( edge );
+
+        edge->computeError();
+        std::cout << "ve-pre " << edge->chi2() << std::endl;
     }
 
     // TODO : do I need to add pose-based edges?
@@ -361,6 +364,8 @@ bool loop_closure(
 
         edge->setInformation(odom_H);
         edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        //edge->setRobustKernel( new g2o::RobustKernelTukey() );
+
 
         //edge->setMeasurement( g2o::SE3Quat(v0->estimate()).inverse() * g2o::SE3Quat(v1->estimate()) );
         // xyz - rpy
@@ -388,7 +393,7 @@ bool loop_closure(
     std::cout << "chi2" << optimizer.chi2() << std::endl;
 
     if(res <= 0) return false;
-    if(optimizer.activeRobustChi2() > 1000) return false; //TODO : tune
+    //if(optimizer.activeRobustChi2() > 1000) return false; //TODO : tune
 
     std::cout << "finish optimize" << std::endl;
 
