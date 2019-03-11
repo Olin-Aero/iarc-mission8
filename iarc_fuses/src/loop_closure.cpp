@@ -89,7 +89,11 @@ bool strong_match(
         }
     }
 
-    return (m.size() >= 20);
+    float ixn = m.size();
+    float uxn = d0.kpt.size() + d1.kpt.size() - ixn;
+    float iou = (ixn / uxn);
+    return iou > 0.2;
+    //return (m.size() >= 20);
 }
 
 bool loop_closure(
@@ -223,9 +227,9 @@ bool loop_closure(
         optimizer.addVertex( v );
     }
 
-    g2o::VertexSE3Expmap* v_init = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx0) );
+    g2o::VertexSE3Expmap* v_init = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
     Eigen::Isometry3d v_init_pose = v_init->estimate();
-    std::cout << "Initial Pose = " << std::endl << v_init_pose.inverse().matrix() << std::endl;
+    std::cout << "Initial Pose1 = " << std::endl << v_init_pose.inverse().matrix() << std::endl;
 
     // set edges
 
@@ -279,10 +283,10 @@ bool loop_closure(
     // TODO : do I need to add pose-based edges?
 
     Eigen::Matrix<double,6,1> odom_Hv;
-    //float spi2 = 1.0 / pow(0.01, 2);
-    //float sri2 = 1.0 / pow(0.01, 2);
-    float spi2 = 1.0;
-    float sri2 = 1.0;
+    float spi2 = 1.0 / pow(0.1, 2);
+    float sri2 = 1.0 / pow(0.1, 2);
+    //float spi2 = 1.0;
+    //float sri2 = 1.0;
 
     odom_Hv << sri2, sri2, sri2, spi2, spi2, spi2;
 
@@ -332,14 +336,14 @@ bool loop_closure(
 
     // run optimization
     std::cout << "starting optimize" << std::endl;
-    optimizer.setVerbose( true );
+    optimizer.setVerbose(false);
     optimizer.initializeOptimization();
-    optimizer.optimize(100);
+    optimizer.optimize(10);
     std::cout << "finish optimize" << std::endl;
 
     g2o::VertexSE3Expmap* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
     Eigen::Isometry3d pose = v->estimate();
-    std::cout << "Final Pose = " << std::endl << pose.inverse().matrix() << std::endl;
+    std::cout << "Final Pose1 = " << std::endl << pose.inverse().matrix() << std::endl;
 
     optimized_pose = pose.inverse();
 

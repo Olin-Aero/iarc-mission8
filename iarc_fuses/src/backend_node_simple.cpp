@@ -124,7 +124,7 @@ class BackEndNodeSimple{
           // "insignificant" overlap with previous frame == keyframe
           // threshold = < 10%
           // TODO : tune
-          return iou < 0.1;
+          return iou < 0.2;
       }
 
       void data_cb(
@@ -140,10 +140,10 @@ class BackEndNodeSimple{
 
           // populate frame, visual data
           Frame kf1;
-          std::vector<cv::KeyPoint> kpt0, kpt1;
+          std::vector<cv::KeyPoint> kpt1;
           kf1.img = cv_ptr->image;
           orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, kf1.dsc);
-          for(auto& p : kpt0){kf1.kpt.push_back(p.pt);}
+          for(auto& p : kpt1){kf1.kpt.push_back(p.pt);}
 
           if(!is_keyframe(kf1)) return;
 
@@ -161,6 +161,7 @@ class BackEndNodeSimple{
               kf1.pose = pose;
               kfs_.push_back(std::move(kf1)); // TODO : verify kf1 copy/assignment persistence
               new_kf_ = true; // yay, new keyframe!!
+              std::cout << "KF " << kfs_.size() << std::endl;
           }catch(tf::LookupException& e){
               std::cout << e.what() << std::endl;
           }catch(tf::TransformException& e){
@@ -175,17 +176,29 @@ class BackEndNodeSimple{
 
       void step(){
           //if(!lc_req_) return;
-          if(kfs_.size() <= 2) return;
-          if(!new_kf_) return;
+          if(kfs_.size() <= 4 || !new_kf_){
+              tf::Transform xform;
+              tf::transformEigenToTF(T_o2m_, xform);
+              tf::StampedTransform xform_stamped(
+                      xform, ros::Time::now(), // TODO: not now?
+                      map_frame_, odom_frame_);
+              tfb_.sendTransform(xform_stamped);
+              return;
+          }
+          new_kf_ = false;
 
           // prepare loop closure
-          int lc_idx = 0;
+          int lc_idx = kfs_.size()-3;
           auto& kf1 = kfs_.back();
 
           // search loop closure
-          for(auto& kf0 : kfs_){
-              // TODO : search backwards?
-              
+          //for(auto it=kfs_.rbegin()+2; it != kfs_.rend(); ++it){
+          //    //+2 to skip two neighboring frames
+          //    auto& kf0 = *it;
+          bool run_lc = false;
+          for(int i=kfs_.size()-3; i>=0; --i){
+              auto& kf0 = kfs_[i];
+
               // object-level pointer-match check
               // don't match against self since it's stupid
               if(&kf0 == &kf1) continue;
@@ -200,12 +213,14 @@ class BackEndNodeSimple{
 
               if(iou > 0.1){ 
                   // TODO: magic; verified by plotting, but not exactly intuitive.
+                  lc_idx = i;
+                  run_lc = true;
                   break;
               }
-              ++lc_idx;
+              //--lc_idx;
           }
 
-          if(lc_idx >= kfs_.size()){
+          if(!run_lc || lc_idx < 0 || lc_idx >= kfs_.size() - 1){
               // no loop closure candidate detected
               return;
           }
@@ -217,6 +232,7 @@ class BackEndNodeSimple{
           for(auto it=kfs_.begin()+lc_idx; it != kfs_.end(); ++it){
               lc_poses.push_back( it->pose );
           }
+          std::cout << "LC_POSES LEN : " << lc_poses.size() << std::endl;
 
           Eigen::Isometry3d prv_pose1 = lc_poses.back();
           Eigen::Isometry3d opt_pose1;
@@ -227,7 +243,7 @@ class BackEndNodeSimple{
           bool lc_suc = loop_closure(
                   lc_poses, opt_pose1,
                   kf0.img, kf1.img,
-                  kf0, kf1, false);
+                  kf0, kf1, true);
 
           std::cout << "Loop Closure Success: " << lc_suc << std::endl;
 
@@ -239,6 +255,8 @@ class BackEndNodeSimple{
               // T_o2m_' * T_b2o = T_b2m_
               // T_o2m_ * T_b2o' = T_o2m_' * T_b2o
               // T_o2m_' = T_o2m_ * T_b2o' * T_b2o^{-1}
+              // T_o2m_' = T_o2m_ * T_b2o * T_b2o'^{-1}
+              //T_o2m_ = T_o2m_ * prv_pose1 * opt_pose1.inverse();
               T_o2m_ = T_o2m_ * opt_pose1 * prv_pose1.inverse();
 
               ros::Time now = ros::Time::now(); // use stamp?
