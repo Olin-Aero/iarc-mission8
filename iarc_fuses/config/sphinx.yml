@@ -51,13 +51,13 @@ windows:
       panes:
         - sudo service firmwared restart
         - sphinx --datalog --datalog-rate=20 $(rospack find iarc_sim_3d)/worlds/sample.world /opt/parrot-sphinx/usr/share/sphinx/drones/bebop2.drone::stolen_interface=''::pose='0 0 0.2 0 0 1.679'
-        - history -s "tlm-data-logger -r 20 inet:127.0.0.1:9060 | grep omniscient_bebop2.worldTemperature -B 23 | rosrun iarc_fuses sphinx_logger"
+        - until rostopic list ; do sleep 1; done && tlm-data-logger -r 20 inet:127.0.0.1:9060 | grep omniscient_bebop2.worldTemperature -B 23 | rosrun iarc_fuses sphinx_logger
   - ros:
       layout: tiled
       panes:
         - python -c 'import rosgraph; exit(int(rosgraph.is_master_online()))' && roscore # run roscore if it does not exist
-        - history -s "rosrun rviz rviz" # -d $(rospack find iarc_fuses/config/sim.rviz)
-        - history -s "roslaunch bebop_driver bebop_node.launch ip:=10.202.0.1 drone_Type:=bebop2 camera_info_url:='package://bebop_driver/data/bebop2_camera_calib.yaml'"
+        - until rostopic list ; do sleep 1; done && rosrun rviz rviz # -d $(rospack find iarc_fuses/config/sim.rviz)
+        - roslaunch bebop_driver bebop_node.launch ip:=10.202.0.1 drone_Type:=bebop2 camera_info_url:='package://bebop_driver/data/bebop2_camera_calib.yaml'
         - history -s "rostopic pub /bebop/takeoff std_msgs/Empty '{}' --once"
         - history -s "rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=/bebop/cmd_vel"
         - history -s "rosrun iarc_fuses backend_simple_node"

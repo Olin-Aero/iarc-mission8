@@ -11,21 +11,13 @@ Fused Sensory Enhancement for IARC Mission 8.
 ## Run Sim
 
 ```bash
-# start firmwared in the background
-sudo service firmwared restart
+rosrun iarc_fuses sphinx.sh
+```
 
-# sphinx simulator @ 50Hz log (= 20ms)
-sphinx --datalog --datalog-rate=20 ~/sample2.world /opt/parrot-sphinx/usr/share/sphinx/drones/bebop2.drone::stolen_interface=''::pose="0 0 0.2 0 0 1.679"
+### Stopping
 
-# ROS data logger @ 50Hz log (= 20ms)
-tlm-data-logger -r 20 inet:127.0.0.1:9060 | grep omniscient_bebop2.worldTemperature -B 23 | rosrun iarc_fuses sphinx_logger 
-
-# Bebop driver
-roslaunch bebop_driver bebop_node.launch ip:=10.202.0.1 drone_Type:=bebop2 camera_info_url:="package://bebop_driver/data/bebop2_camera_calib.yaml"
-
-# Move (teleop)
-rostopic pub /bebop/takeoff std_msgs/Empty "{}" --once 
-rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=/bebop/cmd_vel
+```bash
+tmuxinator stop sphinx
 ```
 
 ## Recording

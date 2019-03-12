@@ -45,6 +45,8 @@ void eig2msg(
 struct Subframes{
     // keyframe data
     const Frame& kf0_; // reference keyframe
+    const std::shared_ptr<Tracker> tracker_; // tracker handle
+
     std::vector<float> z_; // lmk depth
 
     // subframes data
@@ -52,7 +54,8 @@ struct Subframes{
     std::vector<Frame> sfs_;
     std::vector<cv::Point2f> pt_;
 
-    Subframes(const Frame& kf0):kf0_(kf0){
+    Subframes(const Frame& kf0, const std::shared_ptr<Tracker>& tracker)
+        :kf0_(kf0),tracker_(tracker){
         sfs_.push_back(kf0);
         for(auto& p : kf0_.kpt){pt_.push_back(p);}// initialize tracking points
         //std::iota(idx_.begin(), idx_.end(), 0);   // initialize tracking indices
@@ -60,10 +63,10 @@ struct Subframes{
         z_ = std::vector<float>(pt_.size(), 1.0); // initialize default depth to 1
     }
 
-    void insert(const Frame& sf, Tracker& tracker_){
+    void push_back(const Frame& sf){
         std::vector<cv::Point2f> sub_pt;
         std::vector<size_t> sub_idx;
-        tracker_.track(sfs_.back().img, sf.img, pt_, 2.0,
+        tracker_->track(sfs_.back().img, sf.img, pt_, 2.0,
                 sub_pt, sub_idx);
 
         std::vector<size_t> new_idx;
@@ -72,7 +75,7 @@ struct Subframes{
        
         cv::eigen2cv(
                 (kf0_.pose.inverse()*sfs_.back().pose).matrix(),
-                T2);
+                T2); // T2 = T_b0>o^{-1} * T_b1>o = T_o>b0 * T_b1>o = T_b1>b0
         cv::Mat P2 = T2.rowRange(0,3).colRange(0,4);
         P2.convertTo(P2, CV_32F);
 
@@ -81,6 +84,7 @@ struct Subframes{
 
             bool trk_suc = (std::find(sub_idx.begin(), sub_idx.end(), i) != sub_idx.end());
             if (trk_suc){
+                // the point continues to be tracked!
                 new_idx.push_back(kf_idx);
             }else if (sfs_.size() >= 2){
                 // tracking lost! triangulate with last known connected position.
@@ -93,10 +97,19 @@ struct Subframes{
                         std::vector<cv::Point2f>({kf0_.kpt[kf_idx]}),
                         std::vector<cv::Point2f>({pt_[i]}), lmk);
 
+                //std::cout << "++++++++++++++++++++++++++++++++" << std::endl;
+                //std::cout << P1 << std::endl;
+                //std::cout << P2 << std::endl;
+                //std::cout << kf0_.kpt[kf_idx] << std::endl;
+                //std::cout << pt_[i] << std::endl;
+                //std::cout << lmk << std::endl;
+                //std::cout << P2 * lmk << std::endl;
+
+
                 // acquire point depth
                 z_[kf_idx] = lmk.at<float>(2) / lmk.at<float>(3);
                 //std::cout << "[z]" << z_[kf_idx] << std::endl;
-                if(z_[kf_idx] == 0 || !std::isfinite(z_[kf_idx])){
+                if(z_[kf_idx] <= 0 || !std::isfinite(z_[kf_idx])){
                     z_[kf_idx] = 1.0;
                 }
             }
@@ -109,6 +122,7 @@ struct Subframes{
     }
 
     void finalize(){
+        // TODO : consider structure-only BA
         if(sfs_.size() < 2) return;
 
         cv::Mat P1 = cv::Mat::eye(3, 4, CV_32F);
@@ -128,7 +142,7 @@ struct Subframes{
             z_[i] = lmk.at<float>(2) / lmk.at<float>(3);
 
             //std::cout << "tri " << z_[i] << std::endl;
-            if( z_[i] == 0 || !std::isfinite(z_[i])){
+            if( z_[i] <= 0 || !std::isfinite(z_[i])){
                 //std::cout << kf0_.kpt[i] << ';' << pt_[i] << '|';
                 //std::cout << lmk.at<float>(2) << ',' << lmk.at<float>(3) << std::endl;
                 z_[i] = 1.0;
@@ -206,6 +220,7 @@ class BackEndNodeSimple{
 
               orb = cv::ORB::create();
               // matcher_=cv::DescriptorMatcher::create( "BruteForce-Hamming" );
+              tracker_ = std::make_shared<Tracker>();
           }
 
       bool loop_closure_cb(
@@ -243,69 +258,28 @@ class BackEndNodeSimple{
           int uxn = (kf0.kpt.size() + kf1.kpt.size() - ixn);
           float iou = float(ixn) / uxn;
 
-          // "insignificant" overlap with previous frame == keyframe
-          // threshold = < 33% ?
           // TODO : tune
           return ( iou < 0.6 ) && ( kf1.kpt.size() > 100 );
       }
 
-      void data_cb(
-              const sensor_msgs::ImageConstPtr& img_msg,
-              const sensor_msgs::CameraInfoConstPtr& info_msg){
-
-          if( (info_msg->header.stamp - prv_).toSec() < 0.1 ){
-              return;
-          }
-          prv_ = info_msg->header.stamp;
-
-          auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
-          cam_.fromCameraInfo(info_msg);
-
-          if(!matcher_){
-              // initialize matcher if it doesn't exist yet
-              matcher_ = std::make_shared<Matcher>(
-                      cv::Mat(cam_.intrinsicMatrix()) );
-          }
-
-          // populate frame, visual data
-          Frame kf1;
-          std::vector<cv::KeyPoint> kpt1;
-          kf1.img = cv_ptr->image;
-          orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, kf1.dsc);
-          for(auto& p : kpt1){kf1.kpt.push_back(p.pt);}
-
-          std::vector<cv::DMatch> match; // TODO : info discarded here
-          
-          if(!is_keyframe(kf1, match)){
-              //std::cout << "# subframes : " << sfs_->sfs_.size() << std::endl;
-              if(is_subframe(kf1, match)){
-                  sfs_->insert(kf1, *tracker_);
-              }
-              return;
-          }
-
+      inline bool fill_pose(
+              Frame& kf,
+              const std_msgs::Header& hdr
+              ){
           try{
               // take care of transforms
               tf::StampedTransform xform;
               Eigen::Isometry3d pose;
 
               // populate frame, geometric data
-              tf_.waitForTransform(odom_frame_, info_msg->header.frame_id, info_msg->header.stamp,
+              tf_.waitForTransform(odom_frame_, hdr.frame_id, hdr.stamp,
                       ros::Duration(0.1));
-              tf_.lookupTransform(odom_frame_, info_msg->header.frame_id, info_msg->header.stamp, xform); 
+              tf_.lookupTransform(odom_frame_, hdr.frame_id, hdr.stamp, xform); 
               tf::transformTFToEigen(xform, pose);
 
               //std::cout << "good" << std::endl;
-              kf1.pose = pose;
-              if(kfs_.size() > 0){
-                  // update keyframe z-depth from aggregate subframe info
-                  sfs_->finalize();
-                  kfs_.back().z.swap( sfs_->z_ );
-              }
-              kfs_.push_back(kf1); // TODO : verify kf1 copy/assignment persistence
-              new_kf_ = true; // yay, new keyframe!!
-              sfs_.reset(new Subframes(kfs_.back()));
-              std::cout << "KF " << kfs_.size() << std::endl;
+              kf.pose = pose;
+              return true;
           }catch(tf::LookupException& e){
               std::cout << e.what() << std::endl;
           }catch(tf::TransformException& e){
@@ -314,6 +288,64 @@ class BackEndNodeSimple{
               std::cout << e.what() << std::endl;
           }catch(tf::ConnectivityException& e){
               std::cout << e.what() << std::endl;
+          }
+
+          return false;
+      }
+
+      void data_cb(
+              const sensor_msgs::ImageConstPtr& img_msg,
+              const sensor_msgs::CameraInfoConstPtr& info_msg){
+          if( (info_msg->header.stamp - prv_).toSec() < 0.1 ){
+              // ignore old data
+              // TODO : fix magic timeout
+              return;
+          }
+          prv_ = info_msg->header.stamp;
+
+          // instantiate current processing frame
+          Frame kf1;
+
+          // get pose info + stop processing if no pose info available
+          if(!fill_pose(kf1, info_msg->header)) return;
+
+          // convert message to OpenCV Mat
+          auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8"); // TODO : consider toCvShare() ..
+          cam_.fromCameraInfo(info_msg); // TODO : prevent side effects if multiple cameras
+
+          if(!matcher_){
+              // initialize matcher if it doesn't exist yet
+              // NOTE: this must occur after cam_.fromCameraInfo() calls.
+              matcher_ = std::make_shared<Matcher>(
+                      cv::Mat(cam_.intrinsicMatrix()) );
+          }
+
+          // populate frame, visual data
+          std::vector<cv::KeyPoint> kpt1;
+          kf1.img = cv_ptr->image;
+          orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, kf1.dsc);
+          for(auto& p : kpt1){kf1.kpt.push_back(p.pt);}
+
+          std::vector<cv::DMatch> match; // TODO : info discarded here
+
+          if(is_keyframe(kf1, match)){
+              // new keyframe!
+              if(kfs_.size() > 0){
+                  // update keyframe z-depth from aggregate subframe info
+                  sfs_->finalize();
+                  kfs_.back().z.swap( sfs_->z_ );
+              }
+              kfs_.push_back(kf1); // TODO : verify kf1 copy/assignment persistence
+              new_kf_ = true; // yay, new keyframe!!
+              sfs_.reset(new Subframes(kfs_.back(), tracker_));
+              std::cout << "KF " << kfs_.size() << std::endl;
+          }else{
+              //std::cout << "# subframes : " << sfs_->sfs_.size() << std::endl;
+              if(is_subframe(kf1, match)){
+                  std::cout << "SF " << sfs_->sfs_.size() << std::endl;
+                  sfs_->push_back(kf1);
+              }
+
           }
 
       }
@@ -346,7 +378,7 @@ class BackEndNodeSimple{
           //for(auto it=kfs_.begin(); it!=kfs_.end(); ++it){
           //for(auto it=kfs_.rbegin()+2; it!=kfs_.rend(); ++it){
           //for(int i = kfs_.size()-3;  i>0; --i){
-          for(int i=0; i < kfs_.size()-3; ++i){
+          for(size_t i=0; i < kfs_.size()-3; ++i){
               //auto& kf0 = *it;
               auto& kf0 = kfs_[i];
 
@@ -365,9 +397,9 @@ class BackEndNodeSimple{
               float iou = float(ixn) / uxn;
 
               /*
-              std::cout << "iou" << iou << std::endl;
-              std::cout << "ixn" << ixn << std::endl;
-              */
+                 std::cout << "iou" << iou << std::endl;
+                 std::cout << "ixn" << ixn << std::endl;
+                 */
 
               if(iou > 0.05){ 
                   // TODO: magic; verified by plotting, but not exactly intuitive.

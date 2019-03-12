@@ -25,7 +25,7 @@ struct Tracker{
             // output
             std::vector<cv::Point2f>& pt1,
             std::vector<size_t>& idx1
-            ){
+            ) const{
         // TODO : optimize
 
         cv::Mat gray0, gray1;
