@@ -6,12 +6,16 @@
 #include <Eigen/Geometry>
 
 struct Frame{
-    cv::Mat img;
-    std::vector<cv::Point2f> kpt;
-    cv::Mat dsc;
-    Eigen::Isometry3d pose;
-    std::vector<float> z;
-    // no_align_bullshit here needed?
+  public:
+      double stamp; // try to be ROS-agnostic
+      cv::Mat img;
+      std::vector<cv::Point2f> kpt;
+      cv::Mat dsc;
+      Eigen::Isometry3d pose;
+      std::vector<float> z;
+      // Eigen no_align_bullshit here needed?
+  public:
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
 struct FramePair{

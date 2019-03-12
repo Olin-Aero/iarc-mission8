@@ -1,0 +1,63 @@
+# /home/jamiecho/.config/tmuxinator/sphinx.yml
+
+name: sphinx
+root: ~/
+
+# Optional tmux socket
+# socket_name: foo
+
+# Runs before everything. Use it to start daemons etc.
+# pre: sudo /etc/rc.d/mysqld start
+
+# Project hooks
+# Runs on project start, always
+# on_project_start: command
+# Run on project start, the first time
+# on_project_first_start: command
+# Run on project start, after the first time
+# on_project_restart: command
+# Run on project exit ( detaching from tmux session )
+# on_project_exit: command
+# Run on project stop
+# on_project_stop: command
+
+# Runs in each window and pane before window/pane specific commands. Useful for setting up interpreter versions.
+# pre_window: rbenv shell 2.0.0-p247
+
+# Pass command line options to tmux. Useful for specifying a different tmux.conf.
+# tmux_options: -f ~/.tmux.mac.conf
+
+# Change the command to call tmux.  This can be used by derivatives/wrappers like byobu.
+# tmux_command: byobu
+
+# Specifies (by name or index) which window will be selected on project startup. If not set, the first window is used.
+# startup_window: editor
+
+# Specifies (by index) which pane of the specified window will be selected on project startup. If not set, the first pane is used.
+# startup_pane: 1
+
+# Controls whether the tmux session should be attached to automatically. Defaults to true.
+# attach: false
+
+# Runs after everything. Use it to attach to tmux with custom options etc.
+# post: tmux -CC attach -t sphinx
+
+windows:
+  - simulator:
+      layout: tiled
+      # Synchronize all panes of this window, can be enabled before or after the pane commands run.
+      # 'before' represents legacy functionality and will be deprecated in a future release, in favour of 'after'
+      # synchronize: after
+      panes:
+        - sudo service firmwared restart
+        - sphinx --datalog --datalog-rate=20 $(rospack find iarc_sim_3d)/worlds/sample.world /opt/parrot-sphinx/usr/share/sphinx/drones/bebop2.drone::stolen_interface=''::pose='0 0 0.2 0 0 1.679'
+        - history -s "tlm-data-logger -r 20 inet:127.0.0.1:9060 | grep omniscient_bebop2.worldTemperature -B 23 | rosrun iarc_fuses sphinx_logger"
+  - ros:
+      layout: tiled
+      panes:
+        - python -c 'import rosgraph; exit(int(rosgraph.is_master_online()))' && roscore # run roscore if it does not exist
+        - history -s "rosrun rviz rviz" # -d $(rospack find iarc_fuses/config/sim.rviz)
+        - history -s "roslaunch bebop_driver bebop_node.launch ip:=10.202.0.1 drone_Type:=bebop2 camera_info_url:='package://bebop_driver/data/bebop2_camera_calib.yaml'"
+        - history -s "rostopic pub /bebop/takeoff std_msgs/Empty '{}' --once"
+        - history -s "rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=/bebop/cmd_vel"
+        - history -s "rosrun iarc_fuses backend_simple_node"

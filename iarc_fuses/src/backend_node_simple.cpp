@@ -190,7 +190,7 @@ class BackEndNodeSimple{
               new_kf_ = false;
               // TODO: nh_.getParam<>( srcs_ ... ) to get camera sources
 
-              sub_ = it_.subscribeCamera("hmm", 10, &BackEndNodeSimple::data_cb, this);
+              sub_ = it_.subscribeCamera("/bebop/image_raw", 10, &BackEndNodeSimple::data_cb, this);
               pub0_ = it_.advertise("lc_img0", 2);
               pub1_ = it_.advertise("lc_img1", 2);
 
