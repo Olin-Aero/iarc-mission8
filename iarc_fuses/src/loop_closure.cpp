@@ -228,8 +228,8 @@ bool loop_closure(
         double pxl_x = d0.kpt[m[i].first].x;
         double pxl_y = d0.kpt[m[i].first].y;
 
-        double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
-        //std::cout << "z : " << z << std::endl;
+        //double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
+        double z = 1.0;
         double x = ( pxl_x - cx ) * z / fx;
         double y = ( pxl_y - cy ) * z / fy;
 
@@ -289,7 +289,6 @@ bool loop_closure(
         edge->setParameterId(0, 0);
 
         // kernel function
-
         edge->setRobustKernel( new g2o::RobustKernelHuber() );
         //edge->setRobustKernel( new g2o::RobustKernelTukey() );
 
@@ -315,21 +314,21 @@ bool loop_closure(
         edge->setInformation( 1.0 * Eigen::Matrix2d::Identity() );
         edge->setParameterId(0, 0);
 
-        // keneral function
+        // kernel function
         edge->setRobustKernel( new g2o::RobustKernelHuber() );
         //edge->setRobustKernel( new g2o::RobustKernelTukey() );
         optimizer.addEdge( edge );
         edges.push_back( edge );
 
-        edge->computeError();
-        std::cout << "ve-pre " << edge->chi2() << std::endl;
+        //edge->computeError();
+        //std::cout << "ve-pre " << edge->chi2() << std::endl;
     }
 
     // TODO : do I need to add pose-based edges?
 
     Eigen::Matrix<double,6,1> odom_Hv;
     float spi2 = 1.0 / pow(0.1 * (M_PI/180.0), 2);
-    float sri2 = 1.0 / pow(0.1 * (M_PI/180.0), 2);
+    float sri2 = 1.0 / pow(0.01 * (M_PI/180.0), 2);
     //float spi2 = 1.0;
     //float sri2 = 1.0;
 
@@ -363,7 +362,7 @@ bool loop_closure(
         // C = <v1->estimate() * v0->estimate().inverse()>
 
         edge->setInformation(odom_H);
-        edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
         //edge->setRobustKernel( new g2o::RobustKernelTukey() );
 
 
@@ -376,9 +375,18 @@ bool loop_closure(
             odom_edges.push_back( edge );
         }else{
             // should not reach here
+            std::cout << "degenerate odom chi" << std::endl;
             delete edge;
         }
+    }
 
+    for(auto& e : edges){
+        e->computeError();
+        std::cout << "ve0 : " << e->chi2() << std::endl;
+    }
+    for(auto& e : odom_edges){
+        e->computeError();
+        std::cout << "oe0 : " << e->chi2() << std::endl;
     }
 
     // run optimization
@@ -409,11 +417,11 @@ bool loop_closure(
 
     for(auto& e : edges){
         e->computeError();
-        std::cout << "ve : " << e->chi2() << std::endl;
+        std::cout << "ve1 : " << e->chi2() << std::endl;
     }
     for(auto& e : odom_edges){
         e->computeError();
-        std::cout << "oe : " << e->chi2() << std::endl;
+        std::cout << "oe1 : " << e->chi2() << std::endl;
     }
 
     //for( size_t i = 0; i < m.size(); ++i )

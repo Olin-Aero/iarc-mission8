@@ -96,6 +96,9 @@ struct Subframes{
                 // acquire point depth
                 z_[kf_idx] = lmk.at<float>(2) / lmk.at<float>(3);
                 //std::cout << "[z]" << z_[kf_idx] << std::endl;
+                if(z_[kf_idx] == 0 || !std::isfinite(z_[kf_idx])){
+                    z_[kf_idx] = 1.0;
+                }
             }
         }
 
@@ -126,8 +129,8 @@ struct Subframes{
 
             //std::cout << "tri " << z_[i] << std::endl;
             if( z_[i] == 0 || !std::isfinite(z_[i])){
-                std::cout << kf0_.kpt[i] << ';' << pt_[i] << '|';
-                std::cout << lmk.at<float>(2) << ',' << lmk.at<float>(3) << std::endl;
+                //std::cout << kf0_.kpt[i] << ';' << pt_[i] << '|';
+                //std::cout << lmk.at<float>(2) << ',' << lmk.at<float>(3) << std::endl;
                 z_[i] = 1.0;
             }
         }
@@ -179,6 +182,7 @@ class BackEndNodeSimple{
               // TODO : consider multi-robot configuration
               map_frame_ = "map";
               odom_frame_ = "odom";
+              //odom_frame_ = "noise";
 
               // T_a2b = source frame a, target frame b
               T_o2m_ = Eigen::Isometry3d::Identity(); // map coordinates
@@ -341,7 +345,8 @@ class BackEndNodeSimple{
           //for(auto& kfs : kfs_){
           //for(auto it=kfs_.begin(); it!=kfs_.end(); ++it){
           //for(auto it=kfs_.rbegin()+2; it!=kfs_.rend(); ++it){
-          for(int i = kfs_.size()-3;  i>0; --i){
+          //for(int i = kfs_.size()-3;  i>0; --i){
+          for(int i=0; i < kfs_.size()-3; ++i){
               //auto& kf0 = *it;
               auto& kf0 = kfs_[i];
 
@@ -359,8 +364,10 @@ class BackEndNodeSimple{
               int uxn = (kf0.kpt.size() + kf1.kpt.size() - ixn);
               float iou = float(ixn) / uxn;
 
+              /*
               std::cout << "iou" << iou << std::endl;
               std::cout << "ixn" << ixn << std::endl;
+              */
 
               if(iou > 0.05){ 
                   // TODO: magic; verified by plotting, but not exactly intuitive.
