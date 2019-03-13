@@ -4,10 +4,15 @@
 ## Build Instructions
 
 ```bash
-git clone https://github.com/AutonomyLab/parrot_arsdk.git
-git clone https://github.com/AutonomyLab/bebop_autonomy.git
+# Clone this repository into a working catkin_ws of a ROS Kinetic install, then...
+
+roscd iarc_main/.. && rosdep install -iy --from_paths .
+
 sudo apt-get install python python-all-dev python-pip build-essential swig git libpulse-dev libasound2-dev
-sudo apt-get install python-pyaudio python3-pyaudio
+
+sudo apt-get install portaudio19-dev python-all-dev python3-all-dev && sudo pip install pyaudio
+
+roscd iarc_main/.. && pip install --user -r requirements.txt
 ```
 
 
