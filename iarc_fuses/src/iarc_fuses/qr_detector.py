@@ -15,11 +15,9 @@ class QRDetector():
 
     def imageToBinary(self,image):
         # inputse an image to get the whites of a digital screen
-        whiteLowerBound = (240,245,240) # a high blue value was used because computers tend to make white very blue.
+        whiteLowerBound = (220,210,160) # a high blue value was used because computers tend to make white very blue.
         whiteUpperBound = (255,255,255) # IMPORTANT NOTE: I set it to (220,210,160) for paper. Testing it on ipads, it should be set to (249,210,160)!!
         b1 = cv2.inRange(image, whiteLowerBound, whiteUpperBound) # gets a binary image of the white in the picture
-        cv2.imshow("this",b1)
-        cv2.waitKey(0)
         return b1
 
     def getBox(self,b1,image):
@@ -36,9 +34,6 @@ class QRDetector():
         rect = cv2.minAreaRect(maxCnt) # gets a rectangular bounding box
         box = cv2.boxPoints(rect)
         box = np.int0(box) # makes it into an array of points
-        cv2.drawContours(img, [box], 0, (0,255,0), 3)
-        cv2.imshow("this",img)
-        cv2.waitKey(0)
         return box
 
     def getRotatedImage(self,image,box):
@@ -49,6 +44,8 @@ class QRDetector():
             alpha = pi / 2
         else:
             alpha = atan(float(deltax) / float(deltay)) # determines the angle from horizontal of the box
+        if(alpha > pi/4):
+            alpha = alpha - pi/2
         width,height, _ = image.shape # gets the width and height of the image
         diagonal = int(sqrt(width**2 + height**2)) # gets the diagonal so that no information is lost when rotating the image
         blankImage = np.zeros((diagonal,diagonal,3), np.uint8) # initializes a blank image with height and width equal to the diagonal of the original image
@@ -62,9 +59,12 @@ class QRDetector():
 
     def getCroppedImage(self,rotatedImage,box):
         # inputs a rotated image and box containing a qr quadrant and returns a 200 by 200 image containing the qr quadrant
-        crop_img = rotatedImage[box[1][1]:box[3][1], box[1][0]:box[3][0]] # crops the image by the box
+        if(box[3][1] < box[1][1]):
+            crop_img = rotatedImage[box[3][1]:box[1][1], box[1][0]:box[3][0]] # crops the image by the box
+        else:
+            crop_img = rotatedImage[box[1][1]:box[3][1], box[1][0]:box[3][0]] # crops the image by the box
         bw_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY) #  converts the box to grayscale to easily calculate the mean
-        height, width = bw_img.shape # width and height of the image
+        height, width, _ = crop_img.shape # width and height of the image
         if width > height: # if the width is greater than the height, it needs to be cut in one direction
             selection1C = crop_img[0:height, 0:height] # first selection is the left square
             selection2C = crop_img[0:height, width-height:width] # second selection is the right square
@@ -109,7 +109,7 @@ def main():
     images = []
     # images here are a placeholder until real detection callback exists
     for index in range(4):
-        file = os.path.join(pkgRoot,"images", "Paper%s.jpg" %(index+1))
+        file = os.path.join(pkgRoot,"images", "qr%s.png" %(index+1))
         images.append(cv2.imread(file))
 
     detector = QRDetector()
@@ -119,7 +119,6 @@ def main():
     for i, img in enumerate(cropped_images):
         cv2.imshow('image-{}'.format(i), img)
         cv2.imwrite('/tmp/FinalImage{}.png'.format(i),img)
-        break
     cv2.waitKey(0)
 
 
