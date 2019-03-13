@@ -36,7 +36,7 @@ bool loop_closure(
 float jaccard(
         Frame& d0,
         Frame& d1,
-        std::vector<std::pair<int, int>>& m
+        int n
         );
 
 #endif

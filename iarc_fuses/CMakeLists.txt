@@ -28,7 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package( G2O ) #REQUIRED PATHS /usr/local)
-find_package( OpenCV 3.3 REQUIRED )
+find_package( OpenCV 3.3 REQUIRED COMPONENTS core calib3d video)
 find_package( Eigen3 REQUIRED )
 find_package( Cholmod )
 
@@ -159,6 +159,7 @@ add_executable(backend_simple_node
 	src/backend_node_simple.cpp
 	src/loop_closure.cpp
     src/matcher.cpp
+    src/utils.cpp
 	)
 
 add_executable(sphinx_logger

@@ -2,11 +2,16 @@
 #include <iostream>
 #include <cmath>
 
+// eigen
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
 // for opencv
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/core/eigen.hpp>
 #include <boost/concept_check.hpp>
 
 // for g2o
@@ -23,6 +28,7 @@
 #include <g2o/types/sba/types_six_dof_expmap.h>
 
 #include "loop_closure.hpp"
+#include "utils.hpp"
 
 // intrinsic camera parameters
 double fx=537.292878;
@@ -48,7 +54,8 @@ bool strong_match(
         Frame& d0,
         Frame& d1,
         // return matching indices into d0->kpt, d1->kpt
-        std::vector<std::pair<int, int>>& m
+        //std::vector<std::pair<int, int>>& m
+        std::vector<cv::DMatch>& m
         );
 
 // TODO: BoW impl.
@@ -76,7 +83,7 @@ bool strong_match(
         Frame& d0,
         Frame& d1,
         // return matching indices into d0->kpt, d1->kpt
-        std::vector<std::pair<int, int>>& m
+        std::vector<cv::DMatch>& m
         ){
     cv::Ptr<cv::DescriptorMatcher> matcher =
         cv::DescriptorMatcher::create( "BruteForce-Hamming" );
@@ -87,10 +94,10 @@ bool strong_match(
 
     std::vector<cv::Point2d> p0, p1;
 
-    std::vector<std::pair<int, int>> m_raw;
+    std::vector<cv::DMatch> m_raw;
     for(auto& m2 : matches_knn){
         if(m2[0].distance < lowe_ratio * m2[1].distance){
-            m_raw.push_back(std::make_pair(m2[0].queryIdx, m2[0].trainIdx));
+            m_raw.push_back(m2[0]);
             p0.push_back( d0.kpt[m2[0].queryIdx] );
             p1.push_back( d1.kpt[m2[0].trainIdx] );
         }
@@ -99,10 +106,10 @@ bool strong_match(
     // epipolar filter
     cv::Mat msk;
     //cv::Mat Fmat = cv::findFundamentalMat(p0, p1, cv::FM_RANSAC, 2.0, 0.999, msk);
-    cv::findEssentialMat(p0, p1, K,
+    cv::Mat E = cv::findEssentialMat(p0, p1, K,
             cv::RANSAC, 0.999, 1.0, msk);
-    //std::cout << msk.size << std::endl;
 
+    //std::cout << msk.size << std::endl;
     // apply filter
     m.clear();
     for(int i=0; i<msk.rows; ++i){
@@ -110,17 +117,24 @@ bool strong_match(
         m.push_back(m_raw[i]);
     }
 
-    float iou = jaccard(d0, d1, m);
-    std::cout << "IOU" << iou << std::endl;
-    return (iou > 0.1) && (m.size() > 25);
+    float iou = jaccard(d0, d1, m.size());
+    bool suc = (iou > 0.1) && (m.size() > 25);
+    if (suc){
+        std::cout << "IOU" << iou << std::endl;
+        cv::Mat Rxn, txn;
+        cv::recoverPose(E, p0, p1, K, Rxn, txn);
+        std::cout << "R" << Rxn << std::endl;
+        std::cout << "t" << txn << std::endl;
+    }
+    return suc;
 }
 
 float jaccard(
         Frame& d0,
         Frame& d1,
-        std::vector<std::pair<int, int>>& m
+        int n
         ){
-    float ixn = 2 * m.size();
+    float ixn = 2 * n;
     float uxn = d0.kpt.size()+d1.kpt.size()-ixn;
     float iou = (ixn / uxn);
 
@@ -160,7 +174,7 @@ bool loop_closure(
         std::cout << "WEAK MATCH FAILED" << std::endl;
         return false;
     }
-    std::vector< std::pair<int,int> > m;
+    std::vector<cv::DMatch> m;
     if(! strong_match(img0, img1, K, d0, d1, m)){
         std::cout << "STRONG MATCH FAILED" << std::endl;
         return false;
@@ -215,7 +229,18 @@ bool loop_closure(
     const int pose_idx0 = 0;
     const int pose_idx1 = (idx-1);
     const int lmk_idx0 = idx;
-    //std::cout << "lmk_idx0 : " << lmk_idx0 << std::endl;
+
+    std::vector<cv::Point_<double>> p0, p1;
+    std::vector<float> zs;
+
+    std::cout << std::endl;
+    extract_points(m, d0.kpt, d1.kpt, p0, p1);
+    get_depth(d0.pose, d1.pose, p0, p1, K, zs);
+
+    for(auto& z : zs){
+        std::cout << z << ", ";
+    }
+    std::cout << std::endl;
 
     // set euclidean landmark feature point, based on img1
     for(size_t i = 0; i < m.size(); ++i)
@@ -225,11 +250,13 @@ bool loop_closure(
 
         // set depth to 1 & and add euclidean point
         // TODO : apply first pose to this
-        double pxl_x = d0.kpt[m[i].first].x;
-        double pxl_y = d0.kpt[m[i].first].y;
+        double pxl_x = p0[i].x;
+        double pxl_y = p0[i].y;
 
-        double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
+        //double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
         //double z = 1.0;
+        double z = zs[i];
+        z = std::isfinite(z)? z: 1.0; // rectify z
         double x = ( pxl_x - cx ) * z / fx;
         double y = ( pxl_y - cy ) * z / fy;
 
@@ -276,8 +303,8 @@ bool loop_closure(
 
     for(size_t i = 0; i < m.size(); ++i)
     {
-        double pxl_x = d0.kpt[m[i].first].x;
-        double pxl_y = d0.kpt[m[i].first].y;
+        double pxl_x = p0[i].x;
+        double pxl_y = p0[i].y;
 
         g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
         edge->setVertex(0, dynamic_cast<g2o::VertexSBAPointXYZ*>
@@ -285,12 +312,15 @@ bool loop_closure(
         edge->setVertex(1, dynamic_cast<g2o::VertexSE3Expmap*>
                 (optimizer.vertex(pose_idx0)) ); // observation pose
         edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
-        edge->setInformation( 1.0 * Eigen::Matrix2d::Identity() );
+        edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
         edge->setParameterId(0, 0);
 
         // kernel function
-        edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
         //edge->setRobustKernel( new g2o::RobustKernelTukey() );
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta( 0.5 );
+        edge->setRobustKernel(ker);
 
         optimizer.addEdge( edge );
         edges.push_back( edge );
@@ -302,8 +332,8 @@ bool loop_closure(
     // last frame
     for(size_t i = 0; i < m.size(); ++i)
     {
-        double pxl_x = d1.kpt[m[i].second].x;
-        double pxl_y = d1.kpt[m[i].second].y;
+        double pxl_x = p1[i].x;
+        double pxl_y = p1[i].y;
 
         g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
         edge->setVertex( 0, dynamic_cast<g2o::VertexSBAPointXYZ*>
@@ -311,12 +341,17 @@ bool loop_closure(
         edge->setVertex( 1, dynamic_cast<g2o::VertexSE3Expmap*>
                 (optimizer.vertex(pose_idx1)) );
         edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
-        edge->setInformation( 1.0 * Eigen::Matrix2d::Identity() );
+        edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
         edge->setParameterId(0, 0);
 
         // kernel function
-        edge->setRobustKernel( new g2o::RobustKernelHuber() );
+        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
         //edge->setRobustKernel( new g2o::RobustKernelTukey() );
+
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta( 0.5 );
+        edge->setRobustKernel(ker);
+
         optimizer.addEdge( edge );
         edges.push_back( edge );
 
@@ -328,7 +363,7 @@ bool loop_closure(
 
     Eigen::Matrix<double,6,1> odom_Hv;
     float spi2 = 1.0 / pow(0.1, 2);
-    float sri2 = 1.0 / pow(0.1 * (M_PI/180.0), 2);
+    float sri2 = 1.0 / pow(M_PI/180.0, 2);
     //float spi2 = 1.0;
     //float sri2 = 1.0;
 
@@ -362,8 +397,12 @@ bool loop_closure(
         // C = <v1->estimate() * v0->estimate().inverse()>
 
         edge->setInformation(odom_H);
-        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
-        //edge->setRobustKernel( new g2o::RobustKernelTukey() );
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta(1.0);
+        edge->setRobustKernel(ker);
+        //auto ker = new g2o::RobustKernelTukey();
+        //ker->setDelta(0.1);
+        //edge->setRobustKernel(ker);
 
 
         //edge->setMeasurement( g2o::SE3Quat(v0->estimate()).inverse() * g2o::SE3Quat(v1->estimate()) );

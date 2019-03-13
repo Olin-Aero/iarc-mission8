@@ -31,6 +31,7 @@
 #include "loop_closure.hpp"
 #include "matcher.hpp"
 #include "tracker.hpp"
+#include "utils.hpp"
 
 void eig2msg(
         const Eigen::Isometry3d& e,
@@ -45,6 +46,7 @@ void eig2msg(
 struct Subframes{
     // keyframe data
     const Frame& kf0_; // reference keyframe
+    const cv::Mat K_;
     const std::shared_ptr<Tracker> tracker_; // tracker handle
 
     std::vector<float> z_; // lmk depth
@@ -54,8 +56,8 @@ struct Subframes{
     std::vector<Frame> sfs_;
     std::vector<cv::Point2f> pt_;
 
-    Subframes(const Frame& kf0, const std::shared_ptr<Tracker>& tracker)
-        :kf0_(kf0),tracker_(tracker){
+    Subframes(const Frame& kf0, const cv::Mat& K, const std::shared_ptr<Tracker>& tracker)
+        :kf0_(kf0),K_(K),tracker_(tracker){
         sfs_.push_back(kf0);
         for(auto& p : kf0_.kpt){pt_.push_back(p);}// initialize tracking points
         //std::iota(idx_.begin(), idx_.end(), 0);   // initialize tracking indices
@@ -313,11 +315,12 @@ class BackEndNodeSimple{
           auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8"); // TODO : consider toCvShare() ..
           cam_.fromCameraInfo(info_msg); // TODO : prevent side effects if multiple cameras
 
+          cv::Mat K(cam_.intrinsicMatrix());
+
           if(!matcher_){
               // initialize matcher if it doesn't exist yet
               // NOTE: this must occur after cam_.fromCameraInfo() calls.
-              matcher_ = std::make_shared<Matcher>(
-                      cv::Mat(cam_.intrinsicMatrix()) );
+              matcher_ = std::make_shared<Matcher>(K);
           }
 
           // populate frame, visual data
@@ -337,7 +340,7 @@ class BackEndNodeSimple{
               }
               kfs_.push_back(kf1); // TODO : verify kf1 copy/assignment persistence
               new_kf_ = true; // yay, new keyframe!!
-              sfs_.reset(new Subframes(kfs_.back(), tracker_));
+              sfs_.reset(new Subframes(kfs_.back(), K, tracker_));
               std::cout << "KF " << kfs_.size() << std::endl;
           }else{
               //std::cout << "# subframes : " << sfs_->sfs_.size() << std::endl;
@@ -440,6 +443,7 @@ class BackEndNodeSimple{
           // TODO: make non-stupid function signature
           // bool loop_closure(std::vector<Frame>& kfs_, ...)
           cv::Mat K(cam_.intrinsicMatrix());
+          //K.convertTo(K, CV_32F);
 
           std::cout << lc_poses.back().matrix() << std::endl;
           bool lc_suc = loop_closure(
