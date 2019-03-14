@@ -27,7 +27,7 @@ class QRNode():
 
         # ROS Handles
         rospy.init_node('QRDetector', anonymous=True)
-        self.drone1ImageSub = rospy.Subscriber('/drone1/image_raw',Image,self.drone1CB) # The ros interfacing won't work yet as I haven't figured out how to convert a ROS image to PIL Image
+        self.drone1ImageSub = rospy.Subscriber('/bebop/image_raw',Image,self.drone1CB) # The ros interfacing won't work yet as I haven't figured out how to convert a ROS image to PIL Image
         self.voiceSub = rospy.Subscriber('/voice',String,self.voiceCB)
         self.qrNumberPub = rospy.Publisher('/qr_number', Int32, queue_size=10)
         self.bridge = CvBridge()
@@ -74,6 +74,7 @@ class QRNode():
 
         # now broadcast the result
         number = self.number
+        print(number)
         self.qrNumberPub.publish(number)
 
     def run(self):
