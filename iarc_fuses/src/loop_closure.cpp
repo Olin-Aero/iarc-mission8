@@ -297,7 +297,10 @@ bool loop_closure(
 
     Eigen::Matrix<double,6,1> odom_Hv;
     float spi2 = 1.0 / pow(0.1, 2);
-    float sri2 = 1.0 / pow(1.0 * M_PI/180.0, 2);
+    float sri2 = 1.0 / pow(1.0 * M_PI/180.0, 2); // <<<<<<<<<<<<<<<<<<<< THIS
+
+    // vertices 
+    
     //float spi2 = 1.0;
     //float sri2 = 1.0;
 
