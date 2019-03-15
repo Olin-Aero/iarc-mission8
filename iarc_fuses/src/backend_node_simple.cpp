@@ -27,6 +27,7 @@
 
 #include <std_srvs/Empty.h>
 #include <nav_msgs/Path.h>
+#include <fstream>
 
 #include "loop_closure.hpp"
 #include "matcher.hpp"
@@ -43,6 +44,26 @@ void eig2msg(
     tf2::toMsg(xfm_tf, p);
 }
 
+void debug_log(
+        std::vector<Eigen::Isometry3d>& od,
+        std::vector<Eigen::Isometry3d>& lc){
+
+    std::ofstream odf("/tmp/od.txt");
+    //std::cout << "ODOMETRY" << std::endl;
+    for(auto& x : od){
+        //std::cout << x.translation().transpose() << ' ' << x.linear().eulerAngles(0,1,2).transpose() << std::endl;
+        odf << x.translation().transpose() << ' ' << x.linear().eulerAngles(2,1,0).transpose() << std::endl;
+    }
+
+    std::ofstream lcf("/tmp/lc.txt");
+    //std::cout << "ODOMETRY" << std::endl;
+    for(auto& x : lc){
+        //std::cout << x.translation().transpose() << ' ' << x.linear().eulerAngles(0,1,2).transpose() << std::endl;
+        lcf << x.translation().transpose() << ' ' << x.linear().eulerAngles(2,1,0).transpose() << std::endl;
+    }
+}
+
+
 struct Subframes{
     // keyframe data
     const Frame& kf0_; // reference keyframe
@@ -58,12 +79,12 @@ struct Subframes{
 
     Subframes(const Frame& kf0, const cv::Mat& K, const std::shared_ptr<Tracker>& tracker)
         :kf0_(kf0),K_(K),tracker_(tracker){
-        sfs_.push_back(kf0);
-        for(auto& p : kf0_.kpt){pt_.push_back(p);}// initialize tracking points
-        //std::iota(idx_.begin(), idx_.end(), 0);   // initialize tracking indices
-        for(size_t i=0; i<pt_.size(); ++i){idx_.push_back(i);}
-        z_ = std::vector<float>(pt_.size(), 1.0); // initialize default depth to 1
-    }
+            sfs_.push_back(kf0);
+            for(auto& p : kf0_.kpt){pt_.push_back(p);}// initialize tracking points
+            //std::iota(idx_.begin(), idx_.end(), 0);   // initialize tracking indices
+            for(size_t i=0; i<pt_.size(); ++i){idx_.push_back(i);}
+            z_ = std::vector<float>(pt_.size(), 1.0); // initialize default depth to 1
+        }
 
     void push_back(const Frame& sf){
         std::vector<cv::Point2f> sub_pt;
@@ -74,7 +95,7 @@ struct Subframes{
         std::vector<size_t> new_idx;
         cv::Mat P1 = cv::Mat::eye(3, 4, CV_32F);
         cv::Mat T2 = cv::Mat::eye(4, 4, CV_32F);
-       
+
         cv::eigen2cv(
                 (kf0_.pose.inverse()*sfs_.back().pose).matrix(),
                 T2); // T2 = T_b0>o^{-1} * T_b1>o = T_o>b0 * T_b1>o = T_b1>b0
@@ -276,7 +297,7 @@ class BackEndNodeSimple{
               // populate frame, geometric data
               tf_.waitForTransform(odom_frame_, hdr.frame_id, hdr.stamp,
                       ros::Duration(0.1));
-              tf_.lookupTransform(odom_frame_, hdr.frame_id, hdr.stamp, xform); 
+              tf_.lookupTransform(odom_frame_, hdr.frame_id,  hdr.stamp, xform); 
               tf::transformTFToEigen(xform, pose);
 
               //std::cout << "good" << std::endl;
@@ -325,7 +346,7 @@ class BackEndNodeSimple{
 
           // populate frame, visual data
           std::vector<cv::KeyPoint> kpt1;
-          kf1.img = cv_ptr->image;
+          cam_.rectifyImage(cv_ptr->image, kf1.img);
           orb->detectAndCompute(cv_ptr->image, cv::Mat(), kpt1, kf1.dsc);
           for(auto& p : kpt1){kf1.kpt.push_back(p.pt);}
 
@@ -355,12 +376,6 @@ class BackEndNodeSimple{
 
       void step(){
           if(kfs_.size() <= 4 || !new_kf_){
-              tf::Transform xform;
-              tf::transformEigenToTF(T_o2m_, xform);
-              tf::StampedTransform xform_stamped(
-                      xform, ros::Time::now(), // TODO: not now?
-                      map_frame_, odom_frame_);
-              tfb_.sendTransform(xform_stamped);
               return;
           }
 
@@ -381,7 +396,9 @@ class BackEndNodeSimple{
           //for(auto it=kfs_.begin(); it!=kfs_.end(); ++it){
           //for(auto it=kfs_.rbegin()+2; it!=kfs_.rend(); ++it){
           //for(int i = kfs_.size()-3;  i>0; --i){
-          for(size_t i=0; i < kfs_.size()-3; ++i){
+          //for(size_t i=0; i < kfs_.size()-3; ++i){
+          for(int i=kfs_.size()-10; i >= 0; --i){
+
               //auto& kf0 = *it;
               auto& kf0 = kfs_[i];
 
@@ -455,6 +472,8 @@ class BackEndNodeSimple{
           cv::RNG rng(12345);
 
           if(lc_suc){
+              debug_log(lc_poses, opt_poses);
+
               // viz loop closure
               std_msgs::Header hdr;
               hdr.frame_id = cam_.tfFrame();
@@ -480,6 +499,8 @@ class BackEndNodeSimple{
               //        kfs_[lc_idx].img, kfs_[lc_idx].kpt,
               //        kfs_.back().img, kfs_.back().kpt,
               //        matches, viz_img);
+
+              //cv::imwrite("/tmp/lc.png", viz_img);
 
               pub0_.publish(cv_bridge::CvImage(
                           hdr, "bgr8",
@@ -530,36 +551,24 @@ class BackEndNodeSimple{
                       it.first != opt_poses.end() && it.second != kfs_.end();
                       ++it.first, ++it.second){
 
-                  /*
-                     std::cout << "__________" << std::endl;
-                  // previous map -> pose
-                  std::cout << (T_o2m_ * (*it.first)).matrix() << std::endl;
-                  // updated map -> pose
-                  std::cout << (T_o2m_ * opt_pose1 * prv_pose1.inverse() * T_cor * (*it.first)).matrix() << std::endl;
-                  */
-
+                  // T_b2m = T_o2m' * T_b2o
+                  // T_b2m = T_o2m * T_b2o'
+                  // T_b2o' = T_o2m^{-1} * T_o2m' * T_b2o
+                  // T_o2m^{-1} * T_o2m_ * opt_pose1 * prv_pose1.inverse()
                   (*it.second).pose = T_cor * (*it.first);
               }
 
               // NOTE:
               // prv_pose1 = T_b2o
               // opt_pose1 = T_b2o'
-              // T_o2m_ * T_b2o' = T_b2m_
-              // T_o2m_' * T_b2o = T_b2m_
-              // T_o2m_ * T_b2o' = T_o2m_' * T_b2o
+
+              // T_b2m = T_o2m_  * T_b2o'
+              // T_b2m = T_o2m_' * T_b2o
               // T_o2m_' = T_o2m_ * T_b2o' * T_b2o^{-1}
-              // T_o2m_' = T_o2m_ * T_b2o * T_b2o'^{-1}
-              //T_o2m_ = T_o2m_ * prv_pose1 * opt_pose1.inverse();
+
               T_o2m_ = T_o2m_ * opt_pose1 * prv_pose1.inverse();
 
-              ros::Time now = ros::Time::now(); // use stamp?
-
-              tf::Transform xform;
-              tf::transformEigenToTF(T_o2m_, xform);
-              tf::StampedTransform xform_stamped(
-                      xform, now, // TODO: not now?
-                      map_frame_, odom_frame_);
-              tfb_.sendTransform(xform_stamped);
+              //T_o2m_ = T_o2m_ * ( opt_pose1 * prv_pose1.inverse() );
 
               //tf::Transform xform;
               //tf::transformEigenToTF(opt_pose1, xform);
@@ -583,6 +592,26 @@ class BackEndNodeSimple{
           }
           }
 
+          void publish(){
+              ros::Time now = ros::Time::now(); // use stamp?
+              tf::Transform xform;
+              tf::transformEigenToTF(T_o2m_, xform);
+              tf::StampedTransform xform_stamped(
+                      xform, now, // TODO: not now?
+                      map_frame_, odom_frame_);
+              tfb_.sendTransform(xform_stamped);
+
+              //if(kfs_.size() > 0){
+              //    tf::Transform xform;
+              //    Eigen::Isometry3d T_b2m = (T_o2m_ * kfs_.back().pose).inverse();
+              //    tf::transformEigenToTF(T_b2m , xform);
+              //    tf::StampedTransform xform_stamped(
+              //            xform, now, // TODO: not now?
+              //            "camera_optical", "map_r");
+              //    tfb_.sendTransform(xform_stamped);
+              //}
+          }
+
           void run(){
               //cv::namedWindow("lc0", cv::WINDOW_NORMAL);
               //cv::namedWindow("lc1", cv::WINDOW_NORMAL);
@@ -590,6 +619,7 @@ class BackEndNodeSimple{
               while(ros::ok()){
                   ros::spinOnce();
                   step();
+                  publish();
                   rate.sleep();
               }
               ros::shutdown();

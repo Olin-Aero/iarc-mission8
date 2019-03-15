@@ -31,10 +31,10 @@
 #include "utils.hpp"
 
 // intrinsic camera parameters
-double fx=537.292878;
-double cx=427.331854;
-double fy=527.000348;
-double cy=240.226888;
+//double fx=537.292878;
+//double cx=427.331854;
+//double fy=527.000348;
+//double cy=240.226888;
 //double cx = 322.45;
 //double cy = 174.24;
 //double fx = 396.2;
@@ -141,6 +141,297 @@ float jaccard(
     return iou;
 }
 
+
+bool loop_closure(
+        const std::vector<Eigen::Isometry3d>& poses,
+        const std::vector<cv::Point_<double>>& p0,
+        const std::vector<cv::Point_<double>>& p1,
+        const cv::Mat& K,
+        std::vector<Eigen::Isometry3d>& opt_poses
+        ){
+    size_t n_l = p0.size();
+    size_t n_p = poses.size();
+
+    cv::Mat Kd;
+    K.convertTo(Kd, CV_64F);
+
+    const double fx = Kd.at<double>(0,0);
+    const double fy = Kd.at<double>(1,1);
+    const double cx = Kd.at<double>(0,2);
+    const double cy = Kd.at<double>(1,2);
+
+    // assert p0.size() == p1.size()
+
+    // g2o_setup()
+    g2o::SparseOptimizer optimizer;
+    auto linear_solver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>> ();
+    g2o::OptimizationAlgorithmLevenberg* algorithm = new
+        g2o::OptimizationAlgorithmLevenberg( g2o::make_unique<g2o::BlockSolver_6_3>(
+                    std::move(linear_solver)));
+    optimizer.setAlgorithm( algorithm );
+
+    // set intrinsic camera parameter
+    Eigen::Vector2d pp(cx,cy);
+    g2o::CameraParameters* camera = new g2o::CameraParameters(
+            fx, pp, 0 );
+    camera->setId(0);
+    optimizer.addParameter( camera );
+
+    // add_node()
+    int idx = 0;
+    Eigen::Isometry3d tx0;
+
+    for(auto& p : poses){
+        g2o::VertexSE3Expmap* v = new g2o::VertexSE3Expmap();
+        v->setId(idx);
+        if( idx == 0 ){
+            v->setFixed( true );  // fix the first node
+            tx0 = p; // remember transformation to apply to landmark
+        }
+        // NOTE: vertices are set to inverse
+        // because g2o requires that somehow.
+        // probably makes computation more efficient.
+
+        //v->setEstimate( g2o::SE3Quat( p.linear(), p.translation() ) );
+        v->setEstimate(g2o::SE3Quat( p.linear(), p.translation() ).inverse());
+        v->setMarginalized(false);
+        optimizer.addVertex( v );
+
+        // increment vertex count
+        ++idx;
+    }
+
+    // setup simple alias
+    const int pose_idx0 = 0;
+    const int pose_idx1 = (idx-1);
+    const int lmk_idx0 = idx;
+
+    // get_depth() --> may not be necessary
+    std::vector<float> zs;
+    get_depth(poses.front(), poses.back(), p0, p1, K, zs);
+    for(auto& z : zs){
+        std::cout << z << ", ";
+    }
+    std::cout << std::endl;
+
+    // set_landmark_estimates()
+    // euclidean 3d landmark for feature points, based on img1
+    for(size_t i = 0; i < n_l; ++i)
+    {
+        g2o::VertexSBAPointXYZ* v = new g2o::VertexSBAPointXYZ();
+        v->setId( lmk_idx0 + i );
+
+        // set depth to 1 & and add euclidean point
+        // TODO : apply first pose to this
+        double pxl_x = p0[i].x;
+        double pxl_y = p0[i].y;
+
+        //double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
+        //double z = 1.0;
+        double z = zs[i];
+        //z = std::isfinite(z)? z: 1.0; // rectify z
+        double x = ( pxl_x - cx ) * z / fx;
+        double y = ( pxl_y - cy ) * z / fy;
+
+        v->setEstimate( tx0 * Eigen::Vector3d(x,y,z) );
+        v->setMarginalized( true );
+        optimizer.addVertex( v );
+    }
+
+    g2o::VertexSE3Expmap* v_init = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
+    Eigen::Isometry3d v_init_pose = v_init->estimate();
+    std::cout << "Initial Pose1 = " << std::endl << v_init_pose.inverse().matrix() << std::endl;
+
+    // set edges
+
+    // first frame
+    std::vector<g2o::EdgeProjectXYZ2UV*> edges;
+    std::vector<g2o::EdgeSE3Expmap*> odom_edges;
+
+    for(size_t i = 0; i < n_l; ++i)
+    {
+        double pxl_x = p0[i].x;
+        double pxl_y = p0[i].y;
+
+        g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
+        edge->setVertex(0, dynamic_cast<g2o::VertexSBAPointXYZ*>
+                (optimizer.vertex(lmk_idx0 + i)) ); // target point
+        edge->setVertex(1, dynamic_cast<g2o::VertexSE3Expmap*>
+                (optimizer.vertex(pose_idx0)) ); // observation pose
+        edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
+        edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
+        edge->setParameterId(0, 0);
+
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta( 0.5 );
+        edge->setRobustKernel(ker);
+
+        optimizer.addEdge( edge );
+        edges.push_back( edge );
+    }
+
+    // last frame
+    for(size_t i = 0; i < n_l; ++i)
+    {
+        double pxl_x = p1[i].x;
+        double pxl_y = p1[i].y;
+
+        g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
+        edge->setVertex( 0, dynamic_cast<g2o::VertexSBAPointXYZ*>
+                (optimizer.vertex(lmk_idx0+i)) );
+        edge->setVertex( 1, dynamic_cast<g2o::VertexSE3Expmap*>
+                (optimizer.vertex(pose_idx1)) );
+        edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
+        edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
+        edge->setParameterId(0, 0);
+
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta( 0.5 );
+        edge->setRobustKernel(ker);
+
+        optimizer.addEdge( edge );
+        edges.push_back( edge );
+    }
+
+    // TODO : do I need to add pose-based edges?
+
+    Eigen::Matrix<double,6,1> odom_Hv;
+    float spi2 = 1.0 / pow(0.1, 2);
+    float sri2 = 1.0 / pow(1.0 * M_PI/180.0, 2);
+    //float spi2 = 1.0;
+    //float sri2 = 1.0;
+
+    odom_Hv << sri2, sri2, sri2, spi2, spi2, spi2;
+
+#if 1
+    for(size_t i=1; i < n_p; ++i){
+        g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
+
+        Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
+
+        g2o::VertexSE3Expmap* v0 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i-1));
+        g2o::VertexSE3Expmap* v1 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
+
+        edge->setVertex(0, v0);
+        edge->setVertex(1, v1);
+
+        edge->setMeasurement( g2o::SE3Quat(
+                    v1->estimate() * v0->estimate().inverse() ));
+        edge->setInformation(odom_H);
+
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta(10.0);
+        edge->setRobustKernel(ker);
+
+        edge->computeError();
+        double chi2 = edge->chi2();
+        if ( std::isfinite(chi2) ){
+            optimizer.addEdge( edge );
+            odom_edges.push_back( edge );
+        }else{
+            // should not reach here
+            std::cout << "degenerate odom chi" << std::endl;
+            delete edge;
+        }
+    }
+#endif
+
+    Eigen::Matrix<double,6,1> pose_Hv;
+    float spi2_p = 1.0 / pow(2.0, 2);
+    float sri2_p = 1.0 / pow(5.0 * M_PI/180.0, 2);
+    pose_Hv << sri2_p, sri2_p, sri2_p, spi2_p, spi2_p, spi2_p;
+
+    for(size_t i=1; i < n_p; ++i){
+        g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
+        Eigen::Matrix<double,6,6> pose_H = pose_Hv.asDiagonal();
+
+        g2o::VertexSE3Expmap* v0 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
+        g2o::VertexSE3Expmap* v1 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
+
+        edge->setVertex(0, v0);
+        edge->setVertex(1, v1);
+
+        edge->setMeasurement( g2o::SE3Quat(
+                    v1->estimate() * v0->estimate().inverse() ));
+        edge->setInformation(pose_H);
+
+        auto ker = new g2o::RobustKernelHuber();
+        ker->setDelta(10.0);
+        edge->setRobustKernel(ker);
+
+        edge->computeError();
+        double chi2 = edge->chi2();
+        if ( std::isfinite(chi2) ){
+            optimizer.addEdge( edge );
+            odom_edges.push_back( edge );
+        }else{
+            // should not reach here
+            std::cout << "degenerate odom chi" << std::endl;
+            delete edge;
+        }
+    }
+
+    for(auto& e : edges){
+        e->computeError();
+        //std::cout << "ve0 : " << e->chi2() << std::endl;
+    }
+    for(auto& e : odom_edges){
+        e->computeError();
+        //std::cout << "oe0 : " << e->chi2() << std::endl;
+    }
+
+    // run optimization
+    std::cout << "starting optimize" << std::endl;
+    optimizer.setVerbose(false);
+    optimizer.initializeOptimization();
+    int res = optimizer.optimize(50);
+
+    optimizer.computeActiveErrors();
+    std::cout << "active-chi2" << optimizer.activeChi2() << std::endl;
+    std::cout << "active-robust-chi2" << optimizer.activeRobustChi2() << std::endl;
+    std::cout << "chi2" << optimizer.chi2() << std::endl;
+
+    if(res <= 0) return false;
+    //if(optimizer.activeRobustChi2() > 1000) return false; //TODO : tune
+
+    std::cout << "finish optimize" << std::endl;
+
+    g2o::VertexSE3Expmap* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
+    Eigen::Isometry3d pose = v->estimate();
+    std::cout << "Final Pose1 = " << std::endl << pose.inverse().matrix() << std::endl;
+
+    opt_poses.clear();
+    for(int i=pose_idx0; i<=pose_idx1; ++i){
+        auto* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(i) );
+        Eigen::Isometry3d tmp = v->estimate();
+        Eigen::Isometry3d tmpi = v->estimate().inverse();
+
+        if( i == pose_idx1 ){
+            std::cout << "DBG " << std::endl;
+            std::cout << tmpi.matrix() << std::endl;
+        }
+
+        //opt_poses.push_back(tmpi);
+        opt_poses.emplace_back( tmpi );
+    }
+
+    for(auto& e : edges){
+        e->computeError();
+        std::cout << "ve1 : " << e->chi2() << std::endl;
+    }
+    for(auto& e : odom_edges){
+        e->computeError();
+        std::cout << "oe1 : " << e->chi2() << std::endl;
+    }
+
+    //std::cout << "inliers in total points: " <<
+    //    inliers << "/" << m.size() << std::endl; // TODO : this number is actually different now!
+    optimizer.save("/tmp/ba.g2o");
+
+    // TODO : determine success criterion
+    return 1;
+}
+        
 bool loop_closure(
         const std::vector<Eigen::Isometry3d>& poses,
         //Eigen::Isometry3d& optimized_pose,
@@ -183,363 +474,12 @@ bool loop_closure(
     std::cout << "Number of Poses : " << poses.size() << std::endl;
     std::cout << "Number of Matches : " << m.size() << std::endl;
 
-    // g2o_setup()
-    g2o::SparseOptimizer optimizer;
-    auto linear_solver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>> ();
-    g2o::OptimizationAlgorithmLevenberg* algorithm = new
-        g2o::OptimizationAlgorithmLevenberg( g2o::make_unique<g2o::BlockSolver_6_3>(
-                    std::move(linear_solver)));
-    //g2o::OptimizationAlgorithmGaussNewton* algorithm = new
-    //    g2o::OptimizationAlgorithmGaussNewton ( g2o::make_unique<g2o::BlockSolver_6_3>(
-    //                std::move(linear_solver)));
-    optimizer.setAlgorithm( algorithm );
-
-    // set intrinsic camera parameter
-    Eigen::Vector2d pp(cx,cy);
-    g2o::CameraParameters* camera = new g2o::CameraParameters(
-            fx, pp, 0 );
-    camera->setId(0);
-    optimizer.addParameter( camera );
-
-    // add_node()
-    int idx = 0;
-    Eigen::Isometry3d tx0;
-
-    for(auto& p : poses){
-        g2o::VertexSE3Expmap* v = new g2o::VertexSE3Expmap();
-        v->setId(idx);
-        if( idx == 0 ){
-            v->setFixed( true );  // fix the first node
-            tx0 = p; // remember transformation to apply to landmark
-        }
-        // NOTE: vertices are set to inverse
-        // because g2o requires that somehow.
-        // probably makes computation more efficient.
-
-        //v->setEstimate( g2o::SE3Quat( p.linear(), p.translation() ) );
-        v->setEstimate(g2o::SE3Quat( p.linear(), p.translation() ).inverse());
-        v->setMarginalized(false);
-        optimizer.addVertex( v );
-
-        // increment vertex count
-        ++idx;
-    }
-
-    // setup simple alias
-    const int pose_idx0 = 0;
-    const int pose_idx1 = (idx-1);
-    const int lmk_idx0 = idx;
-
+    cv::Mat Kd;
+    K.convertTo(Kd, CV_64F);
     std::vector<cv::Point_<double>> p0, p1;
-    std::vector<float> zs;
-
-    std::cout << std::endl;
     extract_points(m, d0.kpt, d1.kpt, p0, p1);
-    get_depth(d0.pose, d1.pose, p0, p1, K, zs);
 
-    for(auto& z : zs){
-        std::cout << z << ", ";
-    }
-    std::cout << std::endl;
-
-    // set euclidean landmark feature point, based on img1
-    for(size_t i = 0; i < m.size(); ++i)
-    {
-        g2o::VertexSBAPointXYZ* v = new g2o::VertexSBAPointXYZ();
-        v->setId( lmk_idx0 + i );
-
-        // set depth to 1 & and add euclidean point
-        // TODO : apply first pose to this
-        double pxl_x = p0[i].x;
-        double pxl_y = p0[i].y;
-
-        //double z = std::isfinite(d0.z[i]) ? d0.z[i] : 1.0; //5.0;
-        //double z = 1.0;
-        double z = zs[i];
-        z = std::isfinite(z)? z: 1.0; // rectify z
-        double x = ( pxl_x - cx ) * z / fx;
-        double y = ( pxl_y - cy ) * z / fy;
-
-        v->setEstimate( tx0 * Eigen::Vector3d(x,y,z) );
-        v->setMarginalized( true );
-        // cam->cam_map(v1->estimate().map(v2->estimate()))    
-
-        //auto vtmp = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
-        //Eigen::Vector2d tmp = dynamic_cast<g2o::CameraParameters*>(optimizer.parameter(0))->cam_map(
-        //        vtmp->estimate().map(v->estimate())
-        //        );
-
-        /*
-        //Eigen::Vector2d tmp = cam_map(
-        //        *dynamic_cast<g2o::CameraParameters*>(optimizer.parameter(0)),
-        //        vtmp->estimate().map(v->estimate())
-        //        );
-        std::cout << "validation" << std::endl;
-        //std::cout << tx0.matrix() << std::endl;
-        //std::cout << "--" << std::endl;
-        //std::cout << v->estimate() << std::endl;
-        //std::cout << "--" << std::endl;
-        std::cout << tx0*Eigen::Vector3d(x,y,z) << std::endl;
-        std::cout << "--" << std::endl;
-        std::cout << vtmp->estimate().map(v->estimate()) << std::endl;
-        std::cout << "--" << std::endl;
-        std::cout << tmp << std::endl;
-        std::cout << "--" << std::endl;
-        std::cout << pxl_x << ',' << pxl_y << std::endl;
-        */
-
-        optimizer.addVertex( v );
-    }
-
-    g2o::VertexSE3Expmap* v_init = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
-    Eigen::Isometry3d v_init_pose = v_init->estimate();
-    std::cout << "Initial Pose1 = " << std::endl << v_init_pose.inverse().matrix() << std::endl;
-
-    // set edges
-
-    // first frame
-    std::vector<g2o::EdgeProjectXYZ2UV*> edges;
-    std::vector<g2o::EdgeSE3Expmap*> odom_edges;
-
-    for(size_t i = 0; i < m.size(); ++i)
-    {
-        double pxl_x = p0[i].x;
-        double pxl_y = p0[i].y;
-
-        g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
-        edge->setVertex(0, dynamic_cast<g2o::VertexSBAPointXYZ*>
-                (optimizer.vertex(lmk_idx0 + i)) ); // target point
-        edge->setVertex(1, dynamic_cast<g2o::VertexSE3Expmap*>
-                (optimizer.vertex(pose_idx0)) ); // observation pose
-        edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
-        edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
-        edge->setParameterId(0, 0);
-
-        // kernel function
-        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
-        //edge->setRobustKernel( new g2o::RobustKernelTukey() );
-        auto ker = new g2o::RobustKernelHuber();
-        ker->setDelta( 0.5 );
-        edge->setRobustKernel(ker);
-
-        optimizer.addEdge( edge );
-        edges.push_back( edge );
-
-        //edge->computeError();
-        //std::cout << "ve-pre-0 " << edge->chi2() << std::endl;
-    }
-
-    // last frame
-    for(size_t i = 0; i < m.size(); ++i)
-    {
-        double pxl_x = p1[i].x;
-        double pxl_y = p1[i].y;
-
-        g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
-        edge->setVertex( 0, dynamic_cast<g2o::VertexSBAPointXYZ*>
-                (optimizer.vertex(lmk_idx0+i)) );
-        edge->setVertex( 1, dynamic_cast<g2o::VertexSE3Expmap*>
-                (optimizer.vertex(pose_idx1)) );
-        edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
-        edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
-        edge->setParameterId(0, 0);
-
-        // kernel function
-        //edge->setRobustKernel( new g2o::RobustKernelHuber() );
-        //edge->setRobustKernel( new g2o::RobustKernelTukey() );
-
-        auto ker = new g2o::RobustKernelHuber();
-        ker->setDelta( 0.5 );
-        edge->setRobustKernel(ker);
-
-        optimizer.addEdge( edge );
-        edges.push_back( edge );
-
-        //edge->computeError();
-        //std::cout << "ve-pre " << edge->chi2() << std::endl;
-    }
-
-    // TODO : do I need to add pose-based edges?
-
-    Eigen::Matrix<double,6,1> odom_Hv;
-    float spi2 = 1.0 / pow(0.1, 2);
-    float sri2 = 1.0 / pow(M_PI/180.0, 2);
-    //float spi2 = 1.0;
-    //float sri2 = 1.0;
-
-    odom_Hv << sri2, sri2, sri2, spi2, spi2, spi2;
-
-    for(size_t i=1; i < poses.size(); ++i){
-        g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
-
-        Eigen::Matrix<double,6,6> odom_H = odom_Hv.asDiagonal();
-
-        g2o::VertexSE3Expmap* v0 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i-1));
-        g2o::VertexSE3Expmap* v1 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
-
-        edge->setVertex(0, v0);
-        edge->setVertex(1, v1);
-
-        edge->setMeasurement( g2o::SE3Quat(
-                    v1->estimate() * v0->estimate().inverse() ));
-        //edge->setMeasurement(v1->estimate() * v0->estimate().inverse() );
-
-        //g2o::SE3Quat err_ = v1->estimate().inverse() * edge->measurement() * v0->estimate();
-        //g2o::Vector6 errv = err_.log();
-        //std::cout << "manual error" << errv.dot(odom_H * errv) << std::endl;
-
-
-        //edge->setMeasurement( g2o::SE3Quat(v0->estimate() * v1->estimate().inverse()) );
-        //edge->setMeasurement( g2o::SE3Quat(v0->estimate().inverse() * v1->estimate()) );
-        //edge->setMeasurement( g2o::SE3Quat(v1->estimate().inverse() * v0->estimate()) );
-
-        //SE3Quat error_= v1->estimate().inverse()*<C>*v0->estimate();
-        // C = <v1->estimate() * v0->estimate().inverse()>
-
-        edge->setInformation(odom_H);
-        auto ker = new g2o::RobustKernelHuber();
-        ker->setDelta(1.0);
-        edge->setRobustKernel(ker);
-        //auto ker = new g2o::RobustKernelTukey();
-        //ker->setDelta(0.1);
-        //edge->setRobustKernel(ker);
-
-
-        //edge->setMeasurement( g2o::SE3Quat(v0->estimate()).inverse() * g2o::SE3Quat(v1->estimate()) );
-        // xyz - rpy
-        edge->computeError();
-        double chi2 = edge->chi2();
-        if ( std::isfinite(chi2) ){
-            optimizer.addEdge( edge );
-            odom_edges.push_back( edge );
-        }else{
-            // should not reach here
-            std::cout << "degenerate odom chi" << std::endl;
-            delete edge;
-        }
-    }
-
-    for(auto& e : edges){
-        e->computeError();
-        std::cout << "ve0 : " << e->chi2() << std::endl;
-    }
-    for(auto& e : odom_edges){
-        e->computeError();
-        std::cout << "oe0 : " << e->chi2() << std::endl;
-    }
-
-    // run optimization
-    std::cout << "starting optimize" << std::endl;
-    optimizer.setVerbose(true);
-    optimizer.initializeOptimization();
-    int res = optimizer.optimize(50);
-
-    optimizer.computeActiveErrors();
-    std::cout << "active-chi2" << optimizer.activeChi2() << std::endl;
-    std::cout << "active-robust-chi2" << optimizer.activeRobustChi2() << std::endl;
-    std::cout << "chi2" << optimizer.chi2() << std::endl;
-
-    if(res <= 0) return false;
-    //if(optimizer.activeRobustChi2() > 1000) return false; //TODO : tune
-
-    std::cout << "finish optimize" << std::endl;
-
-    g2o::VertexSE3Expmap* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(pose_idx1) );
-    Eigen::Isometry3d pose = v->estimate();
-    std::cout << "Final Pose1 = " << std::endl << pose.inverse().matrix() << std::endl;
-
-    opt_poses.clear();
-    for(int i=pose_idx0; i<=pose_idx1; ++i){
-        auto* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer.vertex(i) );
-        opt_poses.push_back(v->estimate().inverse());
-    }
-
-    for(auto& e : edges){
-        e->computeError();
-        std::cout << "ve1 : " << e->chi2() << std::endl;
-    }
-    for(auto& e : odom_edges){
-        e->computeError();
-        std::cout << "oe1 : " << e->chi2() << std::endl;
-    }
-
-    //for( size_t i = 0; i < m.size(); ++i )
-    //{
-    //    g2o::VertexSBAPointXYZ* v = dynamic_cast<g2o::VertexSBAPointXYZ*>
-    //        (optimizer.vertex(lmk_idx0 + i));
-    //    std::cout << "vertex id " << lmk_idx0 + i << ", pos = ";
-    //    Eigen::Vector3d pos = v->estimate();
-    //    std::cout << pos(0) << ", " << pos(1) << ", " << pos(2) << std::endl;
-    //}
-
-    //int inliers = 0;
-    //for( auto e : edges )
-    //{
-    //    e->computeError();
-    //    if( e->chi2() > 1 )
-    //    {
-    //        std::cout << "error = " << e->chi2() << std::endl;
-    //    }
-    //    else
-    //    {
-    //        inliers++;
-    //    }
-    //}
-
-    //std::cout << " -- start pose edges -- " << std::endl;
-    //for( auto e : p_edges )
-    //{
-    //    e->computeError();
-    //    if( e->chi2() > 1 )
-    //    {
-    //        std::cout << "error = " << e->chi2() << std::endl;
-    //    }
-    //    else
-    //    {
-    //        std::cout << "inlier! error = " << e->chi2() << std::endl;
-    //        inliers++;
-    //    }
-    //}
-
-    //std::cout << "inliers in total points: " <<
-    //    inliers << "/" << m.size() << std::endl; // TODO : this number is actually different now!
-    optimizer.save("/tmp/ba.g2o");
-
-    // TODO : determine success criterion
-    return 1;
+    loop_closure(poses, p0, p1, Kd,
+            opt_poses);
 }
 
-//__attribute__((force_align_arg_pointer)) int main( int argc, char** argv )
-//{
-//    if(argc != 3)
-//    {
-//        std::cout << "Usage: g2o_example img1, img2" << std::endl;
-//        exit(1);
-//    }
-//
-//    Eigen::Matrix4d tmp;
-//    tmp << 
-//    0.999561, -0.000456634,    0.0296313,    0.0144603,
-//-2.80105e-05,     0.999866,    0.0163533,    0.0133354,
-//  -0.0296349,    -0.016347,     0.999427,    0.0139213,
-//           0,            0,            0,            1;
-//    std::cout << tmp << std::endl;
-//
-//
-//    std::vector<Eigen::Isometry3d> poses{
-//        Eigen::Isometry3d::Identity(),
-//        Eigen::Isometry3d(tmp)//::Identity()
-//    };
-//    
-//    Frame d1, d2;
-//    cv::Mat img1 = cv::imread( argv[1] );
-//    cv::Mat img2 = cv::imread( argv[2] );
-//
-//    bool suc = loop_closure(
-//            poses,
-//            img1, img2,
-//            d1, d2);
-//
-//    std::cout << suc << std::endl;
-//    return 0;
-//}

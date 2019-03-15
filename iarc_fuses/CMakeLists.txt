@@ -165,6 +165,10 @@ add_executable(backend_simple_node
 add_executable(sphinx_logger
     src/sphinx_logger.cpp
     )
+add_executable(loop_closure_test
+	src/loop_closure.cpp
+    src/loop_closure_test.cpp
+    )
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -190,6 +194,14 @@ message("g2o libs : ${G2O_LIBS}")
 
 target_link_libraries(
 	backend_simple_node
+	${catkin_LIBRARIES}
+    ${OpenCV_LIBS}
+    ${G2O_LIBS}
+    ${CHOLMOD_LIBRARIES}
+	)
+
+target_link_libraries(
+    loop_closure_test    
 	${catkin_LIBRARIES}
     ${OpenCV_LIBS}
     ${G2O_LIBS}

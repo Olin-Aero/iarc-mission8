@@ -22,6 +22,14 @@
 
 bool loop_closure(
         const std::vector<Eigen::Isometry3d>& poses,
+        const std::vector<cv::Point_<double>>& p0,
+        const std::vector<cv::Point_<double>>& p1,
+        const cv::Mat& K,
+        std::vector<Eigen::Isometry3d>& opt_poses
+        );
+
+bool loop_closure(
+        const std::vector<Eigen::Isometry3d>& poses,
         std::vector<Eigen::Isometry3d>& opt_poses,
         const cv::Mat& img0,
         const cv::Mat& img1,

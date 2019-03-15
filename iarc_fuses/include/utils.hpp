@@ -16,16 +16,17 @@ void get_depth(
         const cv::Mat& K,
         std::vector<To>& z){
     cv::Mat P0 = cv::Mat::eye(3, 4, CV_64F);
-    cv::Mat T1 = cv::Mat::eye(4, 4, CV_64F);
+    cv::Mat P1 = cv::Mat::eye(3, 4, CV_64F);
 
     cv::Mat Kd;
     K.convertTo(Kd, CV_64F);
 
     cv::eigen2cv(
-            (pose1.inverse()*pose0).matrix(),
-            T1); // T2 = T_b0>o^{-1} * T_b1>o = T_o>b0 * T_b1>o = T_b1>b0
-    cv::Mat P1 = T1.rowRange(0,3);
-    P1.convertTo(P1, CV_64F);
+            Eigen::Matrix<double,3,4>( (pose1.inverse()*pose0).matrix().block<3,4>(0,0) ),
+            P1); // T2 = T_b0>o^{-1} * T_b1>o = T_o>b0 * T_b1>o = T_b1>b0
+
+    //P1.convertTo(P1, CV_64F);
+
     //std::cout << P1 << std::endl;
     cv::Mat lmk(4, pt0.size(), CV_64F);
     //cv::sfm::triangulatePoints(
