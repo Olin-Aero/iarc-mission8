@@ -13,7 +13,9 @@ Usage : tlm-data-logger -r 20 inet:127.0.0.1:9060 | grep omniscient_bebop2.world
 #include <geometry_msgs/PoseStamped.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_eigen/tf2_eigen.h>
 
 void split(const std::string& s, char c,
         std::vector<std::string>& v) {
@@ -37,8 +39,30 @@ bool s_in(const std::string& s, const std::string& ss){
 int main(int argc, char* argv[]){
     ros::init(argc, argv, "sphinx_logger");
     ros::NodeHandle nh;
+
+    tf2::BufferCore buf;
+    tf2_ros::TransformListener tfl(buf);
     tf2_ros::TransformBroadcaster tfb;
     ros::Publisher pub = nh.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
+
+    bool init = false;
+    ros::Rate r(10);
+    tf2::Transform xfm0;
+    while(ros::ok() && !init){
+        try{
+            geometry_msgs::TransformStamped xfm = buf.lookupTransform("odom", "base_link", ros::Time(0));
+            //tf2::convert(xfm, xfm0);
+            tf2::fromMsg(xfm.transform,  xfm0);
+            init = true;
+        }catch(const tf2::LookupException& e){
+            std::cout << e.what() << std::endl;
+        }catch(const tf2::ConnectivityException& e){
+            std::cout << e.what() << std::endl;
+        }catch(const tf2::ExtrapolationException& e){
+            std::cout << e.what() << std::endl;
+        }
+        r.sleep();
+    }
 
     geometry_msgs::PoseStamped msg;
     msg.header.frame_id = "map";
@@ -64,6 +88,8 @@ int main(int argc, char* argv[]){
     int_xfm.setRotation(int_q);
 
     geometry_msgs::TransformStamped xfm_tf;
+
+    bool init1 = false;
 
     while(ros::ok()){
         //std::cin.get('-', 1024);//, str)
@@ -91,12 +117,28 @@ int main(int argc, char* argv[]){
             }else if(s_in(field, "omniscient_bebop2.worldAttitude.z")){
                 rz = std::stod(value);
                 q.setRPY(rx,ry,rz);
+                //q.setEuler(rz,ry,rx);
+
+
                 msg.pose.orientation = tf2::toMsg(q);
 
                 tf2::Transform xfm;
 
                 tf2::convert(msg.pose, xfm);
-                xfm = ext_xfm * xfm;// * int_xfm;
+
+                //if(!init1){
+                //    std::cout << tf2::transformToEigen(tf2::toMsg(xfm0)).matrix() << std::endl;
+                //}
+                if(!init1){
+                    //std::cout << tf2::transformToEigen(tf2::toMsg(xfmr)).matrix() << std::endl;
+                    //std::cout << tf2::transformToEigen(tf2::toMsg(xfm0)).matrix() << std::endl;
+                    xfm0 = xfm0 * xfm.inverse();
+                    init1= true;
+                }
+                xfm = xfm0 * xfm;// * int_xfm;
+                //if(!init1){
+                //    std::cout << tf2::transformToEigen(tf2::toMsg(xfm)).matrix() << std::endl;
+                //}
                 xfm.setRotation( xfm.getRotation().normalized() );
                 //tf2::convert(xfm, msg.pose);
                 tf2::toMsg(xfm, msg.pose);

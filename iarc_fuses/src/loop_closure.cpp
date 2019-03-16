@@ -107,7 +107,7 @@ bool strong_match(
     cv::Mat msk;
     //cv::Mat Fmat = cv::findFundamentalMat(p0, p1, cv::FM_RANSAC, 2.0, 0.999, msk);
     cv::Mat E = cv::findEssentialMat(p0, p1, K,
-            cv::RANSAC, 0.999, 1.0, msk);
+            cv::RANSAC, 0.999, 3.0, msk);
 
     //std::cout << msk.size << std::endl;
     // apply filter
@@ -118,7 +118,7 @@ bool strong_match(
     }
 
     float iou = jaccard(d0, d1, m.size());
-    bool suc = (iou > 0.1) && (m.size() > 25);
+    bool suc = (iou > 0.2) && (m.size() > 50);
     if (suc){
         std::cout << "IOU" << iou << std::endl;
         cv::Mat Rxn, txn;
@@ -140,7 +140,6 @@ float jaccard(
 
     return iou;
 }
-
 
 bool loop_closure(
         const std::vector<Eigen::Isometry3d>& poses,
@@ -336,8 +335,9 @@ bool loop_closure(
     }
 #endif
 
+#if 0
     Eigen::Matrix<double,6,1> pose_Hv;
-    float spi2_p = 1.0 / pow(2.0, 2);
+    float spi2_p = 1.0 / pow(10.0, 2);
     float sri2_p = 1.0 / pow(5.0 * M_PI/180.0, 2);
     pose_Hv << sri2_p, sri2_p, sri2_p, spi2_p, spi2_p, spi2_p;
 
@@ -370,6 +370,7 @@ bool loop_closure(
             delete edge;
         }
     }
+#endif
 
     for(auto& e : edges){
         e->computeError();
@@ -382,7 +383,7 @@ bool loop_closure(
 
     // run optimization
     std::cout << "starting optimize" << std::endl;
-    optimizer.setVerbose(false);
+    optimizer.setVerbose(true);
     optimizer.initializeOptimization();
     int res = optimizer.optimize(50);
 
@@ -479,7 +480,15 @@ bool loop_closure(
     std::vector<cv::Point_<double>> p0, p1;
     extract_points(m, d0.kpt, d1.kpt, p0, p1);
 
-    loop_closure(poses, p0, p1, Kd,
+    return loop_closure(poses, p0, p1, Kd,
             opt_poses);
 }
 
+bool full_loop_closure(
+        const std::vector<Frame>& kfs,
+        const std::vector<FramePair>& obs,
+        const cv::Mat& K,
+        std::vector<Eigen::Isometry3d>& opt_poses
+        ){
+
+}
