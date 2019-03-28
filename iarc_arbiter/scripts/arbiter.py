@@ -5,7 +5,7 @@ import rospy
 from ddynamic_reconfigure_python.ddynamic_reconfigure import DDynamicReconfigure
 from geometry_msgs.msg import Twist, PoseStamped
 from iarc_arbiter.msg import RegisterBehavior
-from iarc_arbiter.msg import VelAlt
+from iarc_arbiter.msg import VelAlt, PosCam
 from std_msgs.msg import Empty, String
 from tf import TransformListener
 
@@ -43,14 +43,15 @@ class Arbiter:
 
         alt_pid = transformers.PIDAltController(self.tf, self.ddynrec)
         pos_pid = transformers.PIDPosController(self.tf, self.ddynrec, alt_pid)
-        print pos_pid.cmd_pos
+        pos_cam_pid = transformers.PIDPosCamController(self.tf, self.ddynrec, pos_pid)
         self.transformers = {
             'cmd_vel': (Twist, transformers.cmd_vel),
             'cmd_takeoff': (Empty, transformers.cmd_takeoff),
             'cmd_land': (Empty, transformers.cmd_land),
             'cmd_pos': (PoseStamped, pos_pid.cmd_pos),
-            'cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos),
-            'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt)
+            'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt),
+            'cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos_cam),
+            'cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos)
         }
         """:type : dict[str, (str, (Any) -> transformers.Command)]"""
 

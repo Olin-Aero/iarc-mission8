@@ -113,7 +113,7 @@ class PIDPosController(object):
                                  rospy.get_param('~max_velocity', 1.0), 0.0, 2.0)
 
         self.config.add_variable("kp_turn", "Proportional Angular",
-                                 rospy.get_param('~kp_turn', 0.0), 0.0, 2.0)
+                                 rospy.get_param('~kp_turn', 1.0), 0.0, 2.0)
 
         self.config.add_variable("kp", "Proportional Linear",
                                  rospy.get_param('~kp', 0.2), 0.0, .5)
@@ -144,7 +144,7 @@ class PIDPosController(object):
         """
         self.last_odom = msg
 
-    def cmd_pos(self, msg):
+    def cmd_pos(self, msg, angle_err=None):
         """
         Calculates the commanded velocity given the desired position, with the header of the PoseStamped
         controlling which coordinate frame the commanded position is interpreted as being in.
@@ -211,18 +211,16 @@ class PIDPosController(object):
 
         # Preserve the z value of velocity
         vel.linear.z = self.alt_controller.calculate_z_vel(position.z)
-
-        # Turn drone toward the provided orientation
-        _, _, angle_err = tf.transformations.euler_from_quaternion(
-            [getattr(pose.pose.orientation, s) for s in 'xyzw'])
-        angle_err += self.config.angle_offset
-
+        if(angle_err == None):
+            # Turn drone toward the provided orientation
+            _, _, angle_err = tf.transformations.euler_from_quaternion(
+                [getattr(pose.pose.orientation, s) for s in 'xyzw'])
+            angle_err += self.config.angle_offset
         # Normalize the angle
         while angle_err <= -np.pi:
             angle_err += 2 * np.pi
         while angle_err > np.pi:
             angle_err -= 2 * np.pi
-
         vel.angular.z = self.config.kp_turn * angle_err
 
         print("Calculated vel: {}".format(vel))
@@ -270,6 +268,32 @@ class PIDPosController(object):
         result.pose = Pose(Point(*xyz), Quaternion(*quat))
         return result
 
+class PIDPosCamController(object):
+    def __init__(self, tfl, ddynrec, pos_controller):
+        """
+        :type tfl: TransformListener
+        :type ddynrec: DDynamicReconfigure
+        :type pos_controller: PIDPosController
+        """
+        self.tf = tfl
+        self.config = ddynrec
+        self.pos_controller = pos_controller
+
+        self.last_time = rospy.Time(0)
+
+    def cmd_pos_cam(self, msg):
+        """
+        inputs a pose for the drone to go to, and a position for the drone to face.
+        This outputs the error between where the drone is facing and the orientation desired
+        Note: it is formatted this way so that the function cmd_pos transforms the desired pose and 
+        orientation into the drones frame, which would transform the desired place twice.
+        Not transforming the position here would result in the position still being in the map frame
+        and not the drone frame.
+        """
+        focus = self.pos_controller.transformPoseFull('base_link',msg.look_at_position,'odom')
+        orientation_to_look_at = math.atan2(focus.pose.position.y,focus.pose.position.x)
+        pose_sum = msg.pose_stamped
+        return self.pos_controller.cmd_pos(pose_sum, orientation_to_look_at)
 
 if __name__ == '__main__':
     test_msg = PoseStamped()
