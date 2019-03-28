@@ -7,6 +7,7 @@ class Mode:
     	''' Called once when program starts '''
     	self.active = False
         self.drone = drone
+        self.player_pos = None
 
     def enable(self):
     	''' Called once each time mode becomes active '''
@@ -16,7 +17,7 @@ class Mode:
     	''' Called once each time mode stops being active '''
         self.active = False
 
-    def update(self):
+    def update(self, look=False):
     	''' Called iteratively while mode is active '''
         pass
 

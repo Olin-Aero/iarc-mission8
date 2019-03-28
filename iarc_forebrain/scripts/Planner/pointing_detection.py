@@ -92,9 +92,9 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
         cv2.circle(image, p2, 10, (0, 0, 255), -1)
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
-    print("Gesture yaw: %s" % (yaw*180/math.pi))
-    print("Head coordinates: %s" % (tvec_head))
-    print("Hand coordinates: %s" % (tvec_hand))
+        print("Gesture yaw: %s" % (yaw*180/math.pi))
+        print("Head coordinates: %s" % (tvec_head))
+        print("Hand coordinates: %s" % (tvec_hand))
     return (yaw, tvec_head)
 
 def find_point(p, dz, pitch):

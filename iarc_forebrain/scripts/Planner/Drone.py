@@ -4,7 +4,7 @@ import rospy
 import tf
 import tf.transformations
 from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
-from iarc_arbiter.msg import RegisterBehavior, VelAlt
+from iarc_arbiter.msg import RegisterBehavior, VelAlt, PosCam
 from iarc_main.msg import Roomba
 from std_msgs.msg import String, Empty, Header
 
@@ -52,6 +52,7 @@ class Drone:
         self.takeoffPub = rospy.Publisher('/forebrain/cmd_takeoff', Empty, queue_size=0)
         self.landPub = rospy.Publisher('/forebrain/cmd_land', Empty, queue_size=0)
         self.velAltPub = rospy.Publisher('/forebrain/cmd_vel_alt', VelAlt, queue_size=0)
+        self.camPosPub = rospy.Publisher('/forebrain/cmd_cam_pos', PosCam, queue_size=0)
 
         rospy.Publisher('/arbiter/register', RegisterBehavior, latch=True, queue_size=10).publish(
             name='forebrain', fast=True)
@@ -259,7 +260,6 @@ class Drone:
     def get_pos(self, frame='map'):
         """
         Gets the position of the drone in the map (or relative to some other coordinate frame)
-
         :param frame: The world frame in which to return the result
         :return (PoseStamped): The position of the drone at the latest available time
         """
@@ -308,3 +308,56 @@ class Drone:
         """
         self.navdata = msg
 
+    def travel_and_look(self, des_x=0.0, des_y=0.0, focus_x=0.0, focus_y=0.0, frame='map', height = None, tol=0.4):
+        """
+        Tells the drone to move towards a given destination, and look at a given position
+        :param des_x: x position to go to
+        :param des_y: y position to go to
+        :param focus_x: x position to look at
+        :param focus_y: y position to look at
+        :param frame: The tf frame associated with the target
+        :param height: The height for the drone to be, if none, stays steady
+        
+        
+        """
+        if height is None:
+            height = self.last_height
+        else:
+            self.last_height = height
+        camMsg = PosCam()
+        camMsg.look_at_position.pose.position.x = focus_x
+        camMsg.look_at_position.pose.position.y = focus_y
+        camMsg.look_at_position.pose.position.z = 0.0
+
+        camMsg.pose_stamped.pose.position.x = des_x
+        camMsg.pose_stamped.pose.position.y = des_y
+        camMsg.pose_stamped.pose.position.z = height
+        camMsg.pose_stamped.header.frame_id = frame
+        camMsg.look_at_position.header.frame_id = frame
+        self.camPosPub.publish(camMsg)
+    
+        rel_pos = self.get_pos(frame).pose.position
+        dist = math.sqrt(
+            (rel_pos.x - des_x) ** 2 +
+            (rel_pos.y - des_y) ** 2 +
+            (rel_pos.z - height) ** 2)
+        if dist <= tol:
+            return True
+        else:
+            return False
+
+
+    def turn_to(self, angle, frame = 'map'):
+        """
+        Tells the drone to turn to face a particular direction.
+        :param angle: the euler angle for the drone to face.
+        :param frame: The tf frame associated with the target
+        """
+        pose_stamped = self.get_pos(frame)
+        orientationQuat = tf.transformations.quaternion_from_euler(0,0,angle)
+        pose_stamped.pose.orientation.x = orientationQuat[0]
+        pose_stamped.pose.orientation.y = orientationQuat[1]
+        pose_stamped.pose.orientation.z = orientationQuat[2]
+        pose_stamped.pose.orientation.w = orientationQuat[3]
+        
+        self.posPub.publish(pose_stamped)

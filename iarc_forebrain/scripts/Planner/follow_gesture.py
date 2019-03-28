@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PointStamped
 from std_msgs.msg import Float64
 from cv_bridge import CvBridge, CvBridgeError
 from tf.transformations import *
@@ -20,12 +20,14 @@ CAM_PITCH = math.pi/2
 
 class FollowGesture(Mode):
 
-    def __init__(self, drone):
+    def __init__(self, drone, translate=True):
         self.bridge = CvBridge()
-        self.pub = rospy.Publisher("/gesture_direction", Float64, queue_size=10)
+        self.dir_pub = rospy.Publisher("/gesture_direction", Float64, queue_size=10)
+        self.helm_pub = rospy.Publisher("/helmet_pos", PointStamped, queue_size=10)
         self.drone = drone
         self.prevTime = rospy.Time.now()
         self.distance = 0
+        self.translate = translate
         self.move = None
         self.detected = False
         rate = rospy.Rate(1) # 1 Hz
@@ -43,13 +45,19 @@ class FollowGesture(Mode):
             pos = self.drone.get_pos("odom")
             o = pos.pose.orientation
             orientation = euler_from_quaternion([o.x, o.y, o.z, o.w])
-            direction, helmet = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, True)
+            direction, h_pos = pointing_detection(frame, -orientation[1]+CAM_PITCH, pos.pose.position.z, True)
             if direction is None:
                 return
-            self.pub.publish(direction)
-            self.move = Move(self.drone, direction+orientation[2]-math.pi/2)
-            self.move.enable(self.distance)
-            self.detected = True
+            self.dir_pub.publish(direction)
+            helmet = PointStamped()
+            helmet.point.x = h_pos[0]
+            helmet.point.y = h_pos[1]
+            helmet.header.frame_id = "base_link"
+            self.helm_pub.publish(helmet)
+            if self.translate:
+                self.move = Move(self.drone, direction+orientation[2]-math.pi/2)
+                self.move.enable(self.distance)
+                self.detected = True
             key = cv2.waitKey(1)
 
         except CvBridgeError as e:
@@ -59,9 +67,12 @@ class FollowGesture(Mode):
         self.distance = self.parse(distance, units)
         self.active = True
         self.detected = False
-        print('FOLLOW GESTURE: dist = ' + str(self.distance))
+        if self.translate:
+            print('FOLLOW GESTURE: dist = ' + str(self.distance))
+        else:
+            print('Player Detection Activated')
 
-    def update(self):
+    def update(self, look=False):
         if self.detected:
             self.move.update()
 
