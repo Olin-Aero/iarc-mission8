@@ -3,11 +3,11 @@
 # Licensed under The MIT License
 # Written by Qiang Wang (wangqiang2015 at ia.ac.cn)
 # --------------------------------------------------------
-#!/usr/bin/python
+#!/usr/bin/python2
 
 import glob, cv2, torch
 import numpy as np
-import utils
+from iarc_fuses import utils
 from os.path import realpath, dirname, join
 
 from DaSiamRPN.net import SiamRPNvot
