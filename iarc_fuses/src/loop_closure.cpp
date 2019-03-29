@@ -425,7 +425,7 @@ bool loop_closure(
     // TODO : determine success criterion
     return 1;
 }
-        
+
 bool loop_closure(
         const std::vector<Eigen::Isometry3d>& poses,
         //Eigen::Isometry3d& optimized_pose,

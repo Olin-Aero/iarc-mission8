@@ -25,6 +25,9 @@ class LoopClosureSolver{
     cv::Mat K_;
     double fx_, fy_, cx_, cy_;
 
+    // information matrix
+    Eigen::Matrix<double,6,6> odom_H_;
+
     // handles
     g2o::SparseOptimizer optimizer_;
 
@@ -36,6 +39,13 @@ class LoopClosureSolver{
         fy_ = Kd.at<double>(1,1);
         cx_ = Kd.at<double>(0,2);
         cy_ = Kd.at<double>(1,2);
+
+        Eigen::Matrix<double,6,1> odom_Hv;
+        float spi2 = 1.0 / pow(0.1, 2);
+        float sri2 = 1.0 / pow(1.0 * M_PI/180.0, 2); // <<<<<<<<<<<<<<<<<<<< THIS
+        odom_Hv << sri2, sri2, sri2, spi2, spi2, spi2;
+        odom_H_ = odom_Hv.asDiagonal();
+
 
         // g2o setup
         auto linear_solver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
@@ -86,8 +96,8 @@ class LoopClosureSolver{
             ){
         // set_landmark_estimates()
         // euclidean 3d landmark for feature points, based on img1
-        size_t n_l = pt.size();
-        for(size_t i=0; i<n_l; ++i)
+        int n_l = pt.size();
+        for(int i=0; i<n_l; ++i)
         {
             g2o::VertexSBAPointXYZ* v = new g2o::VertexSBAPointXYZ();
             v->setId(idx0+i);
@@ -106,26 +116,138 @@ class LoopClosureSolver{
 
             v->setEstimate( tx0 * Eigen::Vector3d(x,y,z) );
             v->setMarginalized( true );
-            optimizer.addVertex( v );
+            optimizer_.addVertex( v );
         }
     }
 
-    void add_edges(){
+    void add_observations(
+            const std::vector<cv::Point_<double>>& pt,
+            const int lmk_idx0,
+            const int pose_idx
+            ){
+
+        int n_l = pt.size();
+        for(int i = 0; i < n_l; ++i)
+        {
+            double pxl_x = pt[i].x;
+            double pxl_y = pt[i].y;
+
+            g2o::EdgeProjectXYZ2UV* edge = new g2o::EdgeProjectXYZ2UV();
+            edge->setVertex(0, dynamic_cast<g2o::VertexSBAPointXYZ*>
+                    (optimizer_.vertex(lmk_idx0 + i)) ); // target point
+            edge->setVertex(1, dynamic_cast<g2o::VertexSE3Expmap*>
+                    (optimizer_.vertex(pose_idx)) ); // observation pose
+            edge->setMeasurement( Eigen::Vector2d(pxl_x, pxl_y) );
+            edge->setInformation(0.25*Eigen::Matrix2d::Identity() );
+            edge->setParameterId(0, 0);
+
+            auto ker = new g2o::RobustKernelHuber();
+            ker->setDelta( 0.5 );
+            edge->setRobustKernel(ker);
+
+            optimizer_.addEdge( edge );
+        }
+    }
+
+    void add_odometry(
+            const std::vector<Eigen::Isometry3d>& poses
+            ){
+
+        int n_p = poses.size();
+
+        for(int i=1; i < n_p; ++i){
+            g2o::EdgeSE3Expmap* edge = new g2o::EdgeSE3Expmap();
+
+            g2o::VertexSE3Expmap* v0 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer_.vertex(i-1));
+            g2o::VertexSE3Expmap* v1 = dynamic_cast<g2o::VertexSE3Expmap*>(optimizer_.vertex(i));
+
+            edge->setVertex(0, v0);
+            edge->setVertex(1, v1);
+
+            edge->setMeasurement( g2o::SE3Quat(
+                        v1->estimate() * v0->estimate().inverse() ));
+            edge->setInformation(odom_H_);
+
+            auto ker = new g2o::RobustKernelHuber();
+            ker->setDelta(10.0);
+            edge->setRobustKernel(ker);
+
+            edge->computeError();
+            double chi2 = edge->chi2();
+            if ( std::isfinite(chi2) ){
+                optimizer_.addEdge( edge );
+            }else{
+                // should not reach here
+                std::cout << "degenerate odom chi" << std::endl;
+                delete edge;
+            }
+        }
 
     }
 
-    bool solve(
+    bool optimize(
+            const int pose_idx0,
+            const int pose_idx1,
+            std::vector<Eigen::Isometry3d>& opt_poses,
+            bool verbose
+            ){
+        // run optimization
+        optimizer_.setVerbose(verbose);
+        optimizer_.initializeOptimization();
+        int res = optimizer_.optimize(50);
+
+        if(res <= 0){
+            std::cerr << "Optimization Failed : " << res << std::endl;
+            return false;
+        }
+
+        //TODO : consider loop closure failure conditions
+        // if(optimizer_.activeRobustChi2() > 1000) return false;
+        g2o::VertexSE3Expmap* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer_.vertex(pose_idx1) );
+
+        opt_poses.clear();
+        for(int i=pose_idx0; i<=pose_idx1; ++i){
+            auto* v = dynamic_cast<g2o::VertexSE3Expmap*>( optimizer_.vertex(i) );
+            Eigen::Isometry3d pose = v->estimate().inverse();
+            opt_poses.emplace_back( pose );
+        }
+
+        return true;
+
+        /* // if(verbose)
+        for(auto& e : edges){
+            e->computeError();
+            std::cout << "ve1 : " << e->chi2() << std::endl;
+        }
+        for(auto& e : odom_edges){
+            e->computeError();
+            std::cout << "oe1 : " << e->chi2() << std::endl;
+        }
+        */
+
+        //optimizer_.save("/tmp/ba.g2o");
+    }
+
+    bool compute(
             const std::vector<Eigen::Isometry3d>& poses,
             const std::vector<cv::Point_<double>>& p0,
             const std::vector<cv::Point_<double>>& p1,
 
             std::vector<Eigen::Isometry3d>& opt_poses
             ){
+        const int pose_idx0 = 0;
+        const int pose_idx1 = poses.size() - 1;
+        const int lmk_idx0  = poses.size();
+
         this->add_camera();
         Eigen::Isometry3d tx0;
         this->add_poses(poses, tx0);
-        std::Vector<float> zs;
-        this->add_points(p0, zs, tx0, poses.size());
+        std::vector<float> zs;
+        this->add_points(p0, zs, tx0, lmk_idx0);
+        this->add_odometry(poses);
+        this->add_observations(p0, poses.size(), pose_idx0);
+        this->add_observations(p1, poses.size(), pose_idx1);
+        return this->optimize(pose_idx0, pose_idx1, opt_poses, false);
     }
 };
 
