@@ -21,7 +21,9 @@ class Object_Tracker():
             use_gpu=False
             ):
         """
-        TODO(yoonyoungcho): use_gpu is currently not used.
+        root(str): Persistent model data Directory.
+        model(str): name of the model[file] to run.
+        use_gpu(bool): enable gpu.
         """
         # cache args
         self.root_ = root
@@ -52,10 +54,10 @@ class Object_Tracker():
         """Begins tracking of an object contained in a bounding box
         
         Args:
-            image (numpy.ndarray): Input image, given as a numpy 
-                    array (3D array with form (axis1, axis2, axis3) == (Xpos, Ypos, Color))
+            image(A(H,W,3), uint8): Input image
             bounding_box (4-tuple): Bounding box of object, in 
-                    form (center_x, center_y, width, height); relative coordinates [0-1]
+                    form (center_x, center_y, width, height);
+                    relative coordinates [0-1]
         """
 
         if np.any( np.greater(np.asarray(bounding_box), 1.0)):
@@ -76,12 +78,13 @@ class Object_Tracker():
         and a new image. (init must be run before this function.)
         
         Args:
-            image (A(H,W,3)): Input image. << Float?
+            image(A(H,W,3), uint8): Input image
             box : Unused; only here for compatibility.
             display_tracking_speed (bool, optional): Option to print trakcing fps
         
         Returns:
-            box(A(4)): Returns a relative bounding box of type [x_corner, y_corner, width, height] 
+            box(A(4)): Returns a relative bounding box of type [center_x, center_y, width, height] 
+            state(?): Returns meta-information required for maintaining tracking state.
 
         Note:
             A(shape[,dtype=float]) in the above documentation is a shorthand for numpy.array.

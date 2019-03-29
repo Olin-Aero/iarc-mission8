@@ -6,6 +6,8 @@ import tensorflow as tf
 import cv2
 import time
 
+from iarc_fuses.utils import draw_bbox
+
 class ObjectDetectorTF(object):
     """
     Thin wrapper around the Tensorflow Object Detection API.
@@ -156,20 +158,6 @@ class ObjectDetectorTF(object):
     def run(self, *args, **kwargs):
         return self.sess_.run(*args, **kwargs)
 
-def draw_tfbox(img, box, cls=None):
-    h,w = img.shape[:2]
-    yxyx = box
-    yxyx = np.multiply(yxyx, [h,w,h,w])
-    yxyx = np.round(yxyx).astype(np.int32)
-    y0,x0,y1,x1 = yxyx
-    cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
-    if cls is not None:
-        org = ( max(x0,0), min(y1,h) )
-        cv2.putText(img, cls, org, 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255),
-                1, cv2.LINE_AA
-                )
-
 def test_image():
     """
     Simple test script; requires /tmp/image1.jpg
@@ -187,7 +175,7 @@ def test_image():
 
     for box_, cls_ in zip(box, cls):
         #ry0,rx0,ry1,rx1 = box_ # relative
-        draw_tfbox(img, box_, str(cls_))
+        draw_bbox(img, box_, str(cls_))
 
     cv2.imshow('win', img)
     cv2.waitKey(0)
@@ -217,7 +205,7 @@ def test_camera():
         score = res['score'][msk]
         for box_, cls_ in zip(box, cls):
             #ry0,rx0,ry1,rx1 = box_ # relative
-            draw_tfbox(img, box_, str(cls_))
+            draw_bbox(img, box_, str(cls_))
         cv2.imshow('win', img)
         k = cv2.waitKey(1)
         if k in [ord('q'), 27]:
