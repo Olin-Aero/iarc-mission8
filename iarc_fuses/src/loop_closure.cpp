@@ -30,16 +30,6 @@
 #include "loop_closure.hpp"
 #include "utils.hpp"
 
-// intrinsic camera parameters
-//double fx=537.292878;
-//double cx=427.331854;
-//double fy=527.000348;
-//double cy=240.226888;
-//double cx = 322.45;
-//double cy = 174.24;
-//double fx = 396.2;
-//double fy = 399.8;
-
 // fast weak match with high recall / low precision
 bool weak_match(
         const cv::Mat& img0,
