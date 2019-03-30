@@ -66,6 +66,91 @@
             </distribution>
         </population>
 
+        <model name="QR1">
+            <pose>10 0 1.15 0 0 0</pose>
+            <static>1</static>
+            <link name="link">
+                <visual name="visual">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 0</normal>
+                            <size>0.1 0.1</size>
+                        </plane>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>file://media/materials/scripts/iarc.material</uri>
+                            <name>IARC/QR1</name>
+                        </script>
+                    </material>
+                </visual>
+                <collision name="collision">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 0</normal>
+                            <size>0.1 0.1</size>
+                        </plane>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+        <model name="QR2">
+            <pose>10 5 1.15 0 0 0</pose>
+            <static>1</static>
+            <link name="link">
+                <visual name="visual">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 0</normal>
+                            <size>0.1 0.1</size>
+                        </plane>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>file://media/materials/scripts/iarc.material</uri>
+                            <name>IARC/QR2</name>
+                        </script>
+                    </material>
+                </visual>
+                <collision name="collision">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 0</normal>
+                            <size>0.1 0.1</size>
+                        </plane>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+        <model name="QR3">
+            <pose>10 -5 1.15 0 0 0</pose>
+            <static>1</static>
+            <link name="link">
+                <visual name="visual">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 0</normal>
+                            <size>0.1 0.1</size>
+                        </plane>
+                    </geometry>
+                    <material>
+                        <script>
+                            <uri>file://media/materials/scripts/iarc.material</uri>
+                            <name>IARC/QR3</name>
+                        </script>
+                    </material>
+                </visual>
+                <collision name="collision">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 0</normal>
+                            <size>0.1 0.1</size>
+                        </plane>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
         <!-- Bins -->
         <model name='bin_0'>
             <pose frame=''>10.0 0.0 0 0 0 0</pose>
@@ -107,28 +192,11 @@
                         </script>
                     </material>
                 </visual>
-                <visual name='QR code 1'>
-                    <pose>1 1 1 0 0 0</pose>
-                    <geometry>
-                        <mesh>
-                            <uri>model://iarc_sim_3d/models/qr1</uri>
-                            <scale>1 1 0.01</scale>
-                        </mesh>
-                    </geometry>
-                    <material>
-                        <script>
-                            <uri>model://iarc_sim_3d/materials/scripts</uri>
-                            <uri>model://iarc_sim_3d/materials/textures</uri>
-                            <name>Dumpster/Diffuse</name>
-                        </script>
-                    </material>
-                </visual>
                 <self_collide>0</self_collide>
                 <kinematic>0</kinematic>
                 <gravity>1</gravity>
             </link>
         </model>
-
         <model name='bin_1'>
             <pose frame=''>10.0 -5.0 0 0 0 0</pose>
             <static>1</static>
