@@ -33,6 +33,7 @@ class FollowGesture(Mode):
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
         rospy.Subscriber("/bebop/image_raw", Image, self.image_raw_callback)
+        # rospy.Subscriber("/ardrone/front/image_raw", Image, self.image_raw_callback)
 
     def image_raw_callback(self, msg):
     	if self.detected or not self.is_active():
@@ -50,9 +51,10 @@ class FollowGesture(Mode):
                 return
             self.dir_pub.publish(direction)
             helmet = PointStamped()
-            helmet.point.x = h_pos[0]
-            helmet.point.y = h_pos[1]
-            helmet.header.frame_id = "base_link"
+            helmet.point.x = h_pos[0] * math.cos(orientation[2]-math.pi/2) - h_pos[1] * math.sin(orientation[2]-math.pi/2) + pos.pose.position.x
+            helmet.point.y = h_pos[0] * math.sin(orientation[2]-math.pi/2) + h_pos[1] * math.cos(orientation[2]-math.pi/2) + pos.pose.position.y
+            helmet.point.z = h_pos[2] + pos.pose.position.z
+            helmet.header.frame_id = "odom"
             self.helm_pub.publish(helmet)
             if self.translate:
                 self.move = Move(self.drone, direction+orientation[2]-math.pi/2)
@@ -74,7 +76,7 @@ class FollowGesture(Mode):
 
     def update(self, look=False):
         if self.detected:
-            self.move.update()
+            self.move.update(look)
 
 # Start the node
 if __name__ == '__main__':

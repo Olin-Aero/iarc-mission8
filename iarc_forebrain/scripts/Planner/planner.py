@@ -34,7 +34,7 @@ class Planner:
         self.look_mode = FollowGesture(drone, False)
         self.look_mode.enable()
         rospy.Subscriber("/voice", String, self.voice_callback)
-        rospy.Subscriber("/player", PointStamped, self.player_callback)
+        rospy.Subscriber("/helmet_pos", PointStamped, self.player_callback)
 
     def voice_callback(self, msg):
         ''' Voice command format: [color] [command] [parameters...] '''
@@ -60,13 +60,14 @@ class Planner:
             print("Invalid mode requested: %s" % msg.data)
 
     def player_callback(self, msg):
-        self.player_pos = msg.data
+        self.player_pos = msg
 
     def run(self):
         rate = rospy.Rate(10) # 10Hz
         while not rospy.is_shutdown():
             if self.current_mode.is_active():
                 self.current_mode.update(self.player_pos) # is this thread safe?
+                self.look_mode.update(self.player_pos)
             rate.sleep()
 
 # Start the node
