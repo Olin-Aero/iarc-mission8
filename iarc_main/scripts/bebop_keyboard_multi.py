@@ -11,32 +11,27 @@ import sys, select, termios, tty
 """ Class for representing a bebop drone """
 
 msgTeleop = """
-You are now running teleop!
-
-Reading from the keyboard and Publishing to Twist!
----------------------------
+--------------------------
 Moving around (strafing):
    u    i    o
    j    k    l
    m    ,    .
 --------------------------
 Up, Down, Turning
-
     w
   a   d
     s
-
+--------------------------
 For Turning mode, hold down the shift key:
----------------------------
    U    I    O
    J    K    L
    M    <    >
-
+--------------------------
+Select drones: 0 for all, 1-4 for individual
 takeoff: t
 land: spacebar
-Cut all motors: '=' or '+'
+Emergency stop (cut all motors): '=' or '+'
 Switch to autonomous mode: 'h' or 'H'
-
 anything else : stop
 
 q/z : increase/decrease max speeds by 10%
@@ -193,9 +188,9 @@ if __name__ == "__main__":
 
     # init all drones used
     all_drones = [  Drone('alexa', 'bebop1', '1'),
-                    Drone('cortana', 'bebop2', '2'),
-                    # Drone('alexa', 'bebop', '1'),
-                    # Drone('alexa', 'bebop', '1'),
+                    Drone('google', 'bebop2', '2'),
+                    Drone('siri', 'bebop3', '3'),
+                    Drone('clippy', 'bebop4', '4'),
                     ]
 
     # start with all drones active
