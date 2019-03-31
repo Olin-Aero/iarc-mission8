@@ -53,6 +53,7 @@ class Drone:
         self.landPub = rospy.Publisher('/forebrain/cmd_land', Empty, queue_size=0)
         self.velAltPub = rospy.Publisher('/forebrain/cmd_vel_alt', VelAlt, queue_size=0)
         self.camPosPub = rospy.Publisher('/forebrain/cmd_cam_pos', PosCam, queue_size=0)
+        self.gimbalPub = rospy.Publisher('/bebop/camera', Twist, queue_size=0)
 
         rospy.Publisher('/arbiter/register', RegisterBehavior, latch=True, queue_size=10).publish(
             name='forebrain', fast=True)
@@ -362,3 +363,13 @@ class Drone:
         pose_stamped.pose.orientation.w = orientationQuat[3]
         
         self.posPub.publish(pose_stamped)
+
+    def go_to_camera(self, pitch, roll, yaw):
+        """
+        Tells the gimbal to make the camera point in a certain direction
+        param pitch: the pitch to make the camera go to (degrees)
+        param roll: the roll to make the camera go to (degrees)
+        param yaw: the yaw to make the camera go to (degrees)
+        """
+        cameraCoordinates = Twist(pitch, roll, yaw)
+        self.cameraPub.publish(twist)
