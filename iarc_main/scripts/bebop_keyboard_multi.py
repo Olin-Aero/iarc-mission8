@@ -192,7 +192,7 @@ if __name__ == "__main__":
     rospy.init_node('estop')
 
     # init all drones used
-    all_drones = [  Drone('alexa', 'bebop', '1'),
+    all_drones = [  Drone('alexa', 'bebop1', '1'),
                     Drone('cortana', 'bebop2', '2'),
                     # Drone('alexa', 'bebop', '1'),
                     # Drone('alexa', 'bebop', '1'),
