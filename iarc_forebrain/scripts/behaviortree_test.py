@@ -1,6 +1,12 @@
 #!/usr/bin/env python2
 import rospy
 
-from iarc_forebrain.behaviortree import greeting
+from iarc_forebrain.behaviortree import Behavior
 
-print(greeting)
+tree = Behavior('hello', [
+    Behavior('world', [
+        Behavior(),
+        Behavior(),
+    ])])
+
+print(tree)
