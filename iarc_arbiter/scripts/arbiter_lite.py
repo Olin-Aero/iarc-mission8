@@ -11,7 +11,7 @@ import transformers
 import filters
 
 
-class ArbiterLite:
+class ArbiterLite(object):
     """
     The ArbiterLite transforms high-level commands into low-level commands by using utilities from the filters.py file.
 
@@ -48,7 +48,7 @@ class ArbiterLite:
         self.last_timestamp = None
 
         for topic, (msgtype, _, immediate) in self.transformers.items():
-            def handler(msg):
+            def handler(msg, topic=topic, immediate=immediate):
                 self.last_topic = topic
                 self.last_msg = msg
                 self.last_timestamp = rospy.Time.now()
