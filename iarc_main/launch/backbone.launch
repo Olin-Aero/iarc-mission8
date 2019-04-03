@@ -5,4 +5,8 @@
     </node>
     <node name="move_base_relay" ns="goto_click" pkg="iarc_main" type="follow_click.py" output="screen"/>
     <!-- does the above node also require remap? check. -->
+
+    
+    <node pkg="tf" type="static_transform_publisher" name="map_frame_fake"
+          args="0 0 0 0 0 0 map odom 200"/>
 </launch>
