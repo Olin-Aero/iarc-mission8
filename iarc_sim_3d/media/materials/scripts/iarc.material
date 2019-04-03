@@ -93,3 +93,91 @@ material IARC/TopGreen{
         }
     }
 }
+
+material IARC/QR1
+{
+    receive_shadows on
+    lighting on
+    technique
+    {
+        pass
+        {
+            ambient 0.5 0.5 0.5 1.0
+            diffuse 0.5 0.5 0.5 1.0
+            specular 0.2 0.2 0.2 1.0 12.5
+            texture_unit
+            {
+                texture 0140-1.png
+                    filtering anisotropic
+                    max_anisotropy 16
+                    scale 1 1
+            }
+        }
+    }
+}
+
+material IARC/QR2
+{
+    receive_shadows on
+    lighting on
+    technique
+    {
+        pass
+        {
+            ambient 0.5 0.5 0.5 1.0
+            diffuse 0.5 0.5 0.5 1.0
+            specular 0.2 0.2 0.2 1.0 12.5
+            texture_unit
+            {
+                texture 0140-2.png
+                    filtering anisotropic
+                    max_anisotropy 16
+                    scale 1 1
+            }
+        }
+    }
+}
+
+material IARC/QR3
+{
+    receive_shadows on
+    lighting on
+    technique
+    {
+        pass
+        {
+            ambient 0.5 0.5 0.5 1.0
+            diffuse 0.5 0.5 0.5 1.0
+            specular 0.2 0.2 0.2 1.0 12.5
+            texture_unit
+            {
+                texture 0140-3.png
+                    filtering anisotropic
+                    max_anisotropy 16
+                    scale 1 1
+            }
+        }
+    }
+}
+
+material IARC/QR4
+{
+    receive_shadows on
+    lighting on
+    technique
+    {
+        pass
+        {
+            ambient 0.5 0.5 0.5 1.0
+            diffuse 0.5 0.5 0.5 1.0
+            specular 0.2 0.2 0.2 1.0 12.5
+            texture_unit
+            {
+                texture 0140-4.png
+                    filtering anisotropic
+                    max_anisotropy 16
+                    scale 1 1
+            }
+        }
+    }
+}
