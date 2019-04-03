@@ -3,4 +3,8 @@
         <remap from="/odometry" to="/bebop/odom"/>
     </node>
     <!-- does the above node also require remap? check. -->
+
+    
+    <node pkg="tf" type="static_transform_publisher" name="map_frame_fake"
+          args="0 0 0 0 0 0 map odom 200"/>
 </launch>
