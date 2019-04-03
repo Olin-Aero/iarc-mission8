@@ -67,10 +67,10 @@ class BehaviorTest(object):
 		self.drone.takeoff(1)
 		self.drone.hover(3)
 		print "Moved!"
-		self.drone.move_relative(1.0, 0.0, 'odom', 0.0, 0.1)
+		self.drone.move_to(1.0, 0.0, 'odom', 0.0, 0.1)
 		self.drone.hover(3)
 		print "Moved!"
-		self.drone.move_relative(1.0, 0.0, 'odom', 0.0, 0.1)
+		self.drone.move_to(0.0, 0.0, 'odom', 0.0, 0.1)
 		self.drone.hover(3)
 		print "Landing..."
 
