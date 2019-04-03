@@ -169,9 +169,9 @@ if __name__ == "__main__":
         else:
             rospy.loginfo_throttle(1, "land command ignored\r")
 
-    takeoff_sub = rospy.Subscriber('takeoff', Empty, callback_takeoff)
-    land_sub = rospy.Subscriber('land', Empty, callback_land)
-    command_sub = rospy.Subscriber('cmd_vel', Twist, callback_cmd_vel)
+    takeoff_sub = rospy.Subscriber('/bebop/low_level/takeoff', Empty, callback_takeoff)
+    land_sub = rospy.Subscriber('/bebop/low_level/land', Empty, callback_land)
+    command_sub = rospy.Subscriber('/bebop/low_level/cmd_vel', Twist, callback_cmd_vel)
 
     try:
         while True: #while no issues
