@@ -15,6 +15,6 @@
     <include file="$(find iarc_main)/launch/multi/single_drone.launch">
         <arg name="sim" value="$(arg sim)"/>
         <arg name="ip" value="1.1.1.2"/>
-        <arg name="namespace" value="siri"/>
+        <arg name="namespace" value="google"/>
     </include>
 </launch>

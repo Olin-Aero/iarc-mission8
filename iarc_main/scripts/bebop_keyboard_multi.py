@@ -78,17 +78,15 @@ speedBindings = {
     'c': (1, .9),
 }
 
-class Drone:
+class Drone(object):
 
-    def __init__(self, namespace_in, namespace_out, bind):
+    def __init__(self, namespace, bind):
         """ initializes the drone class
-        namespace_in:
-        namespace_out: namespace to send to bebop driver. no slashes.
+        namespace: The namespace associated with this drone
         bind: char that represents control key for this drone instance
         """
         self.flight_status = False #initializes in teleop
-        self.namespace_in = str(namespace_in) #namespace for subs
-        self.namespace_out = str(namespace_out) #namespace for pubs
+        self.namespace = str(namespace) #namespace for subs
         self.bind = bind #number bind assigned to controlling drone
 
         self.x = 0
@@ -99,14 +97,14 @@ class Drone:
         self.speed = rospy.get_param("~speed", 0.1)
         self.turn = rospy.get_param("~turn", 0.2)
 
-        self.cmd_pub = rospy.Publisher('/' + self.namespace_out + '/cmd_vel', Twist, queue_size=1)
-        self.takeoff_pub = rospy.Publisher('/' + self.namespace_out + '/takeoff', Empty, queue_size=1)
-        self.land_pub = rospy.Publisher('/' + self.namespace_out + '/land', Empty, queue_size=1)
-        self.reset_pub = rospy.Publisher('/' + self.namespace_out + '/reset', Empty, queue_size=1)
+        self.cmd_pub = rospy.Publisher('/' + self.namespace + '/cmd_vel', Twist, queue_size=1)
+        self.takeoff_pub = rospy.Publisher('/' + self.namespace + '/takeoff', Empty, queue_size=1)
+        self.land_pub = rospy.Publisher('/' + self.namespace + '/land', Empty, queue_size=1)
+        self.reset_pub = rospy.Publisher('/' + self.namespace + '/reset', Empty, queue_size=1)
 
-        self.cmd_sub = rospy.Subscriber('/' + self.namespace_in + '/cmd_vel', Twist, self.callback_cmd_vel)
-        self.takeoff_sub = rospy.Subscriber('/' + self.namespace_in +'/takeoff', Empty, self.callback_takeoff)
-        self.land_sub = rospy.Subscriber('/' + self.namespace_in + '/land', Empty, self.callback_land)
+        self.cmd_sub = rospy.Subscriber('/' + self.namespace + '/low_level/cmd_vel', Twist, self.callback_cmd_vel)
+        self.takeoff_sub = rospy.Subscriber('/' + self.namespace +'/low_level/takeoff', Empty, self.callback_takeoff)
+        self.land_sub = rospy.Subscriber('/' + self.namespace + '/low_level/land', Empty, self.callback_land)
 
 
     def callback_cmd_vel(self, msg):
@@ -170,7 +168,7 @@ class Drone:
                 ))
 
     def __str__(self):
-        return "Drone controlling " + str(self.namespace_out)
+        return "Drone controlling " + str(self.namespace)
 
     __repr__ = __str__
 
@@ -187,10 +185,10 @@ if __name__ == "__main__":
     rospy.init_node('estop')
 
     # init all drones used
-    all_drones = [  Drone('alexa', 'bebop1', '1'),
-                    Drone('google', 'bebop2', '2'),
-                    Drone('siri', 'bebop3', '3'),
-                    Drone('clippy', 'bebop4', '4'),
+    all_drones = [  Drone('alexa', '1'),
+                    Drone('google', '2'),
+                    Drone('siri', '3'),
+                    Drone('clippy', '4'),
                     ]
 
     # start with all drones active
