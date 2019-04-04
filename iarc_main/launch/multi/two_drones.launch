@@ -1,0 +1,20 @@
+<launch>
+    <arg name="sim" default="false"/>
+
+    <group if="$(arg sim)">
+        <param name="use_sim_time" value="true" />
+        <include file="$(find iarc_sim_engine)/launch/basic.launch"/>
+    </group>
+
+    <include file="$(find iarc_main)/launch/multi/single_drone.launch">
+        <arg name="sim" value="$(arg sim)"/>
+        <arg name="ip" value="1.1.1.1"/>
+        <arg name="namespace" value="alexa"/>
+    </include>
+
+    <include file="$(find iarc_main)/launch/multi/single_drone.launch">
+        <arg name="sim" value="$(arg sim)"/>
+        <arg name="ip" value="1.1.1.2"/>
+        <arg name="namespace" value="siri"/>
+    </include>
+</launch>

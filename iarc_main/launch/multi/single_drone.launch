@@ -1,0 +1,31 @@
+<launch>
+    <arg name="namespace" default="bebopN" />
+    <arg name="tf_prefix" default="$(arg namespace)/"/>
+    <arg name="ip" default="192.168.42.1" />
+    <arg name="sim" default="false"/>
+
+    <param name="$(arg namespace)/tf_prefix" value="$(arg tf_prefix)"/>
+
+    <include file="$(find bebop_driver)/launch/bebop_node.launch" unless="$(arg sim)">
+        <arg name="ip" value="$(arg ip)"/>
+        <arg name="namespace" value="$(arg namespace)"/>
+    </include>
+
+    <group ns="$(arg namespace)" if="$(arg sim)">
+        <node name="iarc_simulator" pkg="iarc_sim_2d" cwd="node" type="sim.py" output="screen">
+            <param name="name" value="$(arg namespace)"/>
+        </node>
+        <!-- <node name="cmd_vel_fwd" pkg="topic_tools" type="relay" args="/bebop/cmd_vel /drone/cmd_vel" /> -->
+        <node name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 $(arg namespace) $(arg tf_prefix)base_link 30" />
+        <node name="odom_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map $(arg tf_prefix)odom 30" />
+    </group>
+
+    <!-- <include ns="$(arg namespace)" file="$(find iarc_sim_2d)/launch/basic.launch" if="$(arg sim)">
+    </include> -->
+
+    <node name="arbiter" ns="$(arg namespace)" pkg="iarc_arbiter" type="arbiter_lite.py" output="screen">
+        <remap from="/odometry" to="odom"/>
+    </node>
+
+    <!-- <node pkg="tf" type="static_transform_publisher" name="launch_frame" args="0 0 0 0 0 0 odom launch 200"/> -->
+</launch>
