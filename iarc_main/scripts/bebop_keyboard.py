@@ -148,7 +148,6 @@ if __name__ == "__main__":
     land_pubs = [rospy.Publisher('/bebop/land', Empty, queue_size=1),
                  rospy.Publisher('/ardrone/land', Empty, queue_size=1)]
     reset_pub = rospy.Publisher('/bebop/reset', Empty, queue_size=1)
-    camera_pub = rospy.Publisher('/bebop/camera_control', Empty, queue_size=1)
 
     flightStatus = False #autonomous code is in control when true
 
@@ -170,16 +169,9 @@ if __name__ == "__main__":
         else:
             rospy.loginfo_throttle(1, "land command ignored\r")
 
-    def callback_camera(msg):
-        if flightStatus == True:
-            camera_pub.publish(msg)
-        else:
-            rospy.loginfo_throttle(1, "camera command ignored\r")
-
     takeoff_sub = rospy.Subscriber('takeoff', Empty, callback_takeoff)
     land_sub = rospy.Subscriber('land', Empty, callback_land)
     command_sub = rospy.Subscriber('cmd_vel', Twist, callback_cmd_vel)
-    camera_sub = rospy.Subscriber('camera_control', Empty, callback_camera)
 
     try:
         while True: #while no issues
