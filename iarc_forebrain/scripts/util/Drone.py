@@ -53,7 +53,7 @@ class Drone:
         self.landPub = rospy.Publisher('/forebrain/cmd_land', Empty, queue_size=0)
         self.velAltPub = rospy.Publisher('/forebrain/cmd_vel_alt', VelAlt, queue_size=0)
         self.camPosPub = rospy.Publisher('/forebrain/cmd_cam_pos', PosCam, queue_size=0)
-        self.gimbalPub = rospy.Publisher('/bebop/camera_control', Twist, queue_size=0)
+        self.gimbalPub = rospy.Publisher(self.namespace +'/camera_control', Twist, queue_size=0)
 
         rospy.Publisher('/arbiter/register', RegisterBehavior, latch=True, queue_size=10).publish(
             name='forebrain', fast=True)
