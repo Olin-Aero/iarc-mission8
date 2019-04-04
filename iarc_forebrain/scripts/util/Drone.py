@@ -369,9 +369,9 @@ class Drone:
         Tells the gimbal to make the camera point in a certain direction
         param pitch: the pitch to make the camera go to (degrees), makes the camera look up(+) or down(-)
         param yaw: the yaw to make the camera go to (degrees), makes the camera look left(-) or right(+)
-	Roll doesn't do anything
+        Roll doesn't do anything
         """
         cameraCoordinates = Twist()
-	cameraCoordinates.angular.y = pitch
-	cameraCoordinates.angular.z = yaw
+        cameraCoordinates.angular.y = pitch
+        cameraCoordinates.angular.z = yaw
         self.gimbalPub.publish(cameraCoordinates)
