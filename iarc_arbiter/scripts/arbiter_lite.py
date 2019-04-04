@@ -42,7 +42,7 @@ class ArbiterLite(object):
             'high_level/cmd_pos': (PoseStamped, pos_pid.cmd_pos, False),
             'high_level/cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos, False),
             'high_level/cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt, False),
-            'high_level/cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos_cam),
+            'high_level/cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos_cam, False),
         }
 
         self.last_topic = None
