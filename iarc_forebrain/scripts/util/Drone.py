@@ -362,7 +362,7 @@ class Drone:
 
         self.posPub.publish(pose_stamped)
 
-    def go_to_camera(self, pitch, yaw):
+    def move_camera(self, pitch, yaw):
         """
         Tells the gimbal to make the camera point in a certain direction
         param pitch: the pitch to make the camera go to (degrees), makes the camera look up(+) or down(-)
