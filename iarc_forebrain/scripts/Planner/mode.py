@@ -17,7 +17,7 @@ class Mode:
     	''' Called once each time mode stops being active '''
         self.active = False
 
-    def update(self, look=False):
+    def update(self, look=False, obstacles=[]):
     	''' Called iteratively while mode is active '''
         pass
 

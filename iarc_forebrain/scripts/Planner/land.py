@@ -9,7 +9,7 @@ class Land(Mode):
     	self.takeoff = takeoff
         self.drone = drone
 
-    def enable(self, look=False):
+    def enable(self):
         if self.takeoff:
         	self.drone.takeoff()
         	print('TAKEOFF')

@@ -19,6 +19,11 @@ FOCAL_X = 520.6 #691 # Camera focal length in pixels
 FOCAL_Y = 514 #689 # Camera focal length in pixels
 IMAGE_WIDTH = 856
 IMAGE_HEIGHT = 480
+WEBCAM = False
+
+if WEBCAM:
+    FOCAL_X = 691
+    FOCAL_Y = 689
 
 def nothing(x):
     pass
@@ -33,42 +38,31 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     """
     pitch = math.pi/2 # camera automatically stabilizes, so pitch is constant
     pitch -= math.pi/4 # drone camera is angled downwards
-    # z -= -1.25069182097 # TEMPORARY - offset when drone initialized while on table
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    # Apply blue color filter (webcam)
-    # lower1 = np.array([98, 95, 76])
-    # upper1 = np.array([111, 255, 255])
-
-    # Apply blue color filter (drone cam)
-    lower1 = np.array([98, 50, 76])
-    upper1 = np.array([120, 255, 255])
-    p2 = locate(hsv, lower1, upper1)
-
-    # Apply red color filter (webcam)
-    # lower2 = np.array([171, 62, 116])
-    # upper2 = np.array([10, 255, 255])
+    # Apply red color filter (helmet)
+    if WEBCAM:
+        lower1 = np.array([171, 62, 116])
+        upper1 = np.array([10, 255, 255])
+    else:
+        lower1 = np.array([171, 90, 190])
+        upper1 = np.array([20, 255, 255])
+    p1 = locate(hsv, lower1, upper1)
     
-    # Apply red color filter (bebop cam)
-    lower2 = np.array([171, 90, 190])
-    upper2 = np.array([20, 255, 255])
-    p1 = locate(hsv, lower2, upper2)
-
-    # Apply light blue color filter
-    # lower3 = np.array([75, 200, 100])
-    # upper3 = np.array([150, 255, 255])
-    # p1 = locate(hsv, lower3, upper3)
-
-    # # Apply dark green color filter
-    # lower4 = np.array([22, 84, 81])
-    # upper4 = np.array([67, 255, 255])
-    # p2 = locate(hsv, lower4, upper4)
+    # Apply blue color filter (hand)
+    if WEBCAM:
+        lower2 = np.array([98, 95, 76])
+        upper2 = np.array([111, 255, 255])
+    else:
+        lower2 = np.array([98, 50, 76])
+        upper2 = np.array([120, 255, 255])
+    p2 = locate(hsv, lower2, upper2)
 
     if(p1 is None or p2 is None):
         return (None, None)
 
-    # Simple yaw estimate
+    # Simplified yaw estimate for comparison during testing
     # dx = p2[0]-p1[0]
     # dy = -p2[1]+p1[1] # image coordinate system is vertically flipped
     # dy = dy/math.cos(pitch)
@@ -82,14 +76,14 @@ def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
 
     dx = tvec_hand[0] - tvec_head[0]
     dy = tvec_hand[1] - tvec_head[1]
-    yaw = math.atan2(dy, dx) #- math.pi/2
+    yaw = math.atan2(dy, dx)
     if yaw < -math.pi:
         yaw += 2*math.pi
 
     # Display image
     if visualize:
-        cv2.circle(image, p1, 10, (255, 0, 0), -1)
-        cv2.circle(image, p2, 10, (0, 0, 255), -1)
+        cv2.circle(image, p1, 10, (0, 0, 255), -1)
+        cv2.circle(image, p2, 10, (255, 0, 0), -1)
         cv2.arrowedLine(image, p1, p2, (0, 255, 0), 5, -1)
         cv2.imshow('image', image)
         print("Gesture yaw: %s" % (yaw*180/math.pi))
