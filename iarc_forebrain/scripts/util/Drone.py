@@ -18,10 +18,8 @@ except ImportError:
 class Drone:
     DEFAULT_HEIGHT = 1.5
 
-    def __init__(self, tfl=None):
-        """
-        :type tfl: tf.TransformListener
-        """
+    def __init__(self, namespace='/bebop/', tfl=None):
+
         rospy.loginfo("name: {}".format(rospy.get_name()))
 
         if rospy.get_name().endswith('/unnamed'):
@@ -30,6 +28,10 @@ class Drone:
             rospy.sleep(0.2)
 
             # rospy.logwarn('initialing ROS node in Drone object')
+
+        if not namespace.endswith('/'):
+            namespace += '/'
+        self.namespace = namespace
 
         # World state
         self._remembers_flying = False
@@ -47,19 +49,15 @@ class Drone:
         else:
             self.tf = tfl
 
-        self.posPub = rospy.Publisher('/forebrain/cmd_pos', PoseStamped, queue_size=0)
-        self.velPub = rospy.Publisher('/forebrain/cmd_vel', Twist, queue_size=0)
-        self.takeoffPub = rospy.Publisher('/forebrain/cmd_takeoff', Empty, queue_size=0)
-        self.landPub = rospy.Publisher('/forebrain/cmd_land', Empty, queue_size=0)
-        self.velAltPub = rospy.Publisher('/forebrain/cmd_vel_alt', VelAlt, queue_size=0)
-        self.camPosPub = rospy.Publisher('/forebrain/cmd_cam_pos', PosCam, queue_size=0)
-        self.gimbalPub = rospy.Publisher(self.namespace +'/camera_control', Twist, queue_size=0)
+        self.posPub = rospy.Publisher(self.namespace+'high_level/cmd_pos', PoseStamped, queue_size=0)
+        self.velPub = rospy.Publisher(self.namespace+'high_level/cmd_vel', Twist, queue_size=0)
+        self.takeoffPub = rospy.Publisher(self.namespace+'high_level/cmd_takeoff', Empty, queue_size=0)
+        self.landPub = rospy.Publisher(self.namespace+'high_level/cmd_land', Empty, queue_size=0)
+        self.velAltPub = rospy.Publisher(self.namespace+'high_level/cmd_vel_alt', VelAlt, queue_size=0)
+        self.camPosPub = rospy.Publisher(self.namespace+'high_level/cmd_cam_pos', PosCam, queue_size=0)
+        self.gimbalPub = rospy.Publisher(self.namespace +'camera_control', Twist, queue_size=0)
 
-        rospy.Publisher('/arbiter/register', RegisterBehavior, latch=True, queue_size=10).publish(
-            name='forebrain', fast=True)
-        rospy.sleep(0.1)
-        rospy.Publisher('/arbiter/activate_behavior', String, latch=True, queue_size=10).publish(
-            'forebrain')
+        # Give the ROS network time to figure out who the subscribers are
         rospy.sleep(0.5)
 
         self.navdata = None
@@ -319,8 +317,8 @@ class Drone:
         :param focus_y: y position to look at
         :param frame: The tf frame associated with the target
         :param height: The height for the drone to be, if none, stays steady
-        
-        
+
+
         """
         if height is None:
             height = self.last_height
@@ -337,7 +335,7 @@ class Drone:
         camMsg.pose_stamped.header.frame_id = frame
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
-	
+
         rel_pos = self.get_pos(frame).pose.position
         dist = math.sqrt(
             (rel_pos.x - des_x) ** 2 +
@@ -361,7 +359,7 @@ class Drone:
         pose_stamped.pose.orientation.y = orientationQuat[1]
         pose_stamped.pose.orientation.z = orientationQuat[2]
         pose_stamped.pose.orientation.w = orientationQuat[3]
-        
+
         self.posPub.publish(pose_stamped)
 
     def go_to_camera(self, pitch, yaw):

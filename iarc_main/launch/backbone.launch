@@ -1,9 +1,7 @@
 <launch>
-    <node name="arbiter" ns="arbiter" pkg="iarc_arbiter" type="arbiter.py" output="screen">
-        <rosparam param="behaviors">['forebrain', 'teleop', 'goto_click']</rosparam>
+    <node name="arbiter" ns="bebop" pkg="iarc_arbiter" type="arbiter_lite.py" output="screen">
         <remap from="/odometry" to="/bebop/odom"/>
     </node>
-    <node name="move_base_relay" ns="goto_click" pkg="iarc_main" type="follow_click.py" output="screen"/>
     <!-- does the above node also require remap? check. -->
 
     
