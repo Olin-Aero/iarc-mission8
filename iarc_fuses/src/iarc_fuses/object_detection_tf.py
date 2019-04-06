@@ -79,6 +79,7 @@ class ObjectDetectorTF(object):
         """
         ckpt_file = os.path.join(self.root_, self.model_,
                 'frozen_inference_graph.pb')
+        print('ckpt_file', ckpt_file)
         model_tar_basename = '{}.tar.gz'.format(self.model_)
         model_tar_fullpath = os.path.join(self.root_, model_tar_basename)
 
@@ -163,7 +164,6 @@ def test_image():
     Simple test script; requires /tmp/image1.jpg
     """
     app = ObjectDetectorTF()
-
     img = cv2.imread('/tmp/image1.jpg')
     h,w = img.shape[:2]
     res = app(img)
@@ -179,6 +179,43 @@ def test_image():
 
     cv2.imshow('win', img)
     cv2.waitKey(0)
+
+def test_images():
+    """
+    Simple test script; requires /tmp/image1.jpg
+    """
+    #app = ObjectDetectorTF()
+    app = ObjectDetectorTF(model='model')
+
+    imgdir = '/tmp/simg'
+    #imgdir = os.path.expanduser(
+    #        '~/Repos/drone-net/image'
+    #        )
+
+    cv2.namedWindow('win', cv2.WINDOW_NORMAL)
+
+    for f in os.listdir(imgdir):
+        f = os.path.join(imgdir, f)
+        img = cv2.imread(f)
+
+        h,w = img.shape[:2]
+        res = app(img)
+        msk = (res['score'] > 0.5)
+
+        cls   = res['class'][msk]
+        box   = res['box'][msk]
+        score = res['score'][msk]
+
+        for box_, cls_ in zip(box, cls):
+            #ry0,rx0,ry1,rx1 = box_ # relative
+            draw_bbox(img, box_, str(cls_))
+
+        cv2.imshow('win', img)
+        k = cv2.waitKey(0)
+        if k in [27, ord('q')]:
+            break
+
+    cv2.destroyWindow('win')
 
 def test_camera():
     """ Simple test srcipt; requires /dev/video0 """
@@ -215,7 +252,8 @@ def test_camera():
 
 def main():
     #test_image()
-    test_camera()
+    #test_camera()
+    test_images()
 
 if __name__ == "__main__":
     main()

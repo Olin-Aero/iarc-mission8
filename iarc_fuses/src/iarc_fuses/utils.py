@@ -69,7 +69,6 @@ def convert_to_pixels(image_size, bounding_box):
 
 def draw_bbox(img, box, cls=None):
     """ Draw a yxyx-encoded box """
-    print('draw!')
     h,w = img.shape[:2]
     yxyx = box
     yxyx = np.multiply(yxyx, [h,w,h,w])
