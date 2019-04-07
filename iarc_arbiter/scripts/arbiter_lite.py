@@ -3,7 +3,7 @@
 import rospy
 from ddynamic_reconfigure_python.ddynamic_reconfigure import DDynamicReconfigure
 from geometry_msgs.msg import Twist, PoseStamped
-from iarc_arbiter.msg import VelAlt
+from iarc_arbiter.msg import VelAlt, PosCam
 from std_msgs.msg import Empty, String
 from tf import TransformListener
 
@@ -32,6 +32,7 @@ class ArbiterLite(object):
 
         alt_pid = transformers.PIDAltController(self.tf, self.ddynrec)
         pos_pid = transformers.PIDPosController(self.tf, self.ddynrec, alt_pid)
+        pos_cam_pid = transformers.PIDPosCamController(self.tf, self.ddynrec, pos_pid)
 
         # topic_name : (type, transformer_func, publish_immediately)
         self.transformers = {
@@ -40,7 +41,8 @@ class ArbiterLite(object):
             'high_level/cmd_land': (Empty, transformers.cmd_land, True),
             'high_level/cmd_pos': (PoseStamped, pos_pid.cmd_pos, False),
             'high_level/cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos, False),
-            'high_level/cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt, False)
+            'high_level/cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt, False),
+            'high_level/cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos_cam, False),
         }
 
         self.last_topic = None
