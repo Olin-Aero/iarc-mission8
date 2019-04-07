@@ -9,6 +9,7 @@
     <node ns="$(arg namespace)" name="tf_relay" pkg="iarc_main" type="tf_relay.py"/>
 
     <group unless="$(arg sim)">
+        <!-- Non-simulator nodes -->
         <include file="$(find bebop_driver)/launch/bebop_node.launch">
             <arg name="ip" value="$(arg ip)"/>
             <arg name="namespace" value="$(arg namespace)"/>
@@ -17,6 +18,7 @@
     </group>
 
     <group ns="$(arg namespace)" if="$(arg sim)">
+        <!-- Simulator nodes -->
         <node name="iarc_simulator" pkg="iarc_sim_2d" cwd="node" type="sim.py" output="screen">
             <param name="name" value="$(arg namespace)"/>
         </node>
