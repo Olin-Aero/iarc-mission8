@@ -6,29 +6,27 @@
 
     <param name="$(arg namespace)/tf_prefix" value="$(arg tf_prefix)"/>
 
+    <node ns="$(arg namespace)" name="tf_relay" pkg="iarc_main" type="tf_relay.py"/>
+
     <group unless="$(arg sim)">
         <include file="$(find bebop_driver)/launch/bebop_node.launch">
             <arg name="ip" value="$(arg ip)"/>
             <arg name="namespace" value="$(arg namespace)"/>
+            <arg name="remap_tf" value="true"/>
         </include>
     </group>
-    <node ns="$(arg namespace)" name="tf_relay" pkg="iarc_main" type="tf_relay.py"/>
 
     <group ns="$(arg namespace)" if="$(arg sim)">
         <node name="iarc_simulator" pkg="iarc_sim_2d" cwd="node" type="sim.py" output="screen">
             <param name="name" value="$(arg namespace)"/>
         </node>
-        <!-- <node name="cmd_vel_fwd" pkg="topic_tools" type="relay" args="/bebop/cmd_vel /drone/cmd_vel" /> -->
         <node name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 $(arg namespace) base_link 30">
             <remap from="/tf" to="tf"/>
         </node>
-        <node name="odom_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map odom 30" >
+        <node name="odom_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map odom 30">
             <remap from="/tf" to="tf"/>
         </node>
     </group>
-
-    <!-- <include ns="$(arg namespace)" file="$(find iarc_sim_2d)/launch/basic.launch" if="$(arg sim)">
-    </include> -->
 
     <node name="arbiter" ns="$(arg namespace)" pkg="iarc_arbiter" type="arbiter_lite.py" output="screen">
         <remap from="/odometry" to="odom"/>
