@@ -22,7 +22,7 @@ class ObjectDetectorTF(object):
             model='ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
             use_gpu=False,
             cmap=None,
-            shape=(480,640,3)
+            shape=(300,300,3)
             ):
         """
         Arguments:
@@ -189,12 +189,15 @@ def test_images():
 
     imgdir = '/tmp/simg'
     #imgdir = os.path.expanduser(
-    #        '~/Repos/drone-net/image'
+    #        '~/libs/drone-net/image'
     #        )
 
     cv2.namedWindow('win', cv2.WINDOW_NORMAL)
 
-    for f in os.listdir(imgdir):
+    fs = os.listdir(imgdir)
+    np.random.shuffle(fs)
+    
+    for f in fs:
         f = os.path.join(imgdir, f)
         img = cv2.imread(f)
 
