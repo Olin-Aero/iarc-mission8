@@ -55,6 +55,7 @@ class Drone:
         self.landPub = rospy.Publisher(self.namespace+'high_level/cmd_land', Empty, queue_size=0)
         self.velAltPub = rospy.Publisher(self.namespace+'high_level/cmd_vel_alt', VelAlt, queue_size=0)
         self.camPosPub = rospy.Publisher(self.namespace+'high_level/cmd_cam_pos', PosCam, queue_size=0)
+        self.gimbalPub = rospy.Publisher(self.namespace +'camera_control', Twist, queue_size=0)
 
         # Give the ROS network time to figure out who the subscribers are
         rospy.sleep(0.5)
@@ -316,8 +317,8 @@ class Drone:
         :param focus_y: y position to look at
         :param frame: The tf frame associated with the target
         :param height: The height for the drone to be, if none, stays steady
-        
-        
+
+
         """
         if height is None:
             height = self.last_height
@@ -334,7 +335,7 @@ class Drone:
         camMsg.pose_stamped.header.frame_id = frame
         camMsg.look_at_position.header.frame_id = frame
         self.camPosPub.publish(camMsg)
-	
+
         rel_pos = self.get_pos(frame).pose.position
         dist = math.sqrt(
             (rel_pos.x - des_x) ** 2 +
@@ -358,5 +359,17 @@ class Drone:
         pose_stamped.pose.orientation.y = orientationQuat[1]
         pose_stamped.pose.orientation.z = orientationQuat[2]
         pose_stamped.pose.orientation.w = orientationQuat[3]
-        
+
         self.posPub.publish(pose_stamped)
+
+    def move_camera(self, pitch, yaw):
+        """
+        Tells the gimbal to make the camera point in a certain direction
+        param pitch: the pitch to make the camera go to (degrees), makes the camera look up(+) or down(-)
+        param yaw: the yaw to make the camera go to (degrees), makes the camera look left(-) or right(+)
+        Roll doesn't do anything
+        """
+        cameraCoordinates = Twist()
+        cameraCoordinates.angular.y = pitch
+        cameraCoordinates.angular.z = yaw
+        self.gimbalPub.publish(cameraCoordinates)
