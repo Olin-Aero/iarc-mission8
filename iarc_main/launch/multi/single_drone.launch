@@ -1,10 +1,9 @@
 <launch>
     <arg name="namespace" default="bebopN" />
-    <arg name="tf_prefix" default="$(arg namespace)/"/>
     <arg name="ip" default="192.168.42.1" />
     <arg name="sim" default="false"/>
 
-    <param name="$(arg namespace)/tf_prefix" value="$(arg tf_prefix)"/>
+    <param name="$(arg namespace)/tf_prefix" value="$(arg namespace)"/>
 
     <node ns="$(arg namespace)" name="tf_relay" pkg="iarc_main" type="tf_relay.py"/>
 
