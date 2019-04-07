@@ -45,22 +45,29 @@ class Move(Mode):
         '''
         AVOID_RADIUS = 1 # Closest that drone should approach an obstacle
         D_FULL = 10 # Minimum distance at which velocity maxes out
-        STUCK_THRESHOLD = 0.1 #0.01 # If v is below this value, move orthogonal to target direction
+        STUCK_THRESHOLD = 0 #0.01 # If v is below this value, move orthogonal to target direction
         DECAY = 2 # how quickly the repulsivity of obstacles decays with distance
 
         k_avoid = AVOID_RADIUS**DECAY # Repulsivity of obstacles
         dist = math.sqrt(target[0]**2 + target[1]**2)
-        v = [target[0]/dist, target[1]/dist] # normalized gradient
+        if dist:
+            v = [target[0]/dist, target[1]/dist] # normalized gradient
+        else:
+            v = [0, 0]
         dmax = 0
         for ob in obstacles:
             r = math.sqrt(ob[0]**2 + ob[1]**2)
+            if r == 0:
+                continue
             d = k_avoid/r**DECAY
             if d > dmax:
                 dmax = d
             v[0] -= d*ob[0]/r
             v[1] -= d*ob[1]/r
+        if v[0]**2 + v[1]**2 == 0:
+            return (0, 0)
         vbar = (dist+dmax*D_FULL)/math.sqrt(v[0]**2 + v[1]**2)
-        if math.sqrt(v[0]**2 + v[1]**2) < STUCK_THRESHOLD:
+        if math.sqrt(v[0]**2 + v[1]**2) < STUCK_THRESHOLD and dist:
             v = [-target[1]/dist, target[0]/dist]
         return (v[0]*vbar, v[1]*vbar)
 
