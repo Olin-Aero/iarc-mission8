@@ -31,6 +31,7 @@
 
     <node name="arbiter" ns="$(arg namespace)" pkg="iarc_arbiter" type="arbiter_lite.py" output="screen">
         <remap from="/odometry" to="odom"/>
+        <param name="tf_prefix" value="$(arg namespace)"/>
     </node>
 
     <!-- <node pkg="tf" type="static_transform_publisher" name="launch_frame" args="0 0 0 0 0 0 odom launch 200"/> -->
