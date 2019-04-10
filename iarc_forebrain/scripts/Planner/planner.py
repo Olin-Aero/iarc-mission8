@@ -90,5 +90,5 @@ class SubPlanner:
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner('bebop')
+    p = Planner('alexa', 'google')
     p.run()

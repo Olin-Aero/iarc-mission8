@@ -30,6 +30,7 @@ class FollowGesture(Mode):
         self.translate = translate
         self.move = None
         self.detected = False
+        self.name = drone.namespace.strip('/')
         rate = rospy.Rate(1) # 1 Hz
         rate.sleep()
         rospy.Subscriber("/bebop/image_raw", Image, self.image_raw_callback)
@@ -54,7 +55,7 @@ class FollowGesture(Mode):
             helmet.point.x = h_pos[0] * math.cos(orientation[2]-math.pi/2) - h_pos[1] * math.sin(orientation[2]-math.pi/2) + pos.pose.position.x
             helmet.point.y = h_pos[0] * math.sin(orientation[2]-math.pi/2) + h_pos[1] * math.cos(orientation[2]-math.pi/2) + pos.pose.position.y
             helmet.point.z = h_pos[2] + pos.pose.position.z
-            helmet.header.frame_id = "odom"
+            helmet.header.frame_id = self.name+"/odom"
             self.helm_pub.publish(helmet)
             if self.translate:
                 self.move = Move(self.drone, direction+orientation[2]-math.pi/2)

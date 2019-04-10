@@ -13,6 +13,7 @@ class Move(Mode):
         self.dz = dz
         self.drone = drone
         self.obstacles = []
+        self.name = drone.namespace.strip('/')
 
     def enable(self, distance=0, units=0):
         self.distance = self.parse(distance, units)
@@ -32,11 +33,11 @@ class Move(Mode):
         pos = self.drone.get_pos("odom").pose.position
         v = self.get_move_direction([self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
         # TODO: account for vertical obstacles
-        if look and look.header.frame_id == 'odom':
+        if look and look.header.frame_id == self.name+"/odom":
             x, y = look.point.x, look.point.y
-            self.drone.travel_and_look(v[0], v[1], x, y, 'odom', self.target[2])
+            self.drone.travel_and_look(v[0], v[1], x, y, "odom", self.target[2])
         else:
-            self.drone.move_towards(v[0], v[1], 'odom', self.target[2])
+            self.drone.move_towards(v[0], v[1], "odom", self.target[2])
 
     def get_move_direction(self, target=(0,0), obstacles=[]):
         '''
