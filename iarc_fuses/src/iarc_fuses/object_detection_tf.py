@@ -35,6 +35,12 @@ class ObjectDetectorTF(object):
         Note:
             [2]: https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md
         """
+        # hard-coded auxiliary model
+        # downloadable from google drive
+        self.aux_model_ = {
+                'model2-drone-300x300' : '1voCDNghyKCNzk7Q9c4fzj23lW5jQtoTp'
+                }
+
         # cache arguments
         self.root_  = root
         self.model_ = model
@@ -42,7 +48,7 @@ class ObjectDetectorTF(object):
         self.shape_ = shape
 
         # load model
-        ckpt_file = self._maybe_download_ckpt()
+        ckpt_file  = self._maybe_download_ckpt()
         self.graph_ = self._load_graph(ckpt_file)
         self.input_, self.output_ = self._build_pipeline(self.graph_)
         self.cmap_ = cmap
@@ -68,6 +74,34 @@ class ObjectDetectorTF(object):
             outputs['class'] = [[ str(self.cmap_[x] if (x in self.cmap_) else x) for x in xs] for xs in outputs['class']]
             outputs['class'] = np.array(outputs['class'], dtype=str)
         return outputs
+    
+    def _download_from_gdrive(self):
+        try:
+            from google_drive_downloader import GoogleDriveDownloader as gd
+            gd.download_file_from_google_drive(
+                    file_id=self.aux_model_[self.model_],
+                    dest_path=os.path.join(self.root_, self.model_, 'frozen_inference_graph.pb'),
+                    unzip=True)
+        except Exception as e:
+            print('Downloading From GDrive Failed : {}'.format(e))
+
+    def _download_from_tfzoo(self,
+            model_tar_basename,
+            model_tar_fullpath
+            ):
+        # fetch from web if tar file does not exist
+        if not os.path.exists(model_tar_fullpath):
+            print('downloading model ...'.format(self.model_))
+            download_base = 'http://download.tensorflow.org/models/object_detection/'
+            opener = urllib.request.URLopener()
+            opener.retrieve(download_base+model_tar_basename, model_tar_fullpath)
+
+        # extract if graph does not exist
+        tar_file = tarfile.open(model_tar_fullpath)
+        for file in tar_file.getmembers():
+            file_name = os.path.basename(file.name)
+            if 'frozen_inference_graph.pb' in file_name:
+                tar_file.extract(file, self.root_)
 
     def _maybe_download_ckpt(self):
         """
@@ -80,23 +114,18 @@ class ObjectDetectorTF(object):
         ckpt_file = os.path.join(self.root_, self.model_,
                 'frozen_inference_graph.pb')
         print('ckpt_file', ckpt_file)
-        model_tar_basename = '{}.tar.gz'.format(self.model_)
-        model_tar_fullpath = os.path.join(self.root_, model_tar_basename)
 
         if not os.path.exists(ckpt_file):
-            # fetch from web if tar file does not exist
-            if not os.path.exists(model_tar_fullpath):
-                print('downloading model ...'.format(self.model_))
-                download_base = 'http://download.tensorflow.org/models/object_detection/'
-                opener = urllib.request.URLopener()
-                opener.retrieve(download_base+model_tar_basename, model_tar_fullpath)
-
-            # extract if graph does not exist
-            tar_file = tarfile.open(model_tar_fullpath)
-            for file in tar_file.getmembers():
-                file_name = os.path.basename(file.name)
-                if 'frozen_inference_graph.pb' in file_name:
-                    tar_file.extract(file, self.root_)
+            if self.model_ in self.aux_model_:
+                # fetch from google drive
+                self._download_from_gdrive()
+            else:
+                # fetch from tf zoo
+                model_tar_basename = '{}.tar.gz'.format(self.model_)
+                model_tar_fullpath = os.path.join(self.root_, model_tar_basename)
+                self._download_from_tfzoo(
+                        model_tar_basename,
+                        model_tar_fullpath)
         return ckpt_file
 
     def _load_graph(self, ckpt_file):
@@ -165,8 +194,8 @@ def test_image():
     """
     app = ObjectDetectorTF(
             root=os.path.join(iarc_root(), 'data'),
-            model='model1-drone-640x640',
-            #model='model2-drone-300x300',
+            #model='model1-drone-640x640',
+            model='model2-drone-300x300',
             #model='model3-drone-640x640',
             cmap={1:'DRONE'},
             use_gpu=False 
@@ -220,8 +249,8 @@ def test_images():
     
     app = ObjectDetectorTF(
             root=os.path.join(iarc_root(), 'data'),
-            model='model1-drone-640x640',
-            #model='model2-drone-300x300',
+            #model='model1-drone-640x640',
+            model='model2-drone-300x300',
             #model='model3-drone-640x640',
             cmap={1:'DRONE'},
             use_gpu=False 
@@ -255,9 +284,6 @@ def test_images():
         cls   = res['class'][msk]
         box   = res['box'][msk]
         score = res['score'][msk]
-
-        if len(box) >= 2:
-            print 'iou', box_iou(box[0], box[1])
 
         for (box_, cls_, score_) in zip(box, cls, score):
             #ry0,rx0,ry1,rx1 = box_ # relative
