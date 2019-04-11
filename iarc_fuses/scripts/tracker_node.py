@@ -132,14 +132,22 @@ class TrackerNode(object):
 
         # Processing Handles
         #self.det_ = NullDetector()
-        #self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON}, use_gpu=self.use_gpu_)
 
-        # drone config
+        # person config
         self.det_ = ObjectDetectorTF(
                 root=os.path.join(iarc_root(), 'data'),
-                model='model3-drone-640x640',
-                cmap={1:DetectRequest.CID_DRONE},
-                use_gpu=self.use_gpu_)
+                model='ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
+                cmap={1:DetectRequest.CID_PERSON},
+                use_gpu=False
+                #use_gpu=self.use_gpu_
+                )
+
+        # drone config
+        #self.det_ = ObjectDetectorTF(
+        #        root=os.path.join(iarc_root(), 'data'),
+        #        model='model3-drone-640x640',
+        #        cmap={1:DetectRequest.CID_DRONE},
+        #        use_gpu=self.use_gpu_)
 
         self.trk_ = Object_Tracker(use_gpu=self.use_gpu_)
         #self.trk_ = NullTracker()
