@@ -4,7 +4,7 @@ import rospy
 from std_msgs.msg import String
 import speech_recognition as sr
 
-drones = ['red','green','blue','white']
+drones = ['alexa','google','siri','clippy']
 numbers = {'oh':0,'zero':0,'one':1,'two':2,'three':3,'four':4,\
         'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10, \
         'point':'.','eleven':11,'twelve':12,'thirteen':13,'fourteen':14,\
@@ -15,7 +15,7 @@ class VoiceInterface:
     def __init__(self):
         rospy.init_node('voice_interface')
         self.pub = rospy.Publisher("/voice", String, queue_size=10)
-        self.drone = 'red'
+        self.drone = 'alexa'
 
     def run(self):
         while not rospy.is_shutdown():
