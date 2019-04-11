@@ -78,6 +78,17 @@ def draw_bbox(img, box, cls=None):
     if cls is not None:
         org = ( max(x0,0), min(y1,h) )
         cv2.putText(img, cls, org, 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255),
                 1, cv2.LINE_AA
                 )
+
+def iarc_root():
+    try:
+        import rospkg
+        root = rospkg.RosPack().get_path('iarc_fuses')
+    except Exception:
+        import os
+        script_path = os.path.dirname(__file__)
+        root = os.path.join(script_path, '../..')
+        root = os.path.realpath(root)
+    return root
