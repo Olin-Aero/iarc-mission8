@@ -49,13 +49,13 @@ class VoiceInterface:
 def listen():
     r = sr.Recognizer()
 
-    r.energy_threshold = 400 # 300 is default
-    # r.energy_threshold = 50 # desktop
+    # r.energy_threshold = 400 # 300 is default
+    r.energy_threshold = 800 # desktop
     r.pause_threshold = 0.3  # 0.8, seconds of non-speaking audio before a phrase is considered complete
     r.phrase_threshold = 0.1  # 0.3, minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
     r.non_speaking_duration = 0.2  # seconds of non-speaking audio to keep on both sides of the recording
     try:
-        with sr.Microphone() as source:
+        with sr.Microphone(device_index=0) as source:
             print("Say something!")
             audio = r.listen(source, timeout=1, phrase_time_limit=None)
         print("Parsing...")
@@ -63,6 +63,8 @@ def listen():
         return []
     try:
         words = r.recognize_sphinx(audio, grammar='command.gram').split(" ")
+        if len(words) > 1 and words[0] == "clip" and words[1] == 'e':
+                words = ['clippy'] + words[2:]
         print(words)
         return words
     except sr.UnknownValueError:

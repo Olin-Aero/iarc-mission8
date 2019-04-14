@@ -14,7 +14,7 @@ Direction goes from red (helmet) to blue (hand)
 
 '''
 
-PLAYER_HEIGHT = 0 # Height of human player color targets off the ground in meters
+PLAYER_HEIGHT = 1.5 # Height of human player color targets off the ground in meters
 FOCAL_X = 520.6 #691 # Camera focal length in pixels
 FOCAL_Y = 514 #689 # Camera focal length in pixels
 IMAGE_WIDTH = 856
