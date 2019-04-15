@@ -1,7 +1,6 @@
 ''' A high level behavior for the drone to carry out '''
 import rospy
 from mode import Mode
-from Drone import Drone
 
 class Land(Mode):
     def __init__(self, drone, takeoff=False):

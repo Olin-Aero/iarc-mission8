@@ -3,8 +3,9 @@
 import rospy
 from std_msgs.msg import String
 import speech_recognition as sr
+from rospkg import RosPack
 
-drones = ['alexa','google','siri','clippy']
+drones = ['swarm','alexa','google','siri','clippy']
 numbers = {'oh':0,'zero':0,'one':1,'two':2,'three':3,'four':4,\
         'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10, \
         'point':'.','eleven':11,'twelve':12,'thirteen':13,'fourteen':14,\
@@ -51,7 +52,7 @@ def listen():
 
     # r.energy_threshold = 400 # 300 is default
     r.energy_threshold = 800 # desktop
-    r.pause_threshold = 0.3  # 0.8, seconds of non-speaking audio before a phrase is considered complete
+    r.pause_threshold = 0.5  # 0.8, seconds of non-speaking audio before a phrase is considered complete
     r.phrase_threshold = 0.1  # 0.3, minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
     r.non_speaking_duration = 0.2  # seconds of non-speaking audio to keep on both sides of the recording
     try:
@@ -62,7 +63,8 @@ def listen():
     except sr.WaitTimeoutError as e:
         return []
     try:
-        words = r.recognize_sphinx(audio, grammar='command.gram').split(" ")
+        rospack = RosPack()
+        words = r.recognize_sphinx(audio, grammar=rospack.get_path('iarc_forebrain') + '/scripts/Planner/command.gram').split(" ")
         if len(words) > 1 and words[0] == "clip" and words[1] == 'e':
                 words = ['clippy'] + words[2:]
         print(words)

@@ -13,7 +13,6 @@ import sys
 from pointing_detection import pointing_detection
 from mode import Mode
 from move import Move
-from Drone import Drone
 
 SAMPLE_PERIOD = .1
 CAM_PITCH = math.pi/2

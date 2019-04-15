@@ -11,10 +11,9 @@ from follow_gesture import FollowGesture
 from geometry_msgs.msg import PointStamped
 from land import Land
 from move import Move
-from Drone import Drone
+from iarc_arbiter.drone import Drone
 
-
-class Planner: # TODO: multiple drone support
+class Planner:
 
     def __init__(self, *colors):
         rospy.init_node('planner')
@@ -31,10 +30,17 @@ class Planner: # TODO: multiple drone support
     def voice_callback(self, msg):
         ''' Voice command format: [color] [command] [parameters...] '''
         args = msg.data.split(" ")
+        if args[0] == 'swarm':
+            for drone in self.drones.values():
+                self.command_drone(drone, args)
+            return
         if not args[0] in self.colors:
             print("Drone not recognized: %s" % args[0])
             return
         drone = self.drones[args[0]]
+        self.command_drone(drone, args)
+        
+    def command_drone(self, drone, args):
         if args[1] in drone.modes:
             if drone.current_mode.is_active():
                 drone.current_mode.disable()
@@ -42,7 +48,7 @@ class Planner: # TODO: multiple drone support
             try:
                 drone.current_mode.enable(*args[2:])
             except TypeError as e:
-                print("Invalid parameters provided: %s" % msg.data)
+                print("Invalid parameters provided: %s" % args)
                 return
             except Exception as e:
                 print(e)
@@ -50,7 +56,7 @@ class Planner: # TODO: multiple drone support
             print(args[1])
             drone.pub.publish(args[1])
         else:
-            print("Invalid mode requested: %s" % msg.data)
+            print("Invalid mode requested: %s" % args)
 
     def player_callback(self, msg):
         self.player_pos = msg

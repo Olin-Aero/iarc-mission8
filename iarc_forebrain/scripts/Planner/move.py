@@ -4,7 +4,6 @@
 import rospy
 import math
 from mode import Mode
-from Drone import Drone
 
 class Move(Mode):
     def __init__(self, drone, angle=0, dz=0):
@@ -29,11 +28,11 @@ class Move(Mode):
         self.active = True
 
     def update(self, look = False, obstacles = []):
-        # TODO: make look code robust to non-odom tf frames
         pos = self.drone.get_pos("odom").pose.position
         v = self.get_move_direction([self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
         dest = [v[0]+pos.x, v[1]+pos.y]
-        # TODO: account for vertical obstacles
+        # TODO: account for vertical obstacle distance
+        # TODO: make look code robust to non-odom tf frames
         if look and look.header.frame_id == self.name+"/odom":
             x, y = look.point.x, look.point.y
             self.drone.travel_and_look(dest[0], dest[1], x, y, "odom", self.target[2])

@@ -25,9 +25,6 @@ if WEBCAM:
     FOCAL_X = 691
     FOCAL_Y = 689
 
-def nothing(x):
-    pass
-
 def pointing_detection(image, pitch = math.pi/2, z = 0, visualize=False):
     """
     Determines direction that human player is pointing and location of helmet

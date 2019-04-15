@@ -1,6 +1,5 @@
 ''' A high level behavior for the drone to carry out '''
 import rospy
-from Drone import Drone
 
 class Mode:
     def __init__(self, drone):
