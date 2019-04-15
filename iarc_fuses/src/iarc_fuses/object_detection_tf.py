@@ -175,6 +175,7 @@ class ObjectDetectorTF(object):
 
     def initialize(self):
         """ Create Session and warmup """
+        # TODO : support fractional-gpu configuration
         with self.graph_.as_default():
             if self.use_gpu_:
                 self.sess_ = tf.Session(graph=self.graph_)

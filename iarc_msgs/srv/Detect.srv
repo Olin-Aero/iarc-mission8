@@ -11,8 +11,8 @@ bool track # track after detection
 # float thresh # TODO: support detection threshold
 # float timeout # TODO : support detection timeout
 ---
-float32 x # bounding box left, normalized 0.0-1.0
-float32 y # bounding box top 
+float32 x # bounding box center x, normalized 0.0-1.0
+float32 y # bounding box center y
 float32 w # bounding box width
 float32 h # bounding box height
 uint8 cid # detected class type
