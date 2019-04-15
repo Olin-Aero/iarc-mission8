@@ -1,5 +1,6 @@
 import numpy as np
 import operator
+import cv2
 
 # following functions ONLY used during BoxUtils initialization.
 # to avoid circular dependencies.
@@ -205,6 +206,26 @@ class BoxUtils(object):
                 box_out = BoxUtils.unnormalize(box_out, fmt_out, img_shape)
 
         return box_out
+
+def draw_bbox(img, box, fmt=BoxUtils.FMT_NYXYX, cls=None):
+    """ Draw an encoded box """
+
+    # convert to draw-able box
+    box = BoxUtils.convert(box,
+            fmt,
+            BoxUtils.FMT_XYXY,
+            img.shape
+            )
+
+    x0, y0, x1, y1 = [int(e) for e in box]
+    cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
+    if cls is not None:
+        org = ( max(x0,0), min(y1,h) )
+        cv2.putText(img, cls, org, 
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,255),
+                1, cv2.LINE_AA
+                )
+
 
 def main():
     import time
