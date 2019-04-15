@@ -5,6 +5,8 @@ import operator
 # to avoid circular dependencies.
 def _pmap(m, p):
     return reduce(operator.or_, [m[k] for k in p])
+def _pmap_i(m_i, p):
+    return ''.join(s.lower() for (f,s) in m_i.items() if (f&p))
 
 def _merge_format(fmt):
     return reduce(lambda x,y: ((x<<8)|y), fmt)
@@ -14,7 +16,7 @@ def _split_format(fmt):
 def _encode_format(m, fmt):
     return _merge_format( [_pmap(m, p) for p in fmt] )
 def _decode_format(m_i, fmt):
-    return [m_i[p] for p in _split_format(fmt)]
+    return [_pmap_i(m_i,p) for p in _split_format(fmt)]
 
 class BoxUtils(object):
     """
@@ -32,7 +34,9 @@ class BoxUtils(object):
     FMT_1  = 0b00001000 # 1 (max-value) flag
     FMT_C  = 0b00010000 # C (center-value) flag
     FMT_S  = 0b00100000 # S (scale-value) flag
-    FMT_N  = 0b01000000 # normalization flag (NOTE: this flag is technically global, but only set once)
+
+    # global normalization flag, repeated for all box fields
+    FMT_N  = _merge_format([0b01000000 for _ in range(4)])
 
     # Masks
     MSK_A = 0b00000011 # Axis Mask
@@ -67,23 +71,8 @@ class BoxUtils(object):
     FMT_NCCWH = FMT_CCWH | FMT_N
     FMT_NXYWH = FMT_XYWH | FMT_N
 
-    # lhs : [x0, xc, x1, xs, y0, yc, y1, ys]
-    # rhs : [cx, cy, xs, ys]
 
-    # formats object
-    #FMAP={'xyxy':FMT_XYXY,'yxyx':FMT_YXYX,'ccwh':FMT_CCWH,'xywh':FMT_XYWH}
-    #FMAP.update({k.upper():v for (k,v) in FMAP.items()})
-    #FMAP_I={v:k for (k,v) in FMAP.items()}
-
-    """ Handle Box Formats """
-    @staticmethod
-    def fmap(fmt):
-        if fmt in BoxUtils.FMAP_I:
-            return fmt # already valid
-        if fmt in BoxUtils.FMAP:
-            return FMAP[fmt] # convert to enumerated int types
-        raise ValueError('Invalid Input Format : {}'.format(fmt))
-
+    """ Box normalization """
     @staticmethod
     def normalize(box, fmt, img_shape):
         ss = []
@@ -100,7 +89,7 @@ class BoxUtils(object):
             ss.append(s)
         return np.multiply(box, ss)
 
-    """ Handle Value Properties """
+    """ Handle Value Format Properties """
     @staticmethod
     def pmap(p):
         return _pmap(BoxUtils.PMAP, p)
@@ -111,6 +100,7 @@ class BoxUtils(object):
     def decode_format(fmt):
         return _decode_format(BoxUtils.PMAP_I, fmt)
 
+    """ Conversion Helpers """
     @staticmethod
     def _first(fs, default=None):
         for f in fs:
@@ -120,7 +110,6 @@ class BoxUtils(object):
                 continue
         else:
             return default
-
     @staticmethod
     def _convert_1(d_in, fmt_out):
         fmts = [BoxUtils.FMT_0, BoxUtils.FMT_1, BoxUtils.FMT_C, BoxUtils.FMT_S]
@@ -149,10 +138,10 @@ class BoxUtils(object):
 
         if (fmt_out & BoxUtils.FMT_C):
             fs = [
+                    lambda: data[BoxUtils.FMT_C],
                     lambda: 0.5 * (data[BoxUtils.FMT_0] + data[BoxUtils.FMT_1]),
-                    lambda: data[BoxUtils.FMT_0] + data[BoxUtils.FMT_S],
-                    lambda: data[BoxUtils.FMT_C] + 0.5*data[BoxUtils.FMT_S],
-                    lambda: 2.0 * data[BoxUtils.FMT_C] - data[BoxUtils.FMT_0]
+                    lambda: data[BoxUtils.FMT_0] + 0.5*data[BoxUtils.FMT_S],
+                    lambda: data[BoxUtils.FMT_1] - 0.5*data[BoxUtils.FMT_S],
                     ]
 
         if (fmt_out & BoxUtils.FMT_S):
@@ -188,10 +177,23 @@ class BoxUtils(object):
 
     @staticmethod
     def convert(box_in, fmt_in, fmt_out, img_shape=None):
+        """
+        Handle Box conversions between multiple encoded formats.
+
+        Arguments:
+            box_in  : A(..., 4); array-like with 4 channels corresponding to fmt_in.
+            fmt_in  : uint32; Input Box Format according to BoxUtils encoding.
+            fmt_out : uint32; Output Box Format according to BoxUtils encoding.
+        Returns:
+            box_in : A(..., 4); array-like with 4 channels corresponding to fmt_out.
+            (None if conversion is impossible)
+        """
         # determine flag for normalization requirement
         need_shape = ((fmt_in & BoxUtils.FMT_N) ^ (fmt_out & BoxUtils.FMT_N))
         if need_shape and (img_shape is None):
-            raise ValueError('Cannot convert between normalization without image shape')
+            # TODO : Exceptions? or None?
+            print('Cannot convert between normalization without image shape')
+            return None
         
         box_out = BoxUtils._convert(box_in, fmt_in, fmt_out)
 
@@ -207,24 +209,40 @@ class BoxUtils(object):
 def main():
     import time
     # test box utils
-    box_in  = np.clip(np.random.uniform(size=(400,400,4)), 0, 1)
-    t0 = time.time()
-    box_out = BoxUtils.convert(box_in,
-            BoxUtils.FMT_XYWH | BoxUtils.FMT_N,
-            BoxUtils.FMT_YXYX,
-            img_shape=(480,640)
-            )
+    fmts = [BoxUtils.FMT_XYXY, BoxUtils.FMT_YXYX,
+            BoxUtils.FMT_CCWH, BoxUtils.FMT_XYWH,
+            BoxUtils.FMT_NXYXY, BoxUtils.FMT_NYXYX,
+            BoxUtils.FMT_NCCWH, BoxUtils.FMT_NXYWH]
 
-    box_in_r = BoxUtils.convert(box_out,
-            BoxUtils.FMT_YXYX,
-            BoxUtils.FMT_XYWH | BoxUtils.FMT_N,
-            img_shape=(480,640)
-            )
-    t1 = time.time()
-    dt = t1 - t0
+    fis = [np.random.choice(fmts)]
+    fos = [np.random.choice(fmts)]
+    #fis = fmts
+    #fos = fmts
 
-    print('Took {} seconds (= {} per box)'.format(dt, 4*dt/box_in.size ))
-    print('Reconstruction Error', np.linalg.norm(box_in - box_in_r))
+    img_shape = (480,640,3)
+    num_boxes = (400,400)
+
+    for fmt_in in fis:
+        for fmt_out in fos:
+            box_in = np.random.uniform(size=num_boxes + (4,))
+
+            if not (fmt_in & BoxUtils.FMT_N):
+                BoxUtils.unnormalize(box_in, fmt_in, img_shape)
+
+            t0 = time.time()
+            box_out = BoxUtils.convert(box_in, fmt_in, fmt_out,
+                    img_shape=img_shape
+                    )
+
+            box_in_r = BoxUtils.convert(box_out,
+                    fmt_out, fmt_in,
+                    img_shape=img_shape
+                    )
+            t1 = time.time()
+            dt = t1 - t0
+            print('From {} -> {}'.format(':'.join(BoxUtils.decode_format(fmt_in)), ':'.join(BoxUtils.decode_format(fmt_out))))
+            print('Took {} seconds (= {} per box)'.format(dt, 4*dt/box_in.size ))
+            print('Reconstruction Error', np.linalg.norm(box_in - box_in_r))
 
 if __name__ == "__main__":
     main()
