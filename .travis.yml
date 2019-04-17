@@ -41,7 +41,7 @@ before_install:
   - bash ./.travis/wait_for_apt.sh
 
   - sudo apt-get update -qq
-  - sudo apt-get install -y python-catkin-pkg python-catkin-tools python-rosdep python-wstool ros-$ROS_DISTRO-catkin -y
+  - sudo apt-get install -y python-catkin-pkg python-catkin-tools python-rosdep python-wstool ros-$ROS_DISTRO-catkin -y swig
 
     # Python Package Install
   - sudo apt-get install python-pip
