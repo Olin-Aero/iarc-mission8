@@ -23,6 +23,12 @@ from tkinter import *
 # from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
+# a hack until schommer's ROS works
+import sys
+sys.path.append('../')
+from box_utils import BoxUtils
+#from iarc_fuses.
+
 class Annotation():
 	def __init__(self, file_reference="", frame_num=None, bounding_rect=[]):
 		self.file_reference = file_reference
@@ -125,14 +131,23 @@ class Video_Labeler():
 			return [x,y,w,h]
 
 	def check_rect(self, rect, im_size):
-		if rect[0] < 0:
-			rect[0] = 0
-		if rect[1] < 0:
-			rect[1] = 0
-		if rect[0] + rect[2] > im_size[0]:
-			rect[2] = im_size[0] - rect[0]
-		if rect[1] + rect[3] > im_size[1]:
-			rect[3] = im_size[1] - rect[1]
+		# clip xywh-style rectangle to fit within image
+		w, h = im_size
+
+		rect = BoxUtils.convert(rect,
+			BoxUtils.FMT_XYWH,
+			BoxUtils.FMT_XYXY
+			)
+
+		rect[0] = np.clip(rect[0], 0, w)
+		rect[1] = np.clip(rect[1], 0, h)
+		rect[2] = np.clip(rect[2], 0, w)
+		rect[3] = np.clip(rect[3], 0, h)
+
+		rect = BoxUtils.convert(rect,
+			BoxUtils.FMT_XYXY,
+			BoxUtils.FMT_XYWH
+			)
 
 		return rect
 
@@ -144,8 +159,10 @@ class Video_Labeler():
 		height, width, channels = im.shape
 		# # image and init box
 		self.draw_bbox()
-		sel_rect_wh = (self.sel_rect[0][0],self.sel_rect[0][1],
-			self.sel_rect[1][0]- self.sel_rect[0][0], self.sel_rect[1][1] - self.sel_rect[0][1])
+		sel_rect_wh = (
+			self.sel_rect[0][0],self.sel_rect[0][1],
+			self.sel_rect[1][0]- self.sel_rect[0][0],
+			self.sel_rect[1][1] - self.sel_rect[0][1])
 		rect_gc = self.color_cut(im, sel_rect_wh)
 		# tracker init
 		target_pos, target_sz = np.array(rect_gc[0:2]) + np.array(rect_gc[2:4])/2, np.array(rect_gc[2:4])
@@ -161,6 +178,7 @@ class Video_Labeler():
 			print("State Hist Len: ", len(state_hist))
 			print("Frame Num: ", self.frame_num)
 			# qqprint(old_frame_num, self.frame_num)
+
 			if old_frame_num != self.frame_num:
 				old_frame_num = self.frame_num
 				self.cap.set(1,self.frame_num)
@@ -168,43 +186,65 @@ class Video_Labeler():
 				ret, im = self.cap.read()
 				im = cv2.resize(im,None, fx=self.scale, fy=self.scale)
 
-
 				if len(self.labels) <= self.frame_num:
 					print("Adding state!")
 					state_hist.append(SiamRPN_track(state_hist[-1], im, use_gpu=True))  # track)
 					state = state_hist[-1]
-					res = cxy_wh_2_rect(state['target_pos'], state['target_sz'])
+					rect_ccwh = np.concatenate([state['target_pos'], state['target_sz']])
+					rect_xywh = BoxUtils.convert(rect_ccwh,
+						BoxUtils.FMT_CCWH,
+						BoxUtils.FMT_XYWH
+						)
 				else:
-					print("")
 					state = state_hist[self.frame_num] # Use previous frame state
-					res = self.labels[self.frame_num].bounding_rect
-				res = [res[0]- width*self.rect_pad/2, res[1]- height*self.rect_pad/2, res[2] + width*self.rect_pad, res[3] + height*self.rect_pad]
-				res = self.check_rect(res, (width, height))
-				res = [int(l) for l in res]
+					rect_xyxy = self.labels[self.frame_num].bounding_rect
+					rect_xywh = BoxUtils.convert(rect_xyxy,
+						BoxUtils.FMT_XYXY,
+						BoxUtils.FMT_XYWH
+						)
+
+				# expansion
+				rect_xywh[2:] = np.int32( rect_xywh[2:] * (1.0 + self.rect_pad / 2.) )
+				rect_xywh = self.check_rect(rect_xywh, (width, height))
+				rect_xywh = np.int32(rect_xywh)
+				rect_xyxy = BoxUtils.convert(rect_xywh,
+					BoxUtils.FMT_XYWH,
+					BoxUtils.FMT_XYXY
+					)
+				pt0, pt1 = tuple(rect_xyxy[:2]), tuple(rect_xyxy[2:])
 				# res = self.grab_cut(im, tuple(res))
 				# res = self.color_cut(im, tuple(res))
-				cv2.rectangle(im, (res[0], res[1]), (res[0] + res[2], res[1] + res[3]), (0, 255, 255), 3)
 
-
-
+				cv2.rectangle(im, pt0, pt1, (0, 255, 255), 3)
 
 			k =  cv2.waitKey(33)
 
 			if k & 0xFF == ord('d'):
-				self.draw_bbox() 
-				self.labels[self.frame_num].bounding_rect = (self.sel_rect[0][0],self.sel_rect[0][1],self.sel_rect[1][0]- self.sel_rect[0][0],self.sel_rect[1][1] - self.sel_rect[0][1])
-				b_bx = rect_2_cxy_wh([self.sel_rect[0][0],self.sel_rect[0][1], self.sel_rect[1][0], self.sel_rect[1][1]] )
-				state['target_pos'] = b_bx[0]
-				state['target_sz']  = b_bx[1]
-				old_frame_num = self.frame_num-1
+				# Drawing Mode
+				self.draw_bbox()
+				rect_xyxy = [self.sel_rect[0][0],self.sel_rect[0][1], self.sel_rect[1][0], self.sel_rect[1][1]]
+				
+				self.labels[self.frame_num].bounding_rect = BoxUtils.convert(
+					rect_xyxy,
+					BoxUtils.FMT_XYXY,
+					BoxUtils.FMT_XYWH)
 
+				rect_ccwh = BoxUtils.convert(rect_xyxy,
+					BoxUtils.FMT_XYXY,
+					BoxUtils.FMT_CCWH
+					)
+
+				state['target_pos'] = rect_ccwh[:2]
+				state['target_sz']  = rect_ccwh[2:]
+				old_frame_num = self.frame_num-1
 
 			# If a new frame is being annotated, add it
 			if len(self.labels) <= self.frame_num:
-				self.labels.append(Annotation(self.vid_file, self.frame_num, res))
+				self.labels.append(Annotation(self.vid_file, self.frame_num, rect_xyxy))
+
 			else: # Check if the cache should be used
 				if k & 0xFF == ord('d'):
-					self.labels[self.frame_num] = Annotation(self.vid_file, self.frame_num, res)
+					self.labels[self.frame_num] = Annotation(self.vid_file, self.frame_num, rect_xyxy)
 
 			cv2.imshow(self.disp_name, im)
 
@@ -227,6 +267,7 @@ class Video_Labeler():
 
 
 	def draw_bbox(self):
+		# preview
 		self.sel_rect = None
 		self.cap.set(1,self.frame_num)
 		ret, im = self.cap.read()
@@ -259,8 +300,6 @@ class Video_Labeler():
 				for i in range(0,2):
 					if self.down_point[i] > self.up_point[i]:
 						self.down_point[i], self.up_point[i] = self.up_point[i], self.down_point[i]
-
-
 			if self.down_point != None:
 				self.sel_rect = (self.down_point, self.up_point)
 		

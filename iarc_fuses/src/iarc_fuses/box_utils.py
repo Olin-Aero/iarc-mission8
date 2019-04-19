@@ -1,16 +1,17 @@
 import numpy as np
 import operator
 import cv2
+import functools
 
 # following functions ONLY used during BoxUtils initialization.
 # to avoid circular dependencies.
 def _pmap(m, p):
-    return reduce(operator.or_, [m[k] for k in p])
+    return functools.reduce(operator.or_, [m[k] for k in p])
 def _pmap_i(m_i, p):
     return ''.join(s.lower() for (f,s) in m_i.items() if (f&p))
 
 def _merge_format(fmt):
-    return reduce(lambda x,y: ((x<<8)|y), fmt)
+    return functools.reduce(lambda x,y: ((x<<8)|y), fmt)
 def _split_format(fmt):
     return [(fmt >> (8*i)) & 0b11111111 for i in reversed(range(4))]
 
