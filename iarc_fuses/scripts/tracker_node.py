@@ -19,79 +19,13 @@ from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
+from iarc_msgs.srv import Track, TrackRequest, TrackResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.object_track import Object_Tracker
 from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils
+from iarc_fuses.camera_handle import CameraHandle
 
-class NullDetector(object):
-    """ example class for generic Detector() implementation """
-    def __init__(self):
-        pass
-    def __call__(self, img):
-        return (0.0, 0.0)
-
-class NullTracker(object):
-    """ example class for generic Tracker() implementation """
-    def __init__(self):
-        pass
-    def init(self, img, box):
-        """ 
-        Initialize the tracker with the input image and the bounding box.
-
-        Returns:
-            any state-related metadata required for later tracking 
-        """
-        return None
-    def __call__(self, img, box, meta):
-        """
-        Arguments:
-            img(A(H,W,3)): Input image.
-            box(A(4)): [cx,cy,w,h] encoded box
-            meta(?): Extra information field to maintain tracking state.
-        Returns:
-            box(A(4)): [cx,cy,w,h] new encoded box
-            state
-        """
-        return box, meta
-
-class CameraHandle(object):
-    def __init__(self, src, bridge, callback):
-        # parameters
-        self.src_   = src
-        self.model_ = PinholeCameraModel()
-        self.has_info_ = False
-
-        # data
-        self.img_ = None
-        self.stamp_ = None
-
-        # handles
-        self.bridge_ = bridge
-        self.sub_   = rospy.Subscriber(
-                '{}/image_raw'.format(src),
-                Image,
-                self.data_cb
-                )
-        self.sub_i_ = rospy.Subscriber(
-                '{}/camera_info'.format(src),
-                CameraInfo,
-                self.info_cb
-                )
-        self.callback_ = callback
-
-    def info_cb(self, info):
-        self.model_.fromCameraInfo(info)
-        self.has_info_ = True
-        # no longer care about camera_info
-        self.sub_i_.unregister()
-
-    def data_cb(self, data):
-        img = self.bridge_.imgmsg_to_cv2(data, 'bgr8')
-        self.img_ = img
-        self.stamp_ = data.header.stamp
-        self.callback_(self.src_, img, data.header.stamp)
-
-class Track(object):
+class TrackData(object):
     def __init__(self, src, cid, img, box, stamp, meta=None):
         self.src_ = src
         self.cid_ = cid
@@ -109,11 +43,8 @@ class TrackerNode(object):
         # parse sources and parameters
         srcs          = rospy.get_param('~srcs', [])
         self.dbg_     = rospy.get_param('~dbg', False)
-        self.use_gpu_ = rospy.get_param('~use_gpu', True)
+        self.gpu_ = rospy.get_param('~gpu', 0.4)
         self.root_    = rospy.get_param('~root', os.path.join(iarc_root(), 'data'))
-        self.dmodel_  = rospy.get_param('~dmodel',
-                'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03'
-                )
         self.tmodel_  = rospy.get_param('~tmodel', '') # tracker model; not used right now
 
         # human-friendly default model specifications
@@ -123,8 +54,6 @@ class TrackerNode(object):
                 'drone'  : 'model2-drone-300x300'
                 }
         # rectify model names based on model map
-        if self.dmodel_ in self.mmap_:
-            self.dmodel_ = self.mmap_[self.dmodel_]
         if self.tmodel_ in self.mmap_:
             self.tmodel_ = self.mmap_[self.tmodel_]
 
@@ -137,7 +66,7 @@ class TrackerNode(object):
             Root    : {}
             DModel  : {}
             TModel  : {}
-        """.format(srcs,self.dbg_,self.use_gpu_,self.root_,self.dmodel_,self.tmodel_))
+        """.format(srcs,self.dbg_,self.gpu_,self.root_,self.tmodel_))
 
         # Processing Handles
         # person config
@@ -145,8 +74,7 @@ class TrackerNode(object):
                 root=self.root_,
                 model=self.dmodel_,
                 cmap={1:DetectRequest.CID_PERSON},
-                use_gpu=False
-                #use_gpu=self.use_gpu_
+                gpu=self.gpu_
                 )
         # drone config
         #self.det_ = ObjectDetectorTF(
@@ -159,7 +87,7 @@ class TrackerNode(object):
 
         # ROS Handles
         self.cvbr_ = CvBridge()
-        self.srv_ = rospy.Service('detect', Detect, self.detect_cb)
+        self.srv_ = rospy.Service('track', Track, self.detect_cb)
         self.pub_ = rospy.Publisher('dbg', PointStamped, queue_size=10)
 
         # Register Camera Handlers
@@ -229,7 +157,7 @@ class TrackerNode(object):
             # TODO : filter for already tracked objects?
             print('box->', box)
             meta = self.trk_.init(img, box)
-            self.track_.append( Track(src, cid, img, box, stamp, meta) )
+            self.track_.append( TrackData(src, cid, img, box, stamp, meta) )
 
         # finally, success!
         return DetectResponse(x=x,y=y,w=w,h=h, cid=int(cid), success=True)

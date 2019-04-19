@@ -7,75 +7,12 @@ from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
-from iarc_fuses.utils import draw_bbox, iarc_root
+from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils
+from iarc_fuses.camera_handle import CameraHandle
 import numpy as np
 import cv2
 import os
 import rospkg
-
-def convert_box(box_in):
-    """
-    TODO : handle format arguments, i.e.
-    #format_in='y,x,y,x',
-    #format_out='cx,cy,w,h'
-    """
-    y0, x0, y1, x1 = box_in
-    cx = (x0+x1)/2.0
-    cy = (y0+y1)/2.0
-    w  = float(y1-y0)
-    h  = float(x1-x0)
-    return [cx,cy,w,h]
-
-def convert_box_2(box_in):
-    """
-    TODO : handle format arguments, i.e.
-    #format_in='cx,cy,w,h'
-    #format_out='y,x,y,x',
-    """
-    cx,cy,w,h = box_in
-    x0 = cx - w / 2.0
-    y0 = cy - h / 2.0
-    x1 = cx + w / 2.0
-    y1 = cy + h / 2.0
-
-    return [y0,x0,y1,x1]
-
-class CameraHandle(object):
-    def __init__(self, src, bridge, callback):
-        # parameters
-        self.src_   = src
-        self.model_ = PinholeCameraModel()
-        self.has_info_ = False
-
-        # data
-        self.img_ = None
-        self.stamp_ = None
-
-        # handles
-        self.bridge_ = bridge
-        self.sub_   = rospy.Subscriber(
-                '{}/image_raw'.format(src),
-                Image,
-                self.data_cb
-                )
-        self.sub_i_ = rospy.Subscriber(
-                '{}/camera_info'.format(src),
-                CameraInfo,
-                self.info_cb
-                )
-        self.callback_ = callback
-
-    def info_cb(self, info):
-        self.model_.fromCameraInfo(info)
-        self.has_info_ = True
-        # no longer care about camera_info
-        self.sub_i_.unregister()
-
-    def data_cb(self, data):
-        img = self.bridge_.imgmsg_to_cv2(data, 'bgr8')
-        self.img_ = img
-        self.stamp_ = data.header.stamp
-        self.callback_(self.src_, img, data.header.stamp)
 
 class DetectorNode(object):
     def __init__(self):
@@ -114,7 +51,7 @@ class DetectorNode(object):
             if score < self.thresh_:
                 # insufficient confidence
                 continue
-            box = convert_box(box)
+            box = BoxUtils.convert(box, BoxUtils.FMT_NYXYX, BoxUtils.FMT_NCCWH)
             dout.append( (cid, box) )
         return dout
 
@@ -187,7 +124,7 @@ class DetectorNode(object):
             # continuous detection
             rsp = self.detect_cb(DetectRequest(source=src, track=False, cid=DetectRequest.CID_NULL))
             if rsp.success:
-                box = convert_box_2([rsp.x, rsp.y, rsp.w, rsp.h])
+                box = BoxUtils.convert(t.box_, BoxUtils.FMT_NCCWH, BoxUtils.FMT_NYXYX)
                 draw_bbox(img, box, cls=None)
             cv2.imshow('win', img) 
             cv2.waitKey(1)

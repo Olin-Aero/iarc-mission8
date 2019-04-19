@@ -1,0 +1,18 @@
+<launch>
+
+    <!-- Monolithic Mode -->
+    <!--
+    <node pkg="iarc_fuses" type="perception_node.py" name="perception" output="screen">
+        <rosparam command="load" file="$(find iarc_fuses)/config/perception.yaml" param="cfg"/>
+    </node>
+    -->
+    <arg name="srcs" default="['alexa', 'google']" />
+
+    <node pkg="iarc_fuses" type="detection_node.py" name="drone_person_detector">
+        <param name="srcs" value="$(arg srcs)"/>
+    </node>
+
+    <node pkg="iarc_fuses" type="tracker_node.py" name="object_tracker">
+        <param name="srcs" value="$(arg srcs)"/>
+    </node>
+</launch>
