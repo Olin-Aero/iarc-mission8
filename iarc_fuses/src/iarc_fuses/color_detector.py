@@ -297,7 +297,9 @@ class Interactive_Threshold_Setter():
 		cv2.setTrackbarPos(self.high_V_name, self.window_detection_name, self.high_V)
 
 def main():
+	# vidPath = '/home/maximilian/Videos/VID_20190327_195111.mp4'
 	vidPath = '/home/maximilian/Pictures/VID_20190220_192021.mp4'
+	# vid_file = os.path.expanduser("~/Videos/VID_20190327_195111.mp4")
 	cap = cv2.VideoCapture(vidPath)
 
 	mySess = Interactive_Threshold_Setter()
