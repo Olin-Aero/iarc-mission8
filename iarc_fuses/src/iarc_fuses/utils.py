@@ -1,5 +1,7 @@
 import numpy as np
 import cv2
+import operator
+from box_utils import BoxUtils, draw_bbox
 
 def rint(x):
     """Rounds a float to a 32 bit integer
@@ -45,8 +47,6 @@ def convert_to_relative(image_size, bounding_box):
     Returns:
         4-tuple(float): Returns a relative bounding box of type (center_x, center_y, width, height) 
     """
-    print(image_size)
-    print(bounding_box)
     return (bounding_box[0]/image_size[0], bounding_box[1]/image_size[1], 
             bounding_box[2]/image_size[0], bounding_box[3]/image_size[1])
 
@@ -67,18 +67,13 @@ def convert_to_pixels(image_size, bounding_box):
 			int(bounding_box[2] * image_size[0]),
 			int(bounding_box[3] * image_size[1]))
 
-def draw_bbox(img, box, cls=None):
-    """ Draw a yxyx-encoded box """
-    print('draw!')
-    h,w = img.shape[:2]
-    yxyx = box
-    yxyx = np.multiply(yxyx, [h,w,h,w])
-    yxyx = np.round(yxyx).astype(np.int32)
-    y0,x0,y1,x1 = yxyx
-    cv2.rectangle(img, (x0,y0), (x1,y1), (255,0,0), thickness=2)
-    if cls is not None:
-        org = ( max(x0,0), min(y1,h) )
-        cv2.putText(img, cls, org, 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255),
-                1, cv2.LINE_AA
-                )
+def iarc_root():
+    try:
+        import rospkg
+        root = rospkg.RosPack().get_path('iarc_fuses')
+    except Exception:
+        import os
+        script_path = os.path.dirname(__file__)
+        root = os.path.join(script_path, '../..')
+        root = os.path.realpath(root)
+    return root

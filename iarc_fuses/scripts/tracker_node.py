@@ -1,5 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
+"""
+Object Tracker Node.
+
+Sample Usage:
+    rosrun iarc_fuses tracker_node.py _srcs:=['cv_camera'] _use_gpu:=True _dbg:=False
+    roslaunch iarc_fuses tracker_node.py config
+"""
+import numpy as np
+import cv2
+import os
 import rospy
+import time
+
+import rospkg
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
@@ -8,9 +21,7 @@ from image_geometry import PinholeCameraModel
 from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.object_track import Object_Tracker
-from iarc_fuses.utils import draw_bbox
-import numpy as np
-import cv2
+from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils
 
 class NullDetector(object):
     """ example class for generic Detector() implementation """
@@ -42,33 +53,6 @@ class NullTracker(object):
             state
         """
         return box, meta
-
-def convert_box(box_in):
-    """
-    TODO : handle format arguments, i.e.
-    #format_in='y,x,y,x',
-    #format_out='cx,cy,w,h'
-    """
-    y0, x0, y1, x1 = box_in
-    cx = (x0+x1)/2.0
-    cy = (y0+y1)/2.0
-    w  = float(y1-y0)
-    h  = float(x1-x0)
-    return [cx,cy,w,h]
-
-def convert_box_2(box_in):
-    """
-    TODO : handle format arguments, i.e.
-    #format_in='cx,cy,w,h'
-    #format_out='y,x,y,x',
-    """
-    cx,cy,w,h = box_in
-    x0 = cx - w / 2.0
-    y0 = cy - h / 2.0
-    x1 = cx + w / 2.0
-    y1 = cy + h / 2.0
-
-    return [y0,x0,y1,x1]
 
 class CameraHandle(object):
     def __init__(self, src, bridge, callback):
@@ -122,17 +106,56 @@ class Track(object):
 
 class TrackerNode(object):
     def __init__(self):
-        # parse sources
-        srcs = rospy.get_param('~srcs', [])
-        self.dbg_ = rospy.get_param('~dbg', False)
+        # parse sources and parameters
+        srcs          = rospy.get_param('~srcs', [])
+        self.dbg_     = rospy.get_param('~dbg', False)
         self.use_gpu_ = rospy.get_param('~use_gpu', True)
-        rospy.loginfo('Tracker Received Sources : {}'.format(srcs))
+        self.root_    = rospy.get_param('~root', os.path.join(iarc_root(), 'data'))
+        self.dmodel_  = rospy.get_param('~dmodel',
+                'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03'
+                )
+        self.tmodel_  = rospy.get_param('~tmodel', '') # tracker model; not used right now
+
+        # human-friendly default model specifications
+        # currently only supports detector models, since there's only one tracker model (DaSiamRPN)
+        self.mmap_ = {
+                'person' : 'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
+                'drone'  : 'model2-drone-300x300'
+                }
+        # rectify model names based on model map
+        if self.dmodel_ in self.mmap_:
+            self.dmodel_ = self.mmap_[self.dmodel_]
+        if self.tmodel_ in self.mmap_:
+            self.tmodel_ = self.mmap_[self.tmodel_]
+
+        # logging
+        rospy.loginfo("""
+        Tracker Configuration :
+            Sources : {}
+            Debug   : {}
+            GPU     : {}
+            Root    : {}
+            DModel  : {}
+            TModel  : {}
+        """.format(srcs,self.dbg_,self.use_gpu_,self.root_,self.dmodel_,self.tmodel_))
 
         # Processing Handles
-        #self.det_ = NullDetector()
-        self.det_ = ObjectDetectorTF(cmap={1:DetectRequest.CID_PERSON}, use_gpu=self.use_gpu_)
+        # person config
+        self.det_ = ObjectDetectorTF(
+                root=self.root_,
+                model=self.dmodel_,
+                cmap={1:DetectRequest.CID_PERSON},
+                use_gpu=False
+                #use_gpu=self.use_gpu_
+                )
+        # drone config
+        #self.det_ = ObjectDetectorTF(
+        #        root=os.path.join(iarc_root(), 'data'),
+        #        model='model3-drone-640x640',
+        #        cmap={1:DetectRequest.CID_DRONE},
+        #        use_gpu=self.use_gpu_)
+
         self.trk_ = Object_Tracker(use_gpu=self.use_gpu_)
-        #self.trk_ = NullTracker()
 
         # ROS Handles
         self.cvbr_ = CvBridge()
@@ -147,7 +170,7 @@ class TrackerNode(object):
 
         # Things to detect:
         # - Person ( <= 1 )
-        # - Friendly Drone ( <= ? )
+        # - Friendly Drone ( <= 4 )
         # - Enemy Drone ( <= ? )
         # - Bin/QR ( <= 4 )
 
@@ -160,7 +183,7 @@ class TrackerNode(object):
             if score < 0.5:
                 # insufficient confidence
                 continue
-            box = convert_box(box)
+            box = BoxUtils.convert(box, BoxUtils.FMT_NYXYX, BoxUtils.FMT_NCCWH)
             dout.append( (cid, box) )
         return dout
 
@@ -215,7 +238,7 @@ class TrackerNode(object):
         # TODO : save data in cam_ and run data_cb in step()
         # instead of inside the callback. May run into strange race conditions.
         now = rospy.Time.now()
-        if (now - stamp).to_sec() > 0.1:
+        if (now - stamp).to_sec() > 0.5:
             rospy.loginfo_throttle(1.0, 'incoming data too old: [{}]-{}'.format(src, stamp) )
             # too old
             return
@@ -232,13 +255,11 @@ class TrackerNode(object):
         for t in self.track_:
             tres = self.trk_(img, t.box_, t.meta_)
             tscore = self.trk_.get_confidence(t.meta_)
-            print('tscore', tscore)
 
             if tscore > 0.2:
                 t.box_, t.meta_ = tres
                 t.cnt_ += 1
                 t.stamp_ = stamp
-                print('box-->', t.box_)
             else:
                 # lost track
                 t.box_ = None
@@ -251,9 +272,9 @@ class TrackerNode(object):
         #if len(self.track_) > 0:
         #    print self.track_
 
-        # TODO : publish tracks
+        # TODO : publish >> multiple << tracks simultaneously
         for t in self.track_:
-            draw_bbox(img, convert_box_2(t.box_), cls=None)
+            draw_bbox(img, BoxUtils.convert(t.box_, BoxUtils.FMT_NCCWH, BoxUtils.FMT_NYXYX), cls=None)
 
             iw, ih = cam.model_.width, cam.model_.height
             cx, cy = np.multiply(t.box_[:2], [iw,ih])
