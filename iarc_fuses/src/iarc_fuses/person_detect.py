@@ -30,7 +30,7 @@ def detect_helmet(image):
     print("Doin stuff")
     disp_contours = cv2.drawContours(disp_contours, [contour], 0, (255,255,255), 1)
     cv2.imshow("garb", disp_contours)
-
+    cv2.waitKey(0)
 
 def main2():
     vidPath = '/home/maximilian/Pictures/VID_20190220_192021.mp4'
