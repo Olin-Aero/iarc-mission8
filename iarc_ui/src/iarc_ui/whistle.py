@@ -73,7 +73,7 @@ class WhitleDetector(object):
     # Each command has three parts: drone name, direction, distance.
     # These convert the four whistled tones into each of those parts.
     drones = ["alpha", "bravo", "charlie", "delta"]
-    commands = ["north", "east", "south", "west", "west"]
+    commands = ["north", "east", "south", "west"]
     dists = ["0.5", "1", "2", "4"]
 
     if len(group) != 3:

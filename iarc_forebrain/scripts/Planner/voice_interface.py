@@ -5,11 +5,12 @@ from std_msgs.msg import String
 import speech_recognition as sr
 from rospkg import RosPack
 
-drones = ['swarm','alexa','google','siri','clippy']
-numbers = {'oh':0,'zero':0,'one':1,'two':2,'three':3,'four':4,\
-        'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10, \
-        'point':'.','eleven':11,'twelve':12,'thirteen':13,'fourteen':14,\
-        'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19}
+drones = ['swarm', 'alexa', 'google', 'siri', 'clippy']
+numbers = {'oh': 0, 'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+           'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+           'point': '.', 'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
+           'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19}
+
 
 class VoiceInterface:
 
@@ -25,16 +26,17 @@ class VoiceInterface:
             if len(words) == 0 or 'cancel' in words:
                 continue
             if 'shutdown' in words:
+                self.pub.publish('swarm land')
                 return
             if words[0] in drones:
-                output += words[0] # drone
+                output += words[0]  # drone
                 self.drone = words[0]
                 words = words[1:]
                 if len(words) == 0:
                     continue
             else:
-                output += self.drone # use previous drone
-            output += ' '+words[0] # command
+                output += self.drone  # use previous drone
+            output += ' '+words[0]  # command
             thisNum = False
             for word in words[1:]:
                 lastNum = thisNum
@@ -44,17 +46,21 @@ class VoiceInterface:
                     thisNum = True
                 if not (lastNum and thisNum):
                     output += ' '
-                output += str(word) # parameters
+                output += str(word)  # parameters
             self.pub.publish(output)
+
 
 def listen():
     r = sr.Recognizer()
 
     # r.energy_threshold = 400 # 300 is default
-    r.energy_threshold = 800 # desktop
-    r.pause_threshold = 0.5  # 0.8, seconds of non-speaking audio before a phrase is considered complete
-    r.phrase_threshold = 0.1  # 0.3, minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
-    r.non_speaking_duration = 0.2  # seconds of non-speaking audio to keep on both sides of the recording
+    r.energy_threshold = 800  # desktop
+    # default 0.8, seconds of non-speaking audio before a phrase is considered complete
+    r.pause_threshold = 0.5
+    # default 0.3, minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
+    r.phrase_threshold = 0.1
+    # seconds of non-speaking audio to keep on both sides of the recording
+    r.non_speaking_duration = 0.2
     try:
         with sr.Microphone(device_index=0) as source:
             print("Say something!")
@@ -64,9 +70,10 @@ def listen():
         return []
     try:
         rospack = RosPack()
-        words = r.recognize_sphinx(audio, grammar=rospack.get_path('iarc_forebrain') + '/scripts/Planner/command.gram').split(" ")
+        words = r.recognize_sphinx(audio, grammar=rospack.get_path(
+            'iarc_forebrain') + '/scripts/Planner/command.gram').split(" ")
         if len(words) > 1 and words[0] == "clip" and words[1] == 'e':
-                words = ['clippy'] + words[2:]
+            words = ['clippy'] + words[2:]
         print(words)
         return words
     except sr.UnknownValueError:
@@ -74,6 +81,7 @@ def listen():
     except sr.RequestError as e:
         print("Sphinx error; {0}".format(e))
     return []
+
 
 if __name__ == '__main__':
     v = VoiceInterface()

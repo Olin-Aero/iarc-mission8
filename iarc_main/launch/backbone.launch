@@ -2,10 +2,7 @@
     <node name="arbiter" ns="bebop" pkg="iarc_arbiter" type="arbiter_lite.py" output="screen">
         <remap from="/odometry" to="/bebop/odom"/>
     </node>
-<<<<<<< HEAD
 
-=======
->>>>>>> master
     <!-- does the above node also require remap? check. -->
 
     

@@ -5,12 +5,12 @@ import rospy
 import math
 from mode import Mode
 
+
 class Move(Mode):
     def __init__(self, drone, angle=0, dz=0):
-    	self.active = False
+        Mode.__init__(self, drone)
         self.angle = angle
         self.dz = dz
-        self.drone = drone
         self.obstacles = []
         self.name = drone.namespace.strip('/')
 
@@ -27,32 +27,34 @@ class Move(Mode):
             print('MOVE: dz = %s' % (self.dz*self.distance))
         self.active = True
 
-    def update(self, look = False, obstacles = []):
+    def update(self, look=False, obstacles=[]):
         pos = self.drone.get_pos("odom").pose.position
-        v = self.get_move_direction([self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
+        v = self.get_move_direction(
+            [self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
         dest = [v[0]+pos.x, v[1]+pos.y]
         # TODO: account for vertical obstacle distance
         # TODO: make look code robust to non-odom tf frames
         if look and look.header.frame_id == self.name+"/odom":
             x, y = look.point.x, look.point.y
-            self.drone.travel_and_look(dest[0], dest[1], x, y, "odom", self.target[2])
+            self.drone.travel_and_look(
+                dest[0], dest[1], x, y, "odom", self.target[2])
         else:
             self.drone.move_towards(dest[0], dest[1], "odom", self.target[2])
 
-    def get_move_direction(self, target=(0,0), obstacles=[]):
+    def get_move_direction(self, target=(0, 0), obstacles=[]):
         '''
         Returns optimal (vx, vy) based on gradient of potential field determined by target and 
         obstacle coordinates relative to current drone location
         '''
-        AVOID_RADIUS = 1 # Closest that drone should approach an obstacle
-        D_FULL = 10 # Minimum distance at which velocity maxes out
-        STUCK_THRESHOLD = 0 #0.01 # If v is below this value, move orthogonal to target direction
-        DECAY = 2 # how quickly the repulsivity of obstacles decays with distance
+        AVOID_RADIUS = 1  # Closest that drone should approach an obstacle
+        D_FULL = 10  # Minimum distance at which velocity maxes out
+        STUCK_THRESHOLD = 0  # 0.01 # If v is below this value, move orthogonal to target direction
+        DECAY = 2  # how quickly the repulsivity of obstacles decays with distance
 
-        k_avoid = AVOID_RADIUS**DECAY # Repulsivity of obstacles
+        k_avoid = AVOID_RADIUS**DECAY  # Repulsivity of obstacles
         dist = math.sqrt(target[0]**2 + target[1]**2)
         if dist:
-            v = [target[0]/dist, target[1]/dist] # normalized gradient
+            v = [target[0]/dist, target[1]/dist]  # normalized gradient
         else:
             v = [0, 0]
         dmax = 0
@@ -71,6 +73,7 @@ class Move(Mode):
         if math.sqrt(v[0]**2 + v[1]**2) < STUCK_THRESHOLD and dist:
             v = [-target[1]/dist, target[0]/dist]
         return (v[0]*vbar, v[1]*vbar)
+
 
 if __name__ == '__main__':
     m = Move(None)
