@@ -9,7 +9,7 @@ grammar command;
 public <command> = <color> <task> <digit> <decimal> <digit> <unit> [cancel];
 
 <color> = [swarm | alexa | google | siri | (clip e)];
-<task> = picture | north | east | south | west | follow | return | stop | takeoff | land | duck | jump | heal | shutdown | cancel;
+<task> = picture | north | east | south | west | follow | return | stop | takeoff | land | duck | jump | heal | shutdown | cancel | photo;
 <digit> = (oh | zero | one | two | three | four | five | six | seven | eight | nine | ten | eleven | twelve | thirteen | fourteen | fifteen | sixteen | seventeen | eighteen | nineteen) *;
 <decimal> = [point];
 <unit> = [foot | feet | meter | meters | inch | inches | centimeter | centimeters];
