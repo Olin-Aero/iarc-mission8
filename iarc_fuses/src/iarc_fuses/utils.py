@@ -93,8 +93,8 @@ def iarc_root():
         root = os.path.realpath(root)
     return root
 
-def translate_contour(contour, (x, y)):
-  return contour + [x,y]
+def translate_contour(contour, pos):
+  return contour + [pos[0], pos[1]]
 
 def inRangeWrap(img, low, high):
   """
@@ -105,6 +105,6 @@ def inRangeWrap(img, low, high):
   if low[0] <= high[0]:
     return cv2.inRange(img, low, high)
   else:
-    lowRange = cv2.inRange(img, [0, low[1], low[2]], high)
-    highRange = cv2.inRange(img, low, [255, high[1], high[2]])
+    lowRange = cv2.inRange(img, (0, low[1], low[2]), high)
+    highRange = cv2.inRange(img, low, (255, high[1], high[2]))
     return lowRange | highRange

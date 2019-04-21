@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Interactive threshold setter uses much code from
 # https://github.com/opencv/opencv/blob/3.4/samples/python/tutorial_code/imgProc/threshold_inRange/threshold_inRange.py
 
@@ -5,6 +7,7 @@ import numpy as np
 import cv2
 import warnings
 from matplotlib import pyplot as plt
+import utils
 
 
 class Color_detector():
@@ -21,7 +24,7 @@ class Color_detector():
 	def detect_color(image, bounding_box=None):
 		if self.color_space == "HSV":
 			image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-			color = cv2.inRange(image, self.color_lower, self.color_upper)
+			color = utils.inRangeWrap(image, self.color_lower, self.color_upper)
 			if self.color_lower is None or self.color_upper is None:
 				interactiveSession = Interactive_Threshold_Setter()
 				interactiveSession.set_capture()
@@ -117,7 +120,7 @@ class Interactive_Threshold_Setter():
 
 			# frame_threshold = cv2.inRange(self.frame_HSV, low_b, high_b)
 			## [while]
-			frame_threshold = cv2.inRange(self.frame_HSV, 
+			frame_threshold = utils.inRangeWrap(self.frame_HSV, 
 					(self.low_H, self.low_S, self.low_V), 
 					(self.high_H, self.high_S, self.high_V))
 			## [while]
@@ -273,11 +276,11 @@ class Interactive_Threshold_Setter():
 
 
 	def on_low_H_thresh_trackbar(self, val):
-		self.low_H = min(self.high_H-1, val)
+		self.low_H = val
 		cv2.setTrackbarPos(self.low_H_name, self.window_detection_name, self.low_H)
 
 	def on_high_H_thresh_trackbar(self, val):
-		self.high_H = max(val, self.low_H+1)
+		self.high_H = val
 		cv2.setTrackbarPos(self.high_H_name, self.window_detection_name, self.high_H)
 
 	def on_low_S_thresh_trackbar(self, val):
@@ -297,8 +300,8 @@ class Interactive_Threshold_Setter():
 		cv2.setTrackbarPos(self.high_V_name, self.window_detection_name, self.high_V)
 
 def main():
-	vidPath = '/home/maximilian/Pictures/VID_20190220_192021.mp4'
-	cap = cv2.VideoCapture(vidPath)
+	imgPath = "adam.jpg"
+	cap = cv2.VideoCapture(imgPath)
 
 	mySess = Interactive_Threshold_Setter()
 	ret, img = cap.read()
