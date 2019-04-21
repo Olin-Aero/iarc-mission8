@@ -92,3 +92,19 @@ def iarc_root():
         root = os.path.join(script_path, '../..')
         root = os.path.realpath(root)
     return root
+
+def translate_contour(contour, (x, y)):
+  return contour + [x,y]
+
+def inRangeWrap(img, low, high):
+  """
+  Like cv2.inRange, but can do colors that wrap around the hue range, like reds.
+  If low hue <= high hue, it takes everything in the range (low hue, high hue), like normal.
+  If low hue > high hue, it takes everything *outside* the range (high hue, low hue).
+  """
+  if low[0] <= high[0]:
+    return cv2.inRange(img, low, high)
+  else:
+    lowRange = cv2.inRange(img, [0, low[1], low[2]], high)
+    highRange = cv2.inRange(img, low, [255, high[1], high[2]])
+    return lowRange | highRange

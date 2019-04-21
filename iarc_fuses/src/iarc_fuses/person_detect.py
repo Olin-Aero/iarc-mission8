@@ -21,6 +21,7 @@ def detect_helmet(image):
     # frame_HSV = cv2.dilate(frame_HSV,kernel,iterations = 1)
     # frame_HSV = cv2.dilate(frame_HSV)
     frame_threshold = cv2.inRange(frame_HSV, PERSON_HSV_THRESHOLDS['lowHSV'], PERSON_HSV_THRESHOLDS['highHSV'])
+    cv2.imshow("threshold", frame_threshold)
 
     im2, contours, hierarchy = cv2.findContours(frame_threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if len(contours) == 0:
@@ -29,9 +30,9 @@ def detect_helmet(image):
     # print(contours)
     # contours = imutils.grab_contours(contours)
     contour = max(contours, key=cv2.contourArea)
-    print("Doin stuff")
     disp_contours = cv2.drawContours(disp_contours, [contour], 0, (255,255,255), 1)
-    cv2.imshow("garb", disp_contours)
+    cv2.imshow("contours", disp_contours)
+    return contour
 
 
 def main2():

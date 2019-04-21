@@ -332,8 +332,8 @@ def test_camera():
 
 def main():
     #test_image()
-    #test_camera()
-    test_images()
+    test_camera()
+    #test_images()
 
 if __name__ == "__main__":
     main()
