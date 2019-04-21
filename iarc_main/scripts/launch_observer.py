@@ -43,22 +43,28 @@ class LaunchObserver(object):
 
     def spin(self):
         r = rospy.Rate(self.RATE)
+        self.tfl.waitForTransform(self.odom, self.base_link, rospy.Time(
+            0), rospy.Duration.from_sec(99999))
         while not rospy.is_shutdown():
             if not self.is_flying:
                 # On the ground, update the transform
                 pos, quat = self.tfl.lookupTransform(
-                    self.base_link, self.odom, rospy.Time(0))
+                    self.odom, self.base_link, rospy.Time(0))
 
                 pos[2] = 0
                 self.saved_translation = pos
                 _, _, self.saved_yaw = euler_from_quaternion(quat)
 
+            time = max(rospy.Time.now(), self.tfl.getLatestCommonTime(
+                self.odom, self.base_link)) + (2*rospy.Duration.from_sec(1.0/self.RATE))
+
             self.tfb.sendTransform(self.saved_translation,
                                    quaternion_from_euler(0, 0, self.saved_yaw),
-                                   rospy.Time.now() + 2*rospy.Duration.from_sec(1/self.RATE),
+                                   time,
                                    self.launch, self.odom)
 
             r.sleep()
+
 
 if __name__ == '__main__':
     rospy.init_node('launch_observer')
