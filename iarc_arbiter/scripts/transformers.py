@@ -138,6 +138,9 @@ class PIDPosController(object):
         self.integral_y = 0.0
         self.previous_error_y = 0.0
 
+        self.base_link_frame = rospy.get_param('tf_prefix', '')+'/base_link'
+        self.odom_frame = rospy.get_param('tf_prefix', '')+'/odom'
+
     def on_odom(self, msg):
         """
         :param Odometry msg:
@@ -154,7 +157,7 @@ class PIDPosController(object):
 
         vel = Twist()
 
-        pose = self.transformPoseFull('base_link', msg, 'odom')
+        pose = self.transformPoseFull(self.base_link_frame, msg, self.odom_frame)
         position = pose.pose.position
         # position = self.tf.transformPose('base_link', msg).pose.position
 
@@ -281,6 +284,9 @@ class PIDPosCamController(object):
 
         self.last_time = rospy.Time(0)
 
+        self.base_link_frame = rospy.get_param('tf_prefix', '')+'/base_link'
+        self.odom_frame = rospy.get_param('tf_prefix', '')+'/odom'
+
     def cmd_pos_cam(self, msg):
         """
         inputs a pose for the drone to go to, and a position for the drone to face.
@@ -290,7 +296,7 @@ class PIDPosCamController(object):
         Not transforming the position here would result in the position still being in the map frame
         and not the drone frame.
         """
-        focus = self.pos_controller.transformPoseFull('base_link',msg.look_at_position,'odom')
+        focus = self.pos_controller.transformPoseFull(self.base_link_frame,msg.look_at_position,self.odom_frame)
         orientation_to_look_at = math.atan2(focus.pose.position.y,focus.pose.position.x)
         pose_sum = msg.pose_stamped
         return self.pos_controller.cmd_pos(pose_sum, orientation_to_look_at)

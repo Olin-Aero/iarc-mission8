@@ -22,6 +22,7 @@ from iarc_sim_2d import config as cfg
 
 class SimManager(object):
     def __init__(self):
+        self.name = rospy.get_param('~name', 'drone')
         self.tfl_ = tf.TransformListener()
         self.drone_ = self.spawn_drone()
         self.start_time_ = None
@@ -78,7 +79,7 @@ class SimManager(object):
         # 3. actually spawn the drone
         drone = self.spawn_robot(
                 client,
-                name='drone', img=img,
+                name=self.name, img=img,
                 radius=cfg.DRONE_RADIUS, pose=Pose2D(0,0,cfg.PI/2),
                 robot_class=Drone,
                 )
@@ -98,8 +99,8 @@ class SimManager(object):
         """ Main Loop """
         # 1. create publishing handles
         #self.vel_pub_ = rospy.Publisher('/%s/cmd_vel'  % self.drone_.tag, Twist,   queue_size=10)
-        self.vel_sub_ = rospy.Subscriber('/%s/cmd_vel' % self.drone_.tag, Twist,   self.drone_.set_vel)
-        self.z_pub_   = rospy.Publisher('/%s/height'   % self.drone_.tag, Float64, queue_size=10)
+        self.vel_sub_ = rospy.Subscriber('cmd_vel', Twist,   self.drone_.set_vel)
+        self.z_pub_   = rospy.Publisher('sim_height', Float64, queue_size=10)
 
         # 2. wait for start signal ...
         while self.start_time_ is None:
