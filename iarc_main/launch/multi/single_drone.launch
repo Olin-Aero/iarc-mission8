@@ -34,5 +34,5 @@
         <param name="tf_prefix" value="$(arg namespace)"/>
     </node>
 
-    <!-- <node pkg="tf" type="static_transform_publisher" name="launch_frame" args="0 0 0 0 0 0 odom launch 200"/> -->
+    <node name="launch_frame" ns="$(arg namespace)" pkg="iarc_main" type="launch_observer.py" />
 </launch>
