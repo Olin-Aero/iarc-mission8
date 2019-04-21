@@ -41,7 +41,7 @@ class Drone:
 
         self.prev_target_facing_angle = None  # in radian
 
-        self.FRAME_ID = "base_link"
+        self.FRAME_ID = self.prefix("base_link")
 
         if tfl is None:
             self.tf = tf.TransformListener()
@@ -166,6 +166,7 @@ class Drone:
         and blocks until the drone is within tol of the target, counting vertical and horizontal distance
         """
 
+        frame = self.prefix(frame)
         prev_pos = self.get_pos(frame).pose.position
 
         des_x, des_y, des_height = prev_pos.x + rel_x, prev_pos.y + rel_y, prev_pos.z + rel_height
@@ -197,6 +198,7 @@ class Drone:
         :return:
         """
 
+        frame = self.prefix(frame)
         if height == 0.0:
             height = self.last_height
 
@@ -223,6 +225,7 @@ class Drone:
         :param des_y: desired position y
         """
 
+        frame = self.prefix(frame)
         if height is None:
             height = self.last_height
         else:
@@ -263,6 +266,7 @@ class Drone:
         :param frame: The world frame in which to return the result
         :return (PoseStamped): The position of the drone at the latest available time
         """
+        frame = self.prefix(frame)
         time = None
         while not time and not rospy.is_shutdown():
             try:
@@ -272,7 +276,6 @@ class Drone:
                 rospy.logwarn("Frame missing, delaying...")
 
         position, quaternion = self.tf.lookupTransform(frame, self.FRAME_ID, time)
-
         return PoseStamped(
             header=Header(
                 stamp=time,
@@ -298,6 +301,7 @@ class Drone:
         :param (str) frame: The TF frame to measure to
         :return:
         """
+        frame = self.prefix(frame)
         linear = self.get_pos(frame).pose.linear
 
         return math.sqrt(linear.x ** 2 + linear.y ** 2)
@@ -320,6 +324,7 @@ class Drone:
 
 
         """
+        frame = self.prefix(frame)
         if height is None:
             height = self.last_height
         else:
@@ -353,6 +358,7 @@ class Drone:
         :param angle: the euler angle for the drone to face.
         :param frame: The tf frame associated with the target
         """
+        frame = self.prefix(frame)
         pose_stamped = self.get_pos(frame)
         orientationQuat = tf.transformations.quaternion_from_euler(0,0,angle)
         pose_stamped.pose.orientation.x = orientationQuat[0]
@@ -373,3 +379,9 @@ class Drone:
         cameraCoordinates.angular.y = pitch
         cameraCoordinates.angular.z = yaw
         self.gimbalPub.publish(cameraCoordinates)
+
+    def prefix(self, frame):
+        """ Appends drone namespace to tf frame id if appropriate """
+        if frame in ['odom', 'base_link']:
+            frame = self.namespace[1:-1]+'/'+frame
+        return frame
