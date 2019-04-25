@@ -37,13 +37,18 @@ class QRNode():
         self.nextBin = 0
 
     def imageCB(self,data):
+        # Gets the image from the respective drone, and puts it in the specified bin
+        # If the "bin number" is 0, it puts it in the first empty bin
         if(data.bin == 0):
-            for image in self.images:
-                if(image == None):
-                    image = self.bridge.imgmsg_to_cv2(data.image, desired_encoding="passthrough")
+            for index, image in enumerate(self.images):
+                if(image is None):
+                    self.images[index] = self.bridge.imgmsg_to_cv2(data.image, desired_encoding="passthrough")
+                    return
             rospy.logwarn("Already have 4 images, call reset")
+        elif(data.bin <=4):
+            self.images[data.bin-1] = self.bridge.imgmsg_to_cv2(data.image, desired_encoding="passthrough")
         else:
-            self.images[data.bin] = self.bridge.imgmsg_to_cv2(data.image, desired_encoding="passthrough")
+            rospy.logwarn("Not a valid bin number")
 
     def resetCB(self):
         # TODO : have a ros topic, service, something that's going to call this
@@ -85,5 +90,5 @@ def main():
     det = QRNode()
     det.run()
 
-if __name__ == '__main__':
+if __name__ == '__main__':z
     main()

@@ -11,6 +11,7 @@ from follow_gesture import FollowGesture
 from geometry_msgs.msg import PointStamped
 from takeoff_land import TakeoffLand
 from move import Move
+from photo import Photo
 from turn import Turn
 from iarc_arbiter.drone import Drone
 
@@ -107,9 +108,13 @@ class SubPlanner:
                       "north": Move(drone, 0),        "east": Move(drone, 3*math.pi/2),
                       "south": Move(drone, math.pi),  "west": Move(drone, math.pi/2),
                       "stop": Move(drone, 0),         "duck": Move(drone, 0, -1),
+<<<<<<< HEAD
+                      "jump": Move(drone, 0, 1),      "analyze": Photo(drone)}
+=======
                       "jump": Move(drone, 0, 1)}
         self.look_modes = {"look": Turn(drone), "right": Turn(drone, -1), "left": Turn(drone, 1)}
         self.look_direction = 0
+>>>>>>> c3a7af8ac5208173e6da739870e3bd72a0610bc3
         self.current_mode_pub = rospy.Publisher(
             "/"+color+"_current_mode", String, queue_size=10)
         self.look_mode_pub = rospy.Publisher(
