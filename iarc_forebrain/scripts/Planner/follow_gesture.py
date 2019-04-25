@@ -83,9 +83,9 @@ class FollowGesture(Mode):
         else:
             print('Player Detection Activated')
 
-    def update(self, look=False, obstacles=[]):
+    def update(self, look_direction=0, obstacles=[]):
         if self.detected:
-            self.move.update(look, obstacles)
+            self.move.update(look_direction, obstacles)
 
 
 # Start the node
