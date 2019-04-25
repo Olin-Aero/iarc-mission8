@@ -16,10 +16,11 @@ class Photo(Mode):
 		self.image = data
 
 	def enable(self, binNumber=0):
+		# makes a imagebin message and sends it to the qr node
 		self.active=True
 		imageBinMsg = ImageBin()
 		imageBinMsg.image = self.image
-		imageBinMsg.bin = binNumber
+		imageBinMsg.bin = int(binNumber)
 		if(self.image == None):
 			rospy.logwarn("No images are being published.")
 			return
