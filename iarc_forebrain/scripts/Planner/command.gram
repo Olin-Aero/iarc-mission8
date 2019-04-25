@@ -2,14 +2,26 @@
 
 /**
  * Voice Command Syntax
+ * Example Usage:
+ * "north 12.5 feet"
+ * "alexa takeoff"
+ * "swarm right 90"
+ * "look east"
  */
 
 grammar command;
 
-public <command> = <color> <task> <digit> <decimal> <digit> <unit> [cancel];
+public <command> = <color> (<task> | <move> | <look> | <turn> | cancel) [cancel];
 
 <color> = [swarm | alexa | google | siri | (clip e)];
-<task> = picture | north | east | south | west | follow | return | stop | takeoff | land | duck | jump | heal | shutdown | cancel | photo;
-<digit> = (oh | zero | one | two | three | four | five | six | seven | eight | nine | ten | eleven | twelve | thirteen | fourteen | fifteen | sixteen | seventeen | eighteen | nineteen) *;
+
+<task> = analyze | stop | takeoff | land | heal | shutdown;
+<move> = (north | east | south | west | follow | return | duck | jump) <distance>;
+<look> = look <direction>;
+<turn> = (right | left) <digit> <decimal> <digit> [degree | degrees];
+
+<digit> = (oh | zero | one | two | three | four | five | six | seven | eight | nine | ten | eleven | twelve | thirteen | fourteen | fifteen | sixteen | seventeen | eighteen | nineteen | twenty | thirty | forty | fifty | sixty | seventy | eighty | ninety) *;
 <decimal> = [point];
 <unit> = [foot | feet | meter | meters | inch | inches | centimeter | centimeters];
+<distance> = <digit> <decimal> <digit> <unit>;
+<direction> = [north | south | east | west | here];
