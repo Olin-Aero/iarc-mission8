@@ -62,7 +62,7 @@ def listen():
     r = sr.Recognizer()
 
     # r.energy_threshold = 400 # 300 is default
-    r.energy_threshold = 800  # desktop
+    r.energy_threshold = 1200  # desktop
     # default 0.8, seconds of non-speaking audio before a phrase is considered complete
     r.pause_threshold = 0.5
     # default 0.3, minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
@@ -70,7 +70,9 @@ def listen():
     # seconds of non-speaking audio to keep on both sides of the recording
     r.non_speaking_duration = 0.2
     try:
-        with sr.Microphone(device_index=0) as source:
+        with sr.Microphone(
+            #device_index=0
+            ) as source:
             print("Say something!")
             audio = r.listen(source, timeout=1, phrase_time_limit=None)
         print("Parsing...")

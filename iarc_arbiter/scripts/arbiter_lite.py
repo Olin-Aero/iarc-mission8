@@ -62,7 +62,7 @@ class ArbiterLite(object):
 
         # Filters constrain final output before it goes to the drone.
         # Potential examples include last-minute obstacle avoidance, speed limiters, or arena boundary constraints.
-        self.filters = [filters.make_speed_filter(0.5, 0.5, 0.5)]
+        self.filters = [filters.make_speed_filter(0.2, 0.2, 0.2)]
 
         self.vel_pub = rospy.Publisher('low_level/cmd_vel', Twist, queue_size=0)
         self.takeoff_pub = rospy.Publisher('low_level/takeoff', Empty, queue_size=0)
