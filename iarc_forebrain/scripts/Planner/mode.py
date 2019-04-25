@@ -17,7 +17,7 @@ class Mode(object):
         ''' Called once each time mode stops being active '''
         self.active = False
 
-    def update(self, look=False, obstacles=[]):
+    def update(self, look_direction=0, obstacles=[]):
         ''' Called iteratively while mode is active '''
         pass
 
@@ -43,3 +43,8 @@ class Mode(object):
         if units == 'centimeters' or units == 'centimeter':
             value *= 0.01
         return value
+
+    def get_look_direction(self, current_orientation, enable=False):
+        ''' Returns drone orientation desired by mode as an angle in the odom frame (deg)
+            The enable flag is true the first time this function is called'''
+        return current_orientation

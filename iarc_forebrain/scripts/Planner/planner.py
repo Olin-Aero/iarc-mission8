@@ -12,6 +12,7 @@ from geometry_msgs.msg import PointStamped
 from takeoff_land import TakeoffLand
 from move import Move
 from photo import Photo
+from turn import Turn
 from iarc_arbiter.drone import Drone
 
 
@@ -58,6 +59,21 @@ class Planner(object):
                 return
             print(args[1])
             drone.current_mode_pub.publish(args[1])
+        elif args[1] in drone.look_modes:
+            if drone.look_mode.is_active():
+                drone.look_mode.disable()
+            drone.look_mode = drone.look_modes[args[1]]
+            try:
+                drone.look_mode.enable(*args[2:])
+                drone.look_direction = drone.look_mode.get_look_direction(drone.look_direction, True)
+            except TypeError as e:
+                rospy.loginfo("Invalid parameters provided: %s" % args)
+                return
+            except Exception as e:
+                rospy.loginfo(e)
+                return
+            print(args[1])
+            drone.look_mode_pub.publish(args[1])
         else:
             rospy.loginfo("Invalid mode requested: %s" % args)
 
@@ -72,10 +88,12 @@ class Planner(object):
         rate = rospy.Rate(10)  # 10Hz
         while not rospy.is_shutdown():
             for drone in self.drones.values():
+                if drone.look_mode.is_active():
+                    drone.look_direction = drone.look_mode.get_look_direction(drone.look_direction)
+                    drone.look_mode.update(drone.look_direction, self.obstacles)
                 if drone.current_mode.is_active():
                     drone.current_mode.update(
-                        self.player_pos, self.obstacles)  # is this thread safe?
-                    drone.look_mode.update(self.player_pos, self.obstacles)
+                        drone.look_direction, self.obstacles)  # is this thread safe?
             rate.sleep()
 
 
@@ -90,12 +108,19 @@ class SubPlanner:
                       "north": Move(drone, 0),        "east": Move(drone, 3*math.pi/2),
                       "south": Move(drone, math.pi),  "west": Move(drone, math.pi/2),
                       "stop": Move(drone, 0),         "duck": Move(drone, 0, -1),
+<<<<<<< HEAD
                       "jump": Move(drone, 0, 1),      "analyze": Photo(drone)}
+=======
+                      "jump": Move(drone, 0, 1)}
+        self.look_modes = {"look": Turn(drone), "right": Turn(drone, -1), "left": Turn(drone, 1)}
+        self.look_direction = 0
+>>>>>>> c3a7af8ac5208173e6da739870e3bd72a0610bc3
         self.current_mode_pub = rospy.Publisher(
             "/"+color+"_current_mode", String, queue_size=10)
+        self.look_mode_pub = rospy.Publisher(
+            "/"+color+"_look_mode", String, queue_size=10)
         self.current_mode = self.modes["idle"]
-        self.look_mode = FollowGesture(drone, False)
-        self.look_mode.enable()
+        self.look_mode = self.modes["idle"]
         print('Drone ' + color + ' initialized')
 
 
