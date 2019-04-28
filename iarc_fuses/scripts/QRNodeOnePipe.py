@@ -90,5 +90,5 @@ def main():
     det = QRNode()
     det.run()
 
-if __name__ == '__main__':z
+if __name__ == '__main__':
     main()

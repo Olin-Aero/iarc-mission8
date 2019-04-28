@@ -11,11 +11,12 @@
 
 grammar command;
 
-public <command> = <color> (<task> | <move> | <look> | <turn> | cancel) [cancel];
+public <command> = <color> (<analyze> | <task> | <move> | <look> | <turn> | cancel) [cancel];
 
 <color> = [swarm | alexa | google | siri | (clip e)];
 
-<task> = analyze | stop | takeoff | land | heal | shutdown;
+<analyze> = analyze <digit>;
+<task> = stop | takeoff | land | heal | shutdown;
 <move> = (north | east | south | west | follow | return | duck | jump) <distance>;
 <look> = look <direction>;
 <turn> = (right | left) <digit> <decimal> <digit> [degree | degrees];

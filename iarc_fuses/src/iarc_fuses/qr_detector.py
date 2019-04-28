@@ -15,7 +15,7 @@ class QRDetector():
 
     def imageToBinary(self,image):
         # inputse an image to get the whites of a digital screen
-        whiteLowerBound = (220,210,160) # a high blue value was used because computers tend to make white very blue.
+        whiteLowerBound = (249,210,160) # a high blue value was used because computers tend to make white very blue.
         whiteUpperBound = (255,255,255) # IMPORTANT NOTE: I set it to (220,210,160) for paper. Testing it on ipads, it should be set to (249,210,160)!!
         b1 = cv2.inRange(image, whiteLowerBound, whiteUpperBound) # gets a binary image of the white in the picture
         return b1
