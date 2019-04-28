@@ -15,10 +15,26 @@ probably work for other things as well.
 """
 
 
+class Box:
+    """
+    A box consists of (corners, first_seen, last_seen).
+    Corners are a 4-list (TODO: Or 4-tuple?) of coords, expressed as
+    fractions of the total image size, in the order (upper y, left x, 
+    lower y, right x).
+    first_ and last_seen are rospy times representing the first and
+    last times we've seen that box.
+    """
+
+    def __init__(self, corners, first_time, last_time):
+        self.corners = corners
+        self.first_time = first_time
+        self.last_time = last_time
+
+
 class Filter:
     """
-  A filter object.  Has internal state.
-  """
+    A filter object.  Has internal state.
+    """
 
     def __init__(
         self, min_age=0.01, max_age=0.5, all_corners=False, max_corner_dist=0.2
@@ -54,11 +70,23 @@ class Filter:
         self.all_corners = all_corners
         self.max_corner_dist = max_corner_dist
 
+        self.old_boxes = []
+
+    def __call__(self, boxes):
         """
-        A box consists of (corners, time).
-        Corners are a 4-list (TODO: Or 4-tuple?) of coords, expressed as
-        fractions of the total image size, in the order (upper y, left x, 
-        lower y, right x).
-        Time is the last rospy.rostime.Time that the box was seen.
+        Executes the filter, incorporating new data and returning known boxes.
+        """
+
+        # Incorporate new boxes
+
+        # Delete old boxes
+
+        # Return valid boxes
+
+        pass
+
+    def clear(self):
+        """
+        Clears the filter's memory, forgetting all bboxes.
         """
         self.old_boxes = []
