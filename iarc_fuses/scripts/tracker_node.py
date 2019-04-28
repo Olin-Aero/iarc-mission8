@@ -11,8 +11,10 @@ import cv2
 import os
 import rospy
 import time
+from collections import deque
 
 import rospkg
+import actionlib
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
@@ -22,30 +24,20 @@ from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
 from iarc_msgs.srv import Track, TrackRequest, TrackResponse
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.object_track import Object_Tracker
-from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils
+from iarc_fuses.track_manager import TrackManager, TrackData
+from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils, box_iou
 from iarc_fuses.camera_handle import CameraHandle
-
-class TrackData(object):
-    def __init__(self, src, cid, img, box, stamp, meta=None):
-        self.src_ = src
-        self.cid_ = cid
-        self.img_ = img
-        self.box_ = box
-        self.stamp_ = stamp
-        self.meta_ = meta
-
-        self.cnt_ = 1 # count the number of frames seen
-    def __repr__(self):
-        return '[{}]{}-({})'.format(self.src_, self.cid_, self.box_)
 
 class TrackerNode(object):
     def __init__(self):
         # parse sources and parameters
         srcs          = rospy.get_param('~srcs', [])
         self.dbg_     = rospy.get_param('~dbg', False)
-        self.gpu_ = rospy.get_param('~gpu', 0.4)
+        self.gpu_     = rospy.get_param('~gpu', 0.4)
         self.root_    = rospy.get_param('~root', os.path.join(iarc_root(), 'data'))
         self.tmodel_  = rospy.get_param('~tmodel', '') # tracker model; not used right now
+        self.max_dt_  = rospy.get_param('~max_dt', 0.5) # max threshold for stale data
+        self.min_p_   = rospy.get_param('~min_p',  0.2) # minimum score to keep tracks
 
         # human-friendly default model specifications
         # currently only supports detector models, since there's only one tracker model (DaSiamRPN)
@@ -70,6 +62,7 @@ class TrackerNode(object):
 
         # Processing Handles
         # person config
+        # alternatively, self.det_ = rospy.ServiceProxy(...)
         self.det_ = ObjectDetectorTF(
                 root=self.root_,
                 model=self.dmodel_,
@@ -84,17 +77,27 @@ class TrackerNode(object):
         #        use_gpu=self.use_gpu_)
 
         self.trk_ = Object_Tracker(use_gpu=self.use_gpu_)
+        self.mgr_ = TrackManager(self.trk_)
 
         # ROS Handles
         self.cvbr_ = CvBridge()
-        self.srv_ = rospy.Service('track', Track, self.detect_cb)
+
+        self.srv_ = rospy.Service('track', Track, self.track_cb)
+        #self.srv_ = actionlib.SimpleActionServer('track',
+        #        TrackAction, execute_cb=self.track_cb,
+        #        auto_start=False)
         self.pub_ = rospy.Publisher('dbg', PointStamped, queue_size=10)
+        self.trk_pub_ = rospy.Publisher('tracked_objects',
+                IARCObjects, queue_size=10)
 
         # Register Camera Handlers
         self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in srcs}
 
         # data
-        self.track_ = []
+        self.queue_ = {k:deque(maxlen=8) for k in srcs}
+        self.q_idx_ = 0
+        self.reqs_  = []
+        self.tdata_ = []
 
         # Things to detect:
         # - Person ( <= 1 )
@@ -102,10 +105,24 @@ class TrackerNode(object):
         # - Enemy Drone ( <= ? )
         # - Bin/QR ( <= 4 )
 
-    def filter_detection(self, req, din):
-        dout = []
+    @staticmethod
+    def match_class(cls_a, cls_b):
+        agn_a = (cls_a is Identifier.OBJ_NULL)
+        agn_b = (cls_b is Identifier.OBJ_NULL)
+        eq_ab = (cls_a == cls_b)
+        return (ang_a or ang_b or eq_ab)
+
+    def match_detection(self, req, din):
+        cid, box, score = din
+        if not TrackerNode.match_class(req.cid, cid):
+            # class mismatch
+            return False
+        if score < req.thresh: # TODO : support classwise detection confidence threshold?
+            # insufficient confidence
+            return False
+
         for (cid, box, score) in zip(din['class'], din['box'], din['score']):
-            if (req.cid is not req.CID_NULL) and (str(req.cid) is not str(cid)):
+            if not match_class(req.cid, cid):
                 # class mismatch
                 continue
             if score < 0.5:
@@ -115,87 +132,66 @@ class TrackerNode(object):
             dout.append( (cid, box) )
         return dout
 
-    def detect_cb(self, req):
-        src = req.source
-        res_fail = DetectResponse(success=False)
-        if not src in self.cam_:
-            rospy.loginfo('Got Detection Request for [{}] but data does not exit yet'.format(src))
-            return res_fail
-
-        # parse input data
-        img   = self.cam_[src].img_
-        stamp = self.cam_[src].stamp_
-        if (img is None) or (stamp is None):
-            return res_fail
-        
-        dt = (rospy.Time.now() - self.cam_[src].stamp_).to_sec()
-        if dt > 0.5:  # << TODO : MAGIC
-            # more than 500ms passed since last image received:
-            # image cannot be processed.
-            # TODO : support post-request detection as action?(timeout)
-            return res_fail
-
-        dres = self.det_( img )
-        if dres is None:
-            rospy.loginfo('Detector failed for request : {}'.format(req))
-            return res_fail
-
-        # TODO : maybe support multi-class detection in the future
-        dres = self.filter_detection(req, dres)
-
-        if len(dres) <= 0:
-            rospy.loginfo('Detector has found no matching objects for request: {}'.format(req))
-            return res_fail
-
-        # sort by box area
-        # TODO : this code depends on box encoding
-        cid, box = sorted(dres, key=lambda (_,box):(box[2]*box[3]))[-1]
-        x,y,w,h = box
-
-        if (req.track):
-            # initialize tracking that object
-            # TODO : filter for already tracked objects?
-            print('box->', box)
-            meta = self.trk_.init(img, box)
-            self.track_.append( TrackData(src, cid, img, box, stamp, meta) )
-
-        # finally, success!
-        return DetectResponse(x=x,y=y,w=w,h=h, cid=int(cid), success=True)
+    def track_cb(self, req):
+        """
+        Tracking Callback; Only handles registration.
+        Actual processing happens inside step()
+        """
+r       rate     = rospy.Rate(self.rate_)
+        src      = req.source
+        tracking = True
+        self.reqs_.append( req )
+        return TrackResponse(success=True)
 
     def data_cb(self, src, img, stamp):
-        # TODO : save data in cam_ and run data_cb in step()
-        # instead of inside the callback. May run into strange race conditions.
-        now = rospy.Time.now()
-        if (now - stamp).to_sec() > 0.5:
-            rospy.loginfo_throttle(1.0, 'incoming data too old: [{}]-{}'.format(src, stamp) )
-            # too old
-            return
+        self.queue_[src].append( (img, stamp) )
 
-        if not (src in self.cam_):
-            # should usually not reach here - error
-            return
+    def filter_reqs(self, stamp, reqs):
+        res = []
+        for r in reqs:
+            if (stamp - r.stamp).to_sec() > r.timeout_:
+                # current observation is now older than request timeout
+                continue
+            res.append( r)
+        return res
+
+    def process(self, src, img, stamp):
+        # source validation
         cam = self.cam_[src]
-
         if not cam.has_info_:
             # should usually not reach here, maybe the first few frames
             return
 
-        for t in self.track_:
-            tres = self.trk_(img, t.box_, t.meta_)
-            tscore = self.trk_.get_confidence(t.meta_)
+        obs_new = []
 
-            if tscore > 0.2:
-                t.box_, t.meta_ = tres
-                t.cnt_ += 1
-                t.stamp_ = stamp
-            else:
-                # lost track
-                t.box_ = None
+        # remove stale requests
+        self.reqs_ = self.filter_reqs(stamp, self.reqs_)
 
-        # filter tracks
-        # TODO : support tenacious tracking? (recovery from loss / re-detection)
-        # TODO : set timeout (10.0 = MAGIC)
-        self.track_ = [t for t in self.track_ if (t.box_ is not None) and (stamp - t.stamp_).to_sec() < 10.0]
+        if len(self.reqs_) > 0:
+            d_res   = self.det_(img)
+            for d in zip(din['class'], din['box'], din['score']):
+                d_add = False # flag to add detection to observations
+                for r in self.reqs_:
+                    if self.match_detection(d, r):
+                        d_add = True
+                        break
+
+                if not d_add:
+                    continue
+
+                obs_new.append(TrackData(
+                    src=src,
+                    cid=d[0],
+                    img=img,
+                    box=BoxUtils.convert(box,
+                        BoxUtils.FMT_NYXYX,
+                        BoxUtils.FMT_NCCWH),
+                    stamp=stamp,
+                    meta=None # << will be populated by TrackManager()
+                    ))
+        # append!
+        self.mgr_.append( obs_new )
+        self.mgr_.process(src, img, stamp)
 
         #if len(self.track_) > 0:
         #    print self.track_
@@ -225,14 +221,34 @@ class TrackerNode(object):
     def publish(self):
         pass
 
-    def step(self):
+    def process(self):
         pass
+
+    def step(self):
+        # loop through sources sequentially
+        src = self.srcs_[ self.q_idx_ ]
+        q = self.queue_[ src ]
+        self.q_idx_ = ((self.q_idx_ + 1) % len(self.srcs_))
+
+        if len(q) <= 0:
+            # no data in queue
+            return
+
+        data = q.pop()
+        src, img, stamp = data
+        dt = (rospy.Time.now() - stamp).to_sec()
+        if (dt > self.max_dt_):
+            # stale data
+            rospy.loginfo_throttle(1.0,
+                    'incoming data too old: [{}]-{}'.format(src, stamp))
+            return
+        self.process(src, img, stamp)
 
     def run(self):
         r = rospy.Rate(50)
         while not rospy.is_shutdown():
             self.step()
-        #rospy.spin()
+            r.sleep()
 
 def main():
     rospy.init_node('tracker')

@@ -5,5 +5,5 @@ float thresh                # detection confidence threshold
 float timeout               # detection timeout
 iarc_msgs/IARCObject obj;   # requested trackable object
 ---
-iarc_msgs/IARCObject obj;   # full detected object characterization
+#iarc_msgs/IARCObject obj;   # full detected object characterization
 bool success                # whether or not the detection was successful
