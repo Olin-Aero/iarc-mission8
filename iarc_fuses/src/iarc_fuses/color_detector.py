@@ -6,6 +6,7 @@
 import numpy as np
 import cv2
 import warnings
+import sys
 from matplotlib import pyplot as plt
 import utils
 
@@ -137,8 +138,8 @@ class Interactive_Threshold_Setter():
 				if self.source_type == "VIDEO":
 					self.source.release()
 				cv2.destroyAllWindows()
-				return {"lowHSV" : [self.low_H, self.low_S, self.low_V], 
-						"highHSV" : [self.high_H, self.high_S, self.high_V]}
+				return {"lowHSV" : (self.low_H, self.low_S, self.low_V), 
+						"highHSV" : (self.high_H, self.high_S, self.high_V)}
 
 	def nothing(self, event):
 		pass 
@@ -300,8 +301,7 @@ class Interactive_Threshold_Setter():
 		cv2.setTrackbarPos(self.high_V_name, self.window_detection_name, self.high_V)
 
 def main():
-	imgPath = "adam.jpg"
-	cap = cv2.VideoCapture(imgPath)
+	cap = cv2.VideoCapture(sys.argv[1])
 
 	mySess = Interactive_Threshold_Setter()
 	ret, img = cap.read()

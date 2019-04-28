@@ -17,7 +17,7 @@ def detect_helmet(image, show=True):
     kernel = np.ones((5,5),np.uint8)
     # frame_HSV = cv2.dilate(frame_HSV,kernel,iterations = 1)
     # frame_HSV = cv2.dilate(frame_HSV)
-    frame_threshold = cv2.inRange(frame_HSV, PERSON_HSV_THRESHOLDS['lowHSV'], PERSON_HSV_THRESHOLDS['highHSV'])
+    frame_threshold = utils.inRangeWrap(frame_HSV, PERSON_HSV_THRESHOLDS['lowHSV'], PERSON_HSV_THRESHOLDS['highHSV'])
     if show:
       cv2.imshow("threshold", frame_threshold)
 
