@@ -15,9 +15,10 @@ class QRDetector():
 
     def imageToBinary(self,image):
         # inputse an image to get the whites of a digital screen
-        whiteLowerBound = (249,210,160) # a high blue value was used because computers tend to make white very blue.
+        whiteLowerBound = (240,210,160) # a high blue value was used because computers tend to make white very blue.
         whiteUpperBound = (255,255,255) # IMPORTANT NOTE: I set it to (220,210,160) for paper. Testing it on ipads, it should be set to (249,210,160)!!
         b1 = cv2.inRange(image, whiteLowerBound, whiteUpperBound) # gets a binary image of the white in the picture
+
         return b1
 
     def getBox(self,b1,image):
@@ -34,6 +35,7 @@ class QRDetector():
         rect = cv2.minAreaRect(maxCnt) # gets a rectangular bounding box
         box = cv2.boxPoints(rect)
         box = np.int0(box) # makes it into an array of points
+        cv2.drawContours(img, [box], 0, (0,255,0), 3)
         return box
 
     def getRotatedImage(self,image,box):
@@ -90,6 +92,8 @@ class QRDetector():
         if height == width: # in this case, the image is already square
                 finalImage = crop_img
         finalImage = cv2.resize(finalImage, (200, 200)) # resizes the square image to 200 by 200 to make later processing easier
+        cv2.imshow("next",finalImage)
+        cv2.waitKey(0)
         return finalImage
 
     def __call__(self, image):
