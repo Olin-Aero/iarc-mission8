@@ -53,9 +53,6 @@ class TrackManager(object):
             # Currently not taking such scenarios into account.
             return False
 
-        print type(trk.box_)
-        print type(obs.box_)
-
         if box_iou(trk.box_, obs.box_) < 0.5: # TODO : magic?
             # filter by jaccard overlap
             return False

@@ -73,6 +73,7 @@ class TrackerNode(object):
         # Processing Handles
         # person config
         # alternatively, self.det_ = rospy.ServiceProxy(...)
+        # TODO : add more detectors
         self.det_ = ObjectDetectorTF(
                 root=self.root_,
                 model=self.dmodel_,
@@ -174,7 +175,16 @@ class TrackerNode(object):
         req_msk = np.full(len(self.reqs_), True, dtype=np.bool)
 
         if len(self.reqs_) > 0:
-            d_res   = self.det_(img)
+            # TODO : looking out into the future with multiple parallel detectors ...
+            #d_res = []
+            #for d_cid, det in self.det_:
+            #    if not np.any(d_cid in self.reqs_):
+            #        continue
+            #    d_res.append( det.detect(img) )
+
+            d_res   = self.det_.detect(img,
+                    is_bgr = True
+                    )
             for d in zip(d_res['class'], d_res['box'], d_res['score']):
                 d_add = False # flag to add detection to observations
                 for i_r, r in enumerate(self.reqs_):
@@ -238,6 +248,7 @@ class TrackerNode(object):
         msg.header.stamp    = rospy.Time.now()
 
         for t in self.mgr_.get_tracks():
+            # TODO : fill geometric information
             #res_3d = Guess3D.get_info(obj_id, box)
             #cov, vol, dmin, dmax, centroid = res_3d
             msg.objects.append(
