@@ -5,7 +5,7 @@ import numpy as np
 import math
 import cv2
 import sys
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32MultiArray
 from mode import Mode
 from follow_gesture import FollowGesture
 from geometry_msgs.msg import PointStamped
@@ -29,6 +29,7 @@ class Planner(object):
         rospy.Subscriber("/helmet_pos", PointStamped, self.player_callback)
         # TODO: change message type
         rospy.Subscriber("/obstacles", PointStamped, self.obstacle_callback)
+        rospy.Subscriber("/rangefinder", Int32MultiArray, self.rangefinder_callback)
 
     def voice_callback(self, msg):
         ''' Voice command format: [color] [command] [parameters...] '''
@@ -80,8 +81,23 @@ class Planner(object):
         self.player_pos = msg
 
     def obstacle_callback(self, msg):
-        self.obstacles = msg
+        pass
         # TODO: parse obstacle message into proper format
+
+    def rangefinder_callback(self, msg):
+        drones = ["alexa","google","siri","clippy"]
+        self.obstacles = []
+        self.angles = [-30, 0, 30] # TODO: actual mounting angles
+        vals = msg.data
+        o = self.drones[drones[vals[0]]].drone.get_pos("odom").pose.orientation
+        yaw = euler_from_quaternion([o.x, o.y, o.z, o.w])[2]
+        
+        for i, val in enumerate(vals[2:]):
+            if val > 10:
+                dist = val/10.0 # TODO: actual conversion
+                ang = np.radians(angles[i])+yaw
+                self.obstacles += [(dist*np.cos(ang), dist*np.sin(ang))]
+        print(self.obstacles)
 
     def run(self):
         rate = rospy.Rate(10)  # 10Hz
