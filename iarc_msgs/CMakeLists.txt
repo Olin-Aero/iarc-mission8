@@ -51,13 +51,16 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   Box.msg
+  Identifier.msg
   IARCObject.msg
+  IARCObjects.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
    FILES
    Detect.srv
+   Track.srv
 #   Service1.srv
 #   Service2.srv
 )

@@ -1,3 +1,5 @@
+from utils import box_iou
+
 class TrackState(object):
     """
     Simple Track State Enum.
@@ -35,7 +37,7 @@ class TrackManager(object):
         self.track_   = []
 
         self.min_p_ = 0.5
-        self.max_t_ = 10.0
+        self.max_t_ = 1.0 # max tenacity
 
     def match(self, trk, obs, strict=False):
         """
@@ -50,6 +52,10 @@ class TrackManager(object):
             # TODO : the same object MAY potentially be observed from multiple sources.
             # Currently not taking such scenarios into account.
             return False
+
+        print type(trk.box_)
+        print type(obs.box_)
+
         if box_iou(trk.box_, obs.box_) < 0.5: # TODO : magic?
             # filter by jaccard overlap
             return False
@@ -81,7 +87,7 @@ class TrackManager(object):
                 obs_new.append( o )
 
         for o in obs_new:
-            o.meta = self.tracker_.init(o.img, o.box)
+            o.meta_ = self.tracker_.init(o.img_, o.box_)
             self.track_.append(o)
 
     def filter(self, stamp, tracks):
@@ -90,8 +96,10 @@ class TrackManager(object):
             if (t.box_ is None):
                 # no box to track
                 continue
-            if (stamp - t.stamp_) < self.max_t_
+            if (stamp - t.stamp_) > self.max_t_:
                 # stale
+                print 'stamp', stamp
+                print 't.stamp_', t.stamp_
                 continue
             res.append( t )
         return res
@@ -113,3 +121,6 @@ class TrackManager(object):
                 t.stamp_ = stamp
         # update tracks
         self.track_ = self.filter(stamp, self.track_)
+
+    def get_tracks(self):
+        return self.track_

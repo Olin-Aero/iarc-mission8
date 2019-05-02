@@ -20,22 +20,26 @@ from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
-from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
-from iarc_msgs.srv import Track, TrackRequest, TrackResponse
+#from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
+#from iarc_msgs.srv import Track, TrackRequest, TrackResponse
+from iarc_msgs.msg import *
+from iarc_msgs.srv import *
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.object_track import Object_Tracker
 from iarc_fuses.track_manager import TrackManager, TrackData
 from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils, box_iou
 from iarc_fuses.camera_handle import CameraHandle
 
+
 class TrackerNode(object):
     def __init__(self):
         # parse sources and parameters
-        srcs          = rospy.get_param('~srcs', [])
+        self.srcs_    = rospy.get_param('~srcs', [])
         self.dbg_     = rospy.get_param('~dbg', False)
         self.gpu_     = rospy.get_param('~gpu', 0.4)
         self.root_    = rospy.get_param('~root', os.path.join(iarc_root(), 'data'))
         self.tmodel_  = rospy.get_param('~tmodel', '') # tracker model; not used right now
+        self.dmodel_  = rospy.get_param('~dmodel', 'person')
         self.max_dt_  = rospy.get_param('~max_dt', 0.5) # max threshold for stale data
         self.min_p_   = rospy.get_param('~min_p',  0.2) # minimum score to keep tracks
 
@@ -48,6 +52,8 @@ class TrackerNode(object):
         # rectify model names based on model map
         if self.tmodel_ in self.mmap_:
             self.tmodel_ = self.mmap_[self.tmodel_]
+        if self.dmodel_ in self.mmap_:
+            self.dmodel_ = self.mmap_[self.dmodel_]
 
         # logging
         rospy.loginfo("""
@@ -58,7 +64,7 @@ class TrackerNode(object):
             Root    : {}
             DModel  : {}
             TModel  : {}
-        """.format(srcs,self.dbg_,self.gpu_,self.root_,self.tmodel_))
+        """.format(self.srcs_,self.dbg_,self.gpu_,self.root_,self.dmodel_,self.tmodel_))
 
         # Processing Handles
         # person config
@@ -66,8 +72,8 @@ class TrackerNode(object):
         self.det_ = ObjectDetectorTF(
                 root=self.root_,
                 model=self.dmodel_,
-                cmap={1:DetectRequest.CID_PERSON},
-                gpu=self.gpu_
+                cmap={1:Identifier.OBJ_PERSON},
+                gpu=0.0#self.gpu_
                 )
         # drone config
         #self.det_ = ObjectDetectorTF(
@@ -76,7 +82,7 @@ class TrackerNode(object):
         #        cmap={1:DetectRequest.CID_DRONE},
         #        use_gpu=self.use_gpu_)
 
-        self.trk_ = Object_Tracker(use_gpu=self.use_gpu_)
+        self.trk_ = Object_Tracker(use_gpu=self.gpu_)
         self.mgr_ = TrackManager(self.trk_)
 
         # ROS Handles
@@ -91,10 +97,10 @@ class TrackerNode(object):
                 IARCObjects, queue_size=10)
 
         # Register Camera Handlers
-        self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in srcs}
+        self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in self.srcs_}
 
         # data
-        self.queue_ = {k:deque(maxlen=8) for k in srcs}
+        self.queue_ = {k:deque(maxlen=8) for k in self.srcs_}
         self.q_idx_ = 0
         self.reqs_  = []
         self.tdata_ = []
@@ -110,46 +116,38 @@ class TrackerNode(object):
         agn_a = (cls_a is Identifier.OBJ_NULL)
         agn_b = (cls_b is Identifier.OBJ_NULL)
         eq_ab = (cls_a == cls_b)
-        return (ang_a or ang_b or eq_ab)
+        return (agn_a or agn_b or eq_ab)
 
     def match_detection(self, req, din):
+        cid_req = req.obj.obj_id.obj_id
         cid, box, score = din
-        if not TrackerNode.match_class(req.cid, cid):
+        if not TrackerNode.match_class(cid_req, cid):
             # class mismatch
             return False
         if score < req.thresh: # TODO : support classwise detection confidence threshold?
             # insufficient confidence
             return False
-
-        for (cid, box, score) in zip(din['class'], din['box'], din['score']):
-            if not match_class(req.cid, cid):
-                # class mismatch
-                continue
-            if score < 0.5:
-                # insufficient confidence
-                continue
-            box = BoxUtils.convert(box, BoxUtils.FMT_NYXYX, BoxUtils.FMT_NCCWH)
-            dout.append( (cid, box) )
-        return dout
+        return True
 
     def track_cb(self, req):
         """
         Tracking Callback; Only handles registration.
         Actual processing happens inside step()
         """
-r       rate     = rospy.Rate(self.rate_)
         src      = req.source
         tracking = True
+        if req.stamp.to_sec() == 0:
+            req.stamp = rospy.Time.now()
         self.reqs_.append( req )
         return TrackResponse(success=True)
 
     def data_cb(self, src, img, stamp):
-        self.queue_[src].append( (img, stamp) )
+        self.queue_[src].append( (src, img, stamp) )
 
     def filter_reqs(self, stamp, reqs):
         res = []
         for r in reqs:
-            if (stamp - r.stamp).to_sec() > r.timeout_:
+            if (stamp - r.stamp).to_sec() > r.timeout:
                 # current observation is now older than request timeout
                 continue
             res.append( r)
@@ -167,12 +165,21 @@ r       rate     = rospy.Rate(self.rate_)
         # remove stale requests
         self.reqs_ = self.filter_reqs(stamp, self.reqs_)
 
+        #if len(self.reqs_) > 0:
+        #    print len(self.reqs_)
+
+        req_msk = np.full(len(self.reqs_), True, dtype=np.bool)
+
         if len(self.reqs_) > 0:
             d_res   = self.det_(img)
-            for d in zip(din['class'], din['box'], din['score']):
+            for d in zip(d_res['class'], d_res['box'], d_res['score']):
                 d_add = False # flag to add detection to observations
-                for r in self.reqs_:
-                    if self.match_detection(d, r):
+                for i_r, r in enumerate(self.reqs_):
+                    if not req_msk[i_r]:
+                        # already matched request
+                        continue
+                    if self.match_detection(r, d):
+                        req_msk[i_r] = False
                         d_add = True
                         break
 
@@ -183,31 +190,38 @@ r       rate     = rospy.Rate(self.rate_)
                     src=src,
                     cid=d[0],
                     img=img,
-                    box=BoxUtils.convert(box,
+                    box=BoxUtils.convert(d[1],
                         BoxUtils.FMT_NYXYX,
                         BoxUtils.FMT_NCCWH),
-                    stamp=stamp,
-                    meta=None # << will be populated by TrackManager()
+                    stamp=stamp.to_sec(),
+                    meta=None # << will be populated by TrackManager() if the observation is accepted
                     ))
+
+        self.reqs_ = [r for (r,m) in zip(self.reqs_, req_msk) if m]
+
         # append!
         self.mgr_.append( obs_new )
-        self.mgr_.process(src, img, stamp)
+        self.mgr_.process(src, img, stamp.to_sec())
 
         #if len(self.track_) > 0:
         #    print self.track_
 
         # TODO : publish >> multiple << tracks simultaneously
-        for t in self.track_:
-            draw_bbox(img, BoxUtils.convert(t.box_, BoxUtils.FMT_NCCWH, BoxUtils.FMT_NYXYX), cls=None)
+        for t in self.mgr_.get_tracks():
+            if (t.src_ != src):
+                continue
+            draw_bbox(img, t.box_,
+                    fmt=BoxUtils.FMT_NCCWH,
+                    cls=None)
 
             iw, ih = cam.model_.width, cam.model_.height
             cx, cy = np.multiply(t.box_[:2], [iw,ih])
             ray3d  = cam.model_.projectPixelTo3dRay([cx, cy])
 
-            self.pub_.publish(PointStamped(
-                header=Header(frame_id=cam.model_.tfFrame(), stamp=stamp),
-                point=Point(*ray3d)
-                ))
+            #self.pub_.publish(PointStamped(
+            #    header=Header(frame_id=cam.model_.tfFrame(), stamp=stamp),
+            #    point=Point(*ray3d)
+            #    ))
 
         if self.dbg_:
             cv2.imshow('win', img) 
@@ -219,9 +233,6 @@ r       rate     = rospy.Rate(self.rate_)
         # ray3d = cam.model_.projectPixelTo3dRay([x,y])
 
     def publish(self):
-        pass
-
-    def process(self):
         pass
 
     def step(self):

@@ -300,6 +300,8 @@ def box_area(box, fmt=BoxUtils.FMT_NYXYX):
 def box_iou(box0, box1,
         fmt0 = BoxUtils.FMT_NYXYX,
         fmt1 = BoxUtils.FMT_NYXYX):
+    box0 = np.asarray(box0)
+    box1 = np.asarray(box1)
     ixn = box_area(box_ixn(box0, box1, fmt0, fmt1), fmt0)
     uxn = box_area(box0, fmt0) + box_area(box1, fmt1) - ixn
     return (ixn / np.float32(uxn))
