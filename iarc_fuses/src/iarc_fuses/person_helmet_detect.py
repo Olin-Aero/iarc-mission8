@@ -6,6 +6,7 @@ import utils
 import rospy
 import helmet_detect
 import object_detection_tf
+import bbox_time_filter
 
 
 class Person_Helmet_Tracker:
@@ -16,7 +17,12 @@ class Person_Helmet_Tracker:
         # boxes are upper-left y, x, lower-right y, x, as fractions of the image
         self.boxes = []  # pairs of (box, time last seen)
 
-    def __call__(self, img, time, show):
+        # TODO: Set sane values for filter
+        self.time_filter = bbox_time_filter.Filter(
+            min_age=1.0, max_age=0.2, max_side_dist=0.05, max_far_sides=2
+        )
+
+    def __call__(self, img, now, show):
         """
         Find people and their helmets.
 
@@ -24,8 +30,8 @@ class Person_Helmet_Tracker:
         for filtering over time, to prevent jitter.  Detects humans using
         object_detection_tf, and finds helmets within them using helmet_detect.
         """
-        if time is None:
-            time = rospy.get_rostime()
+        if now is None:
+            now = rospy.get_rostime()
 
         # Make a copy so we don't mess with the original
         if show:
@@ -36,14 +42,16 @@ class Person_Helmet_Tracker:
         # Select objects with high scores and the right class, split out their scores and boxes
         mask = (objs["score"] > 0.5) & (objs["class"] == "person")
         boxes = objs["box"][mask]
-        scores = objs["score"][mask]
 
-        # TODO: Filter boxes using the past
+        filtered_boxes = self.time_filter(boxes, now)
 
         # Draw bounding boxes
         if show:
-            for (box, score) in zip(boxes, scores):
-                object_detection_tf.draw_bbox(img_to_show, box)
+            for box in boxes:
+                utils.draw_bbox(img_to_show, box)
+            for box in filtered_boxes:
+                # TODO: Display first/last-seen
+                utils.draw_bbox(img_to_show, box, "filtered")
 
         # Search for helmets in the bounding boxes
         size_ratio_threshold = 0.01

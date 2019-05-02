@@ -46,13 +46,7 @@ class Filter:
     A filter object.  Has internal state.
     """
 
-    def toRosTime(t):
-        if type(t) is not rospy.rostime.Time:
-            return rospy.Time.from_sec(t)
-        else:
-            return t
-
-    def __init__(self, min_age=0.01, max_age=0.5, max_side_dist=0.2, max_far_sides=2):
+    def __init__(self, min_age=0.1, max_age=0.5, max_side_dist=0.2, max_far_sides=2):
         """
         Parameters
         ----------
@@ -69,40 +63,48 @@ class Filter:
           old locations, then the bbox is considered new.
         """
 
-        self.min_age = toRosTime(min_age)
-        self.max_age = toRosTime(max_age)
+        self.min_age = utils.toRosDuration(min_age)
+        self.max_age = utils.toRosDuration(max_age)
 
         self.max_side_dist = max_side_dist
         self.max_far_sides = max_far_sides
 
-        self.old_boxes = []
+        self.boxes = []
 
-    def __call__(self, now, boxes):
+    def __call__(self, boxes, now):
         """
         Executes the filter, incorporating new data and returning known boxes.
         """
 
-        now = toRosTime(now)
-        boxes = [Box(box, last_seen=now) for box in boxes]  # convert to Box objects
+        now = utils.toRosTime(now)
+        boxes = [
+            Box(box, first_seen=now, last_seen=now) for box in boxes
+        ]  # convert to Box objects
 
-        # Incorporate new boxes
-        # Yes, this is O(n^2).  TODO: Make this faster if it needs it
-        new_boxes = []
-        for old_box in self.old_boxes:
-            for box in boxes:
-                if old_box.num_far_sides(box) <= max_far_sides:
-                    new_boxes += Box(box.sides, old_box.first_seen, box.last_seen)
-        self.old_boxes = new_boxes
+        # Incorporate new boxes.  Yes, this is O(n^2).  TODO: Make this faster if it needs it
+        # For each old box, find the new box which is closest, and merge it
+        for old in self.boxes:
+            close = []
+            for (i, new) in enumerate(boxes):
+                if old.num_far_sides(new, self.max_side_dist) <= self.max_far_sides:
+                    close += [(i, new)]
+            if close:
+                closest = min(close, key=lambda b: np.sum(np.power(old.dists(b[1]), 2)))
+                boxes.pop(closest[0])
+                old.sides = closest[1].sides  # TODO: Don't just use new sides
+                old.last_seen = closest[1].last_seen
+        # Add unmerged new boxes
+        self.boxes += boxes
 
         # Delete old boxes
-        self.old_boxes = [
-            box for box in self.old_boxes if (now - box.last_seen) <= self.max_age
+        self.boxes = [
+            box for box in self.boxes if (now - box.last_seen) <= self.max_age
         ]
 
         # Return valid boxes
         return [
-            box
-            for box in self.old_boxes
+            box.sides
+            for box in self.boxes
             if (box.last_seen - box.first_seen) >= self.min_age
         ]
 
@@ -110,4 +112,4 @@ class Filter:
         """
         Clears the filter's memory, forgetting all bboxes.
         """
-        self.old_boxes = []
+        self.boxes = []
