@@ -30,6 +30,10 @@ from iarc_fuses.track_manager import TrackManager, TrackData
 from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils, box_iou
 from iarc_fuses.camera_handle import CameraHandle
 
+class Guess3D(object):
+    @staticmethod
+    def get_info(obj_id, box):
+        pass
 
 class TrackerNode(object):
     def __init__(self):
@@ -92,7 +96,6 @@ class TrackerNode(object):
         #self.srv_ = actionlib.SimpleActionServer('track',
         #        TrackAction, execute_cb=self.track_cb,
         #        auto_start=False)
-        self.pub_ = rospy.Publisher('dbg', PointStamped, queue_size=10)
         self.trk_pub_ = rospy.Publisher('tracked_objects',
                 IARCObjects, queue_size=10)
 
@@ -203,9 +206,6 @@ class TrackerNode(object):
         self.mgr_.append( obs_new )
         self.mgr_.process(src, img, stamp.to_sec())
 
-        #if len(self.track_) > 0:
-        #    print self.track_
-
         # TODO : publish >> multiple << tracks simultaneously
         for t in self.mgr_.get_tracks():
             if (t.src_ != src):
@@ -233,7 +233,30 @@ class TrackerNode(object):
         # ray3d = cam.model_.projectPixelTo3dRay([x,y])
 
     def publish(self):
-        pass
+        msg = IARCObjects()
+        msg.header.frame_id = 'map' # ??
+        msg.header.stamp    = rospy.Time.now()
+
+        for t in self.mgr_.get_tracks():
+            #res_3d = Guess3D.get_info(obj_id, box)
+            #cov, vol, dmin, dmax, centroid = res_3d
+            msg.objects.append(
+                    IARCObject(
+                        source = t.src_,
+                        stamp  = rospy.Time(secs=t.stamp_),
+                        obj_id = Identifier(obj_id=t.cid_),
+                        box    = Box( # DaSiamRPN encoding
+                            format=Box.FMT_CCWH,
+                            data=t.box_,
+                            normalized=True
+                            ),
+                        #covariance=
+                        #volume=
+                        #distance_range=
+                        #centroid=
+                        )
+                    )
+        self.trk_pub_.publish(msg)
 
     def step(self):
         # loop through sources sequentially
@@ -254,6 +277,7 @@ class TrackerNode(object):
                     'incoming data too old: [{}]-{}'.format(src, stamp))
             return
         self.process(src, img, stamp)
+        self.publish()
 
     def run(self):
         r = rospy.Rate(50)
