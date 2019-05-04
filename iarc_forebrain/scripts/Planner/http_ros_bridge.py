@@ -11,6 +11,8 @@ Send a HEAD request::
     curl -I http://localhost
 Send a POST request::
     curl -d "foo=bar&bin=baz" http://localhost
+
+If address in use: fuser -n tcp -k 80
 """
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
@@ -51,6 +53,7 @@ class S(BaseHTTPRequestHandler):
 def run(server_class=HTTPServer, handler_class=S, port=80):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
+    httpd.allow_reuse_address = True
     print('Starting httpd...')
     httpd.serve_forever()
 

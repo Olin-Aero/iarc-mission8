@@ -86,11 +86,13 @@ class Planner(object):
         # TODO: parse obstacle message into proper format
 
     def rangefinder_callback(self, msg):
+        for o in self.obstacles[:]:
+            if rospy.get_time() - o[3] > 10: # obstacles removed after 10 seconds
+                self.obstacles.remove(o)
         drones = ["alexa","google","siri","clippy"]
-        self.obstacles = []
         angles = [-30, 0, 30] # TODO: actual mounting angles in degrees CCW from forward
         vals = msg.data
-        pose = self.drones[drones[vals[0]]].drone.get_pos("odom").pose
+        pose = self.drones[drones[vals[0]]].drone.get_pos("map").pose
         o = pose.orientation
         p = pose.position
         yaw = euler_from_quaternion([o.x, o.y, o.z, o.w])[2]
@@ -98,7 +100,7 @@ class Planner(object):
             if val > 0:
                 dist = val/10.0 # TODO: actual conversion
                 ang = np.radians(angles[i])+yaw
-                self.obstacles += [(dist*np.cos(ang)+p.x, dist*np.sin(ang)+p.y, p.z)]
+                self.obstacles += [(dist*np.cos(ang)+p.x, dist*np.sin(ang)+p.y, p.z, rospy.get_time())]
         print(self.obstacles)
 
     def run(self):

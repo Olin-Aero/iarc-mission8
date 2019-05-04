@@ -16,7 +16,7 @@ class Move(Mode):
 
     def enable(self, distance=0, units=0):
         self.distance = self.parse(distance, units)
-        pos = self.drone.get_pos("odom").pose.position
+        pos = self.drone.get_pos("map").pose.position
         if self.dz == 0:
             dx = self.distance*math.cos(self.angle)
             dy = self.distance*math.sin(self.angle)
@@ -28,14 +28,14 @@ class Move(Mode):
         self.active = True
 
     def update(self, look_direction=0, obstacles=[]):
-        pos = self.drone.get_pos("odom").pose.position
+        pos = self.drone.get_pos("map").pose.position
         v = self.get_move_direction(
             [self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
         dest = [v[0]+pos.x, v[1]+pos.y]
         # TODO: account for vertical obstacle distance
         x, y = pos.x+math.cos(look_direction), pos.y+math.sin(look_direction)
         self.drone.travel_and_look(
-            dest[0], dest[1], x, y, "odom", self.target[2])
+            dest[0], dest[1], x, y, "map", self.target[2])
 
     def get_move_direction(self, target=(0, 0), obstacles=[]):
         '''
