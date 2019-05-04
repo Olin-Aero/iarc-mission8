@@ -6,6 +6,7 @@ import math
 import cv2
 import sys
 from std_msgs.msg import String, Int32MultiArray
+from tf.transformations import *
 from mode import Mode
 from follow_gesture import FollowGesture
 from geometry_msgs.msg import PointStamped
@@ -87,16 +88,17 @@ class Planner(object):
     def rangefinder_callback(self, msg):
         drones = ["alexa","google","siri","clippy"]
         self.obstacles = []
-        self.angles = [-30, 0, 30] # TODO: actual mounting angles
+        angles = [-30, 0, 30] # TODO: actual mounting angles in degrees CCW from forward
         vals = msg.data
-        o = self.drones[drones[vals[0]]].drone.get_pos("odom").pose.orientation
+        pose = self.drones[drones[vals[0]]].drone.get_pos("odom").pose
+        o = pose.orientation
+        p = pose.position
         yaw = euler_from_quaternion([o.x, o.y, o.z, o.w])[2]
-        
-        for i, val in enumerate(vals[2:]):
-            if val > 10:
+        for i, val in enumerate(vals[1:]):
+            if val > 0:
                 dist = val/10.0 # TODO: actual conversion
                 ang = np.radians(angles[i])+yaw
-                self.obstacles += [(dist*np.cos(ang), dist*np.sin(ang))]
+                self.obstacles += [(dist*np.cos(ang)+p.x, dist*np.sin(ang)+p.y, p.z)]
         print(self.obstacles)
 
     def run(self):
