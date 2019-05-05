@@ -40,10 +40,38 @@ class Box:
     def num_far_sides(self, other, max_dist):
         return sum([1 if (dist > max_dist) else 0 for dist in self.dists(other)])
 
+    def join(self, other):
+        """
+      "Joins" two boxes into a sort of super-set kinda.
+      """
+
+        def softmax(a, b):  # No, not *that* softmax!
+            return 0.9 * max(a, b) + 0.1 * min(a, b)
+
+        def softmin(a, b):
+            return 0.9 * min(a, b) + 0.1 * max(a, b)
+
+        return [
+            f(a, b)
+            for (f, a, b) in zip(
+                [softmin, softmin, softmax, softmax], self.sides, other.sides
+            )
+        ]
+
 
 class Filter:
     """
     A filter object.  Has internal state.
+
+    Each time the filter is run, it takes in a list of boxes (and a time when
+    the boxes were seen), and returns a list of filtered boxes.  Boxes are
+    filtered using a couple of assumptions:
+    * There are few enough boxes that you can generally tell them apart.
+    * Objects usually stay in about the same place, with the same shape;
+      motions and appearance / disappearance are relatively rare.
+    * Boxes might be smaller than the objects they are trying to see, but
+      they usually will not be bigger.  So, the most realistic size is
+      approximated by the largest size seen.
     """
 
     def __init__(self, min_age=0.1, max_age=0.5, max_side_dist=0.2, max_far_sides=2):
@@ -91,7 +119,7 @@ class Filter:
             if close:
                 closest = min(close, key=lambda b: np.sum(np.power(old.dists(b[1]), 2)))
                 boxes.pop(closest[0])
-                old.sides = closest[1].sides  # TODO: Don't just use new sides
+                old.sides = old.join(closest[1])
                 old.last_seen = closest[1].last_seen
         # Add unmerged new boxes
         self.boxes += boxes
