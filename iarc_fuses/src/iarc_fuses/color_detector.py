@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # Interactive threshold setter uses much code from
 # https://github.com/opencv/opencv/blob/3.4/samples/python/tutorial_code/imgProc/threshold_inRange/threshold_inRange.py
