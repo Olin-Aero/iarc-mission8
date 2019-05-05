@@ -66,21 +66,21 @@ class Person_Helmet_Tracker:
             helmet = helmet_detect.detect_helmet(subimg, show=False)
             if helmet is None:
                 break
+            # Move contour from relative to subimg to relative to whole image
+            helmet = utils.translate_contour(helmet, (bounds[1], bounds[0]))
             # Is the helmet big enough to matter?
             box_area = abs((bounds[2] - bounds[0]) * (bounds[3] - bounds[1]))
             helmet_area = cv2.contourArea(helmet)
-            if not (
+            if (
                 helmet_area / box_area > size_ratio_threshold
                 and helmet_area > size_threshold
             ):
-                break
-            # Move contour from relative to subimg to relative to whole image
-            helmet = utils.translate_contour(helmet, (bounds[1], bounds[0]))
-            helmets += [helmet]
-
-            # Outline helmets
-            if show:
-                cv2.drawContours(img_to_show, [helmet], 0, (255, 255, 255), 1)
+                helmets += [helmet]
+                if show:
+                    cv2.drawContours(img_to_show, [helmet], 0, (255, 255, 255), 1)
+            else:
+                if show:
+                    cv2.drawContours(img_to_show, [helmet], 0, (255, 0, 0), 1)
 
         if show:
             cv2.imshow("boxes", img_to_show)
