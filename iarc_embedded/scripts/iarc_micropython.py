@@ -1,7 +1,7 @@
 import urequests
 import network
 import utime
-import machine
+from machine import Pin, UART
 
 from config import DRONE_ID
 
@@ -13,11 +13,20 @@ sta_if.connect("OLIN-ROBOTICS", "R0B0TS-RULE")
 
 # response = urequests.post("http://jsonplaceholder.typicode.com/posts", data = "some dummy content")
 
+uart = UART(1)
+enables = [Pin(i, Pin.OUT, None) for i in [16,5,4]]
+
+def get_readings():
+    if uart.any():
+        return uart.read()
+    return [1,2,3]
+
+
 PERIOD = 500  # ms
 
 while True:
     last_time = utime.ticks_ms()
-    values = [42, 42, 42]
+    values = get_readings()
     try:
         response = urequests.get(
             "http://{}/{};{}".format(
@@ -27,6 +36,6 @@ while True:
         print("requested, {}".format(response.status_code))
         response.close()
     except OSError as e:
-        print("Error ", e)
+        print("Error", e)
 
     utime.sleep_ms(max(last_time + PERIOD - utime.ticks_ms(), 0))
