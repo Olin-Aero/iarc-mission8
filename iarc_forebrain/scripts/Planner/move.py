@@ -7,19 +7,23 @@ from mode import Mode
 
 
 class Move(Mode):
-    def __init__(self, drone, angle=0, dz=0):
+    def __init__(self, drone, angle=0, dz=0, relative=False):
         Mode.__init__(self, drone)
         self.angle = angle
         self.dz = dz
         self.obstacles = []
+        self.relative = relative
         self.name = drone.namespace.strip('/')
 
     def enable(self, distance=0, units=0):
         self.distance = self.parse(distance, units)
         pos = self.drone.get_pos("map").pose.position
+        angle = self.angle
+        if self.relative:
+            angle += self.yaw
         if self.dz == 0:
-            dx = self.distance*math.cos(self.angle)
-            dy = self.distance*math.sin(self.angle)
+            dx = self.distance*math.cos(angle)
+            dy = self.distance*math.sin(angle)
             self.target = (pos.x+dx, pos.y+dy, pos.z)
             print('MOVE: dx = %s, dy = %s' % (dx, dy))
         else:

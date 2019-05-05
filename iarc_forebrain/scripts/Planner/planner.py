@@ -51,6 +51,7 @@ class Planner(object):
                 drone.current_mode.disable()
             drone.current_mode = drone.modes[args[1]]
             try:
+                drone.current_mode.yaw = drone.look_direction
                 drone.current_mode.enable(*args[2:])
             except TypeError as e:
                 rospy.loginfo("Invalid parameters provided: %s" % args)
@@ -118,6 +119,7 @@ class Planner(object):
                     drone.look_direction = drone.look_mode.get_look_direction(drone.look_direction)
                     drone.look_mode.update(drone.look_direction, self.obstacles)
                 if drone.current_mode.is_active():
+                    drone.current_mode.yaw = drone.look_direction
                     drone.current_mode.update(
                         drone.look_direction, self.obstacles)  # is this thread safe?
             rate.sleep()
@@ -133,8 +135,8 @@ class SubPlanner:
                       "land": TakeoffLand(drone),     "takeoff": TakeoffLand(drone, takeoff=True),
                       "north": Move(drone, 0),        "east": Move(drone, 3*math.pi/2),
                       "south": Move(drone, math.pi),  "west": Move(drone, math.pi/2),
-                      "stop": Move(drone, 0),         "duck": Move(drone, 0, -1),
-                      "jump": Move(drone, 0, 1)}
+                      "stop": Move(drone, 0),         "forward": Move(drone, 0, relative=True),
+                      "duck": Move(drone, 0, -1),     "jump": Move(drone, 0, 1)}
         self.look_modes = {"look": Turn(drone), "right": Turn(drone, -1), "left": Turn(drone, 1)}
         self.look_direction = 0
         self.current_mode_pub = rospy.Publisher(
