@@ -12,7 +12,7 @@ Send a HEAD request::
 Send a POST request::
     curl -d "foo=bar&bin=baz" http://localhost
 
-If address in use: fuser -n tcp -k 80
+If address in use: fuser -n tcp -k 8080
 """
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
