@@ -49,7 +49,7 @@ class LaunchObserver(object):
             if not self.is_flying:
                 # On the ground, update the transform
                 pos, quat = self.tfl.lookupTransform(
-                    self.odom, self.base_link, rospy.Time(0))
+                    self.base_link, self.odom, rospy.Time(0))
 
                 pos[2] = 0
                 self.saved_translation = pos
@@ -61,7 +61,7 @@ class LaunchObserver(object):
             self.tfb.sendTransform(self.saved_translation,
                                    quaternion_from_euler(0, 0, self.saved_yaw),
                                    time,
-                                   self.launch, self.odom)
+                                   self.odom, self.launch)
 
             r.sleep()
 
