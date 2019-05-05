@@ -50,7 +50,7 @@ class S(BaseHTTPRequestHandler):
         self._set_headers()
         self.wfile.write("<html><body><h1>POST!</h1></body></html>")
         
-def run(server_class=HTTPServer, handler_class=S, port=80):
+def run(server_class=HTTPServer, handler_class=S, port=8080):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     httpd.allow_reuse_address = True
