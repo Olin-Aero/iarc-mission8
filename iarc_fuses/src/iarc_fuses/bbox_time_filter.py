@@ -15,6 +15,20 @@ probably work for other things as well.
 """
 
 
+def toRosTime(t):
+    if type(t) is not rospy.rostime.Time:
+        return rospy.Time.from_sec(t)
+    else:
+        return t
+
+
+def toRosDuration(t):
+    if type(t) is not rospy.rostime.Duration:
+        return rospy.Duration.from_sec(t)
+    else:
+        return t
+
+
 class Box:
     """
     A box consists of (sides, first_seen, last_seen).

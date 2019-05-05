@@ -126,17 +126,3 @@ def inRangeWrap(img, low, high):
         lowRange = cv2.inRange(img, (0, low[1], low[2]), high)
         highRange = cv2.inRange(img, low, (255, high[1], high[2]))
         return lowRange | highRange
-
-
-def toRosTime(t):
-    if type(t) is not rospy.rostime.Time:
-        return rospy.Time.from_sec(t)
-    else:
-        return t
-
-
-def toRosDuration(t):
-    if type(t) is not rospy.rostime.Duration:
-        return rospy.Duration.from_sec(t)
-    else:
-        return t
