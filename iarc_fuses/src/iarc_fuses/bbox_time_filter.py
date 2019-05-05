@@ -2,7 +2,6 @@
 
 import cv2
 import numpy as np
-import utils
 import rospy
 
 """
@@ -105,8 +104,8 @@ class Filter:
           old locations, then the bbox is considered new.
         """
 
-        self.min_age = utils.toRosDuration(min_age)
-        self.max_age = utils.toRosDuration(max_age)
+        self.min_age = toRosDuration(min_age)
+        self.max_age = toRosDuration(max_age)
 
         self.max_side_dist = max_side_dist
         self.max_far_sides = max_far_sides
@@ -118,7 +117,7 @@ class Filter:
         Executes the filter, incorporating new data and returning known boxes.
         """
 
-        now = utils.toRosTime(now)
+        now = toRosTime(now)
         boxes = [
             Box(box, first_seen=now, last_seen=now) for box in boxes
         ]  # convert to Box objects
