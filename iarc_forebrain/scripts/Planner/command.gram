@@ -15,7 +15,7 @@ public <command> = <color> (<task> | <move> | <look> | <turn> | cancel) [cancel]
 
 <color> = [swarm | alexa | google | siri | (clip e)];
 <task> = picture | stop | takeoff | land | heal | shutdown;
-<move> = (north | east | south | west | follow | return | duck | jump) <distance>;
+<move> = (north | east | south | west | forward | follow | return | duck | jump) <distance>;
 <look> = look <direction>;
 <turn> = (right | left) <digit> <decimal> <digit> [degree | degrees];
 
