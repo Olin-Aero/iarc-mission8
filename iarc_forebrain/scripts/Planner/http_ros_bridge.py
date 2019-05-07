@@ -55,6 +55,7 @@ def run(server_class=HTTPServer, handler_class=S, port=8080):
     httpd = server_class(server_address, handler_class)
     httpd.allow_reuse_address = True
     print('Starting httpd...')
+    rospy.on_shutdown(lambda:httpd.shutdown())
     httpd.serve_forever()
 
 if __name__ == "__main__":
