@@ -1,4 +1,5 @@
 (sym_lib_table
   (lib (name custom_parts)(type Legacy)(uri $KIPRJMOD/custom_parts.lib)(options "")(descr ""))
   (lib (name roomba_pcb)(type Legacy)(uri $KIPRJMOD/roomba_pcb.lib)(options "")(descr ""))
+  (lib (name esp8266)(type Legacy)(uri /home/eric/catkin_ws/src/iarc-mission8/iarc_embedded/pcb/estop_custom_board/esp8266.lib)(options "")(descr ""))
 )
