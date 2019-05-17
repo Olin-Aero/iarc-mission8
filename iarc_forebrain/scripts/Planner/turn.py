@@ -27,7 +27,7 @@ class Turn(Mode):
                 self.angle = 3*np.pi/2
 
     def get_look_direction(self, current_orientation, enable=False):
-        ''' Returns drone orientation desired by mode as an angle in the odom frame (deg)
+        ''' Returns drone orientation desired by mode as an angle in the odom frame (radians)
             The enable flag is true the first time this function is called'''
         if self.direction == 0:
             return self.angle
