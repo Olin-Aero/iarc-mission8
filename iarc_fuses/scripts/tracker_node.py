@@ -70,6 +70,12 @@ class TrackerNode(object):
             TModel  : {}
         """.format(self.srcs_,self.dbg_,self.gpu_,self.root_,self.dmodel_,self.tmodel_))
 
+        if( len(self.srcs_) <= 0):
+            rospy.loginfo("""
+            Have not received any sources as argument - Check if the script was run correctly.
+            Sample Usage: rosrun iarc_fuses tracker_node.py _srcs:=['cv_camera'] _use_gpu:=True _dbg:=False
+            """)
+
         # Processing Handles
         # person config
         # alternatively, self.det_ = rospy.ServiceProxy(...)
@@ -123,7 +129,7 @@ class TrackerNode(object):
         return (agn_a or agn_b or eq_ab)
 
     def match_detection(self, req, din):
-        cid_req = req.obj.obj_id.obj_id
+        cid_req = req.obj.obj_id
         cid, box, score = din
         if not TrackerNode.match_class(cid_req, cid):
             # class mismatch
@@ -216,7 +222,6 @@ class TrackerNode(object):
         self.mgr_.append( obs_new )
         self.mgr_.process(src, img, stamp.to_sec())
 
-        # TODO : publish >> multiple << tracks simultaneously
         for t in self.mgr_.get_tracks():
             if (t.src_ != src):
                 continue
@@ -251,26 +256,56 @@ class TrackerNode(object):
             # TODO : fill geometric information
             #res_3d = Guess3D.get_info(obj_id, box)
             #cov, vol, dmin, dmax, centroid = res_3d
+            cam = self.cam_[t.src_]
+            
+            roi = cam.model_.raw_roi
+            box_ccwh = BoxUtils.convert(t.box_,
+                    BoxUtils.FMT_NCCWH,
+                    BoxUtils.FMT_CCWH,
+                    img_shape = (roi.height, roi.width)
+                    )
+
+            # TODO : better distance estimates
+            # full-scale estimation from part?
+            if t.cid_ == Identifier.OBJ_PERSON:
+                d    = (cam.model_.getDeltaU(0.44, 1.0) / box_ccwh[2])
+            elif t.cid == Identifier.OBJ_DRONE:
+                d    = (cam.model_.getDeltaU(0.32, 1.0) / box_ccwh[2])
+            else:
+                # default: 1.0
+                d = 1.0
+            pos  = d * np.array( cam.model_.projectPixelTo3dRay(box_ccwh[:2]) )
+
+            # DaSiamRPN encoding
+            box_msg = Box( 
+                    format=Box.FMT_CCWH, # careful! d.n.e. BoxUtils.FMT_CCWH
+                    data=t.box_,
+                    normalized=True
+                    )
             msg.objects.append(
                     IARCObject(
                         source = t.src_,
                         stamp  = rospy.Time(secs=t.stamp_),
                         obj_id = Identifier(obj_id=t.cid_),
-                        box    = Box( # DaSiamRPN encoding
-                            format=Box.FMT_CCWH,
-                            data=t.box_,
-                            normalized=True
-                            ),
+                        box    = box_msg,
                         #covariance=
                         #volume=
                         #distance_range=
-                        #centroid=
+                        centroid=PointStamped(
+                            header=Header(
+                                frame_id = cam.model_.tfFrame(),
+                                stamp    = msg.header.stamp,
+                                ),
+                            point=Point(*pos),
+                            )
                         )
                     )
         self.trk_pub_.publish(msg)
 
     def step(self):
         # loop through sources sequentially
+        if len(self.srcs_) <= 0:
+            return
         src = self.srcs_[ self.q_idx_ ]
         q = self.queue_[ src ]
         self.q_idx_ = ((self.q_idx_ + 1) % len(self.srcs_))
