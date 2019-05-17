@@ -1,0 +1,11 @@
+--2019-05-17 17:32:03--  https://gitignore.io/api/kicad
+Resolving gitignore.io (gitignore.io)... 104.24.115.13, 104.24.114.13, 2606:4700:30::6818:720d, ...
+Connecting to gitignore.io (gitignore.io)|104.24.115.13|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 612 [text/plain]
+Saving to: ‘kicad’
+
+     0K                                                       100% 45.8M=0s
+
+2019-05-17 17:32:03 (45.8 MB/s) - ‘kicad’ saved [612/612]
+

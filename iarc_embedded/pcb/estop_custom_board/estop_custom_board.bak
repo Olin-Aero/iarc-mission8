@@ -149,7 +149,7 @@ F 3 "" H 2700 2400 50  0001 C CNN
 	1    2700 2400
 	1    0    0    -1  
 $EndComp
-Text Notes 2100 1550 0    50   ~ 0
+Text Notes 2150 1750 0    50   ~ 0
 POWER
 $Comp
 L Connector_Generic:Conn_01x02 P1
