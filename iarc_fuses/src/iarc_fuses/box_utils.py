@@ -190,6 +190,9 @@ class BoxUtils(object):
             box_in : A(..., 4); array-like with 4 channels corresponding to fmt_out.
             (None if conversion is impossible)
         """
+        if (fmt_in == fmt_out):
+            return box_in
+
         # determine flag for normalization requirement
         need_shape = ((fmt_in & BoxUtils.FMT_N) ^ (fmt_out & BoxUtils.FMT_N))
         if need_shape and (img_shape is None):
@@ -208,9 +211,10 @@ class BoxUtils(object):
 
         return box_out
 
+
+""" Additional Box Utilities """
 def draw_bbox(img, box, fmt=BoxUtils.FMT_NYXYX, cls=None):
     """ Draw an encoded box """
-
     # convert to draw-able box
     box = BoxUtils.convert(box,
             fmt,
@@ -227,6 +231,80 @@ def draw_bbox(img, box, fmt=BoxUtils.FMT_NYXYX, cls=None):
                 1, cv2.LINE_AA
                 )
 
+def expand_box(box, margin, fmt=BoxUtils.FMT_NYXYX):
+    fmt_tmp = BoxUtils.FMT_CCWH | (fmt & BoxUtils.FMT_N)
+    box = BoxUtils.convert(box, fmt, fmt_tmp)
+    box[..., 2:] *= (1.0 + margin)
+    return BoxUtils.convert(box, fmt_tmp, fmt)
+
+def crop_box(img, box, margin=0.0, fmt=BoxUtils.FMT_NYXYX):
+    h, w = img.shape[:2]
+    if margin > 0:
+        box = expand_box(box, margin)
+    box = BoxUtils.convert(box, fmt, BoxUtils.FMT_NYXYX,
+            img_shape=img.shape)
+    box = np.clip(box, 0.0, 1.0)
+    box = BoxUtils.convert(box, BoxUtils.FMT_NYXYX, BoxUtils.FMT_YXYX)
+    y0,x0,y1,x1 = box.astype(np.int32)
+    return img[y0:y1,x0:x1], box
+
+def inner_box(box, subbox,
+        fmt=BoxUtils.FMT_NYXYX,
+        fmt_sub=BoxUtils.FMT_NYXYX
+        ):
+    # format input
+    box    = BoxUtils.convert(box, fmt, BoxUtils.FMT_NYXYX)
+    subbox = BoxUtils.convert(subbox, fmt, BoxUtils.FMT_NYXYX)
+
+    # process
+    y0, x0, y1, x1 = [box[..., i] for i in range(4)]
+    bh = y1 - y0
+    bw = x1 - x0
+    o = np.stack([y0,x0,y0,x0], axis=-1) # origin (top-left)
+    s = np.stack([bh,bw,bh,bw], axis=-1) # scale (hwhw)
+    d = np.multiply(subbox, s) # delta (bottom-right)
+    box = o + d
+
+    # format output
+    return BoxUtils.convert(box, BoxUtils.FMT_NYXYX, fmt)
+
+def box_ixn(box0, box1,
+        fmt0=BoxUtils.FMT_NYXYX,
+        fmt1=BoxUtils.FMT_NYXYX
+        ):
+    # format input
+    fmt0_tmp = BoxUtils.FMT_YXYX | (fmt0 & BoxUtils.FMT_N)
+    fmt1_tmp = BoxUtils.FMT_YXYX | (fmt1 & BoxUtils.FMT_N)
+    box0 = BoxUtils.convert(box0, fmt0, fmt0_tmp)
+    box1 = BoxUtils.convert(box1, fmt1, fmt1_tmp)
+
+    # process
+    ymin = max(box0[..., 0], box1[..., 0])
+    xmin = max(box0[..., 1], box1[..., 1])
+    ymax = min(box0[..., 2], box1[..., 2])
+    xmax = min(box0[..., 3], box1[..., 3])
+    box  = np.stack([ymin,xmin,ymax,xmax], axis=-1)
+
+    # format output
+    return BoxUtils.convert(box,
+            BoxUtils.FMT_YXYX | (fmt0 & BoxUtils.FMT_N),
+            fmt0)
+
+def box_area(box, fmt=BoxUtils.FMT_NYXYX):
+    fmt_tmp = BoxUtils.FMT_XYWH | (fmt & BoxUtils.FMT_N)
+    box     = BoxUtils.convert(box, fmt, fmt_tmp)
+    w = box[..., 2]
+    h = box[..., 3]
+    return np.abs(w*h)
+
+def box_iou(box0, box1,
+        fmt0 = BoxUtils.FMT_NYXYX,
+        fmt1 = BoxUtils.FMT_NYXYX):
+    box0 = np.asarray(box0)
+    box1 = np.asarray(box1)
+    ixn = box_area(box_ixn(box0, box1, fmt0, fmt1), fmt0)
+    uxn = box_area(box0, fmt0) + box_area(box1, fmt1) - ixn
+    return (ixn / np.float32(uxn))
 
 def main():
     import time
