@@ -1,5 +1,6 @@
 EESchema Schematic File Version 4
-EELAYER 26 0
+LIBS:estop_custom_board-cache
+EELAYER 29 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -21,6 +22,7 @@ F 0 "U1" H 2250 2342 50  0000 C CNN
 F 1 "LM341T-05_TO220" H 2250 2251 50  0000 C CNN
 F 2 "Package_TO_SOT_SMD:SOT-223" H 2250 2325 50  0001 C CIN
 F 3 "http://www.fairchildsemi.com/ds/LM/LM78M05.pdf" H 2250 2050 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=LM340MP-5.0%2FNOPBCT-ND" H 2250 2100 50  0001 C CNN "Part"
 	1    2250 2100
 	1    0    0    -1  
 $EndComp
@@ -45,6 +47,7 @@ F 0 "C1" H 1715 2296 50  0000 L CNN
 F 1 "4.7uF" H 1715 2205 50  0000 L CNN
 F 2 "Capacitor_SMD:C_1206_3216Metric" H 1638 2100 50  0001 C CNN
 F 3 "~" H 1600 2250 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=478-1668-1-ND" H 1600 2250 50  0001 C CNN "Part"
 	1    1600 2250
 	1    0    0    -1  
 $EndComp
@@ -92,8 +95,9 @@ U 1 1 5CDF2E8F
 P 3150 2100
 F 0 "R1" V 2943 2100 50  0000 C CNN
 F 1 "475" V 3034 2100 50  0000 C CNN
-F 2 "Resistor_SMD:R_0805_2012Metric" V 3080 2100 50  0001 C CNN
+F 2 "Resistors_SMD:R_0603" V 3080 2100 50  0001 C CNN
 F 3 "~" H 3150 2100 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/stackpole-electronics-inc/RMCF0603FT475R/RMCF0603FT475RCT-ND/1942987" V 3150 2100 50  0001 C CNN "Part"
 	1    3150 2100
 	0    1    1    0   
 $EndComp
@@ -110,6 +114,7 @@ F 0 "D1" V 3338 2282 50  0000 R CNN
 F 1 "LED_GREEN" V 3247 2282 50  0000 R CNN
 F 2 "LED_SMD:LED_1206_3216Metric_Castellated" H 3300 2400 50  0001 C CNN
 F 3 "~" H 3300 2400 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=160-1169-1-ND" H 0   0   50  0001 C CNN "Part"
 	1    3300 2400
 	0    -1   -1   0   
 $EndComp
@@ -132,6 +137,7 @@ F 0 "C2" H 2815 2296 50  0000 L CNN
 F 1 "10uF" H 2815 2205 50  0000 L CNN
 F 2 "Capacitor_SMD:C_1206_3216Metric" H 2738 2100 50  0001 C CNN
 F 3 "~" H 2700 2250 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=478-1654-1-ND" H 2700 2250 50  0001 C CNN "Part"
 	1    2700 2250
 	1    0    0    -1  
 $EndComp
@@ -152,34 +158,6 @@ $EndComp
 Text Notes 2150 1750 0    50   ~ 0
 POWER
 $Comp
-L Connector_Generic:Conn_01x02 P1
-U 1 1 5CDF3614
-P 1400 4050
-F 0 "P1" H 1320 3725 50  0000 C CNN
-F 1 "HEADER2" H 1320 3816 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x01_P2.54mm_Vertical" H 1400 4050 50  0001 C CNN
-F 3 "~" H 1400 4050 50  0001 C CNN
-	1    1400 4050
-	-1   0    0    1   
-$EndComp
-$Comp
-L power:+BATT #PWR03
-U 1 1 5CDF38C2
-P 1850 3950
-F 0 "#PWR03" H 1850 3800 50  0001 C CNN
-F 1 "+BATT" H 1865 4123 50  0000 C CNN
-F 2 "" H 1850 3950 50  0001 C CNN
-F 3 "" H 1850 3950 50  0001 C CNN
-	1    1850 3950
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	1600 3950 1850 3950
-Wire Wire Line
-	1600 4050 1600 4400
-Wire Wire Line
-	1600 4400 1850 4400
-$Comp
 L custom_parts:IRF8788 Q1
 U 1 1 5CDF3BD9
 P 2350 4200
@@ -187,6 +165,7 @@ F 0 "Q1" H 2556 4271 50  0000 L CNN
 F 1 "IRF8301M" H 2556 4180 50  0000 L CNN
 F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 2350 4200 50  0001 C CIN
 F 3 "https://www.infineon.com/dgdl/irf8301mpbf.pdf?fileId=5546d462533600a40153560d0e7a1d58" H 2350 4200 50  0001 L CNN
+F 4 "https://www.digikey.com/products/en?keywords=IRF8788TRPBFCT-ND" H 0   0   50  0001 C CNN "Part"
 	1    2350 4200
 	-1   0    0    -1  
 $EndComp
@@ -201,6 +180,7 @@ F 0 "Q2" H 3406 4271 50  0000 L CNN
 F 1 "IRF8301M" H 3406 4180 50  0000 L CNN
 F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 3200 4200 50  0001 C CIN
 F 3 "https://www.infineon.com/dgdl/irf8301mpbf.pdf?fileId=5546d462533600a40153560d0e7a1d58" H 3200 4200 50  0001 L CNN
+F 4 "https://www.digikey.com/products/en?keywords=IRF8788TRPBFCT-ND" H 0   0   50  0001 C CNN "Part"
 	1    3200 4200
 	-1   0    0    -1  
 $EndComp
@@ -213,39 +193,18 @@ F 0 "Q3" H 4306 4271 50  0000 L CNN
 F 1 "IRF8301M" H 4306 4180 50  0000 L CNN
 F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 4100 4200 50  0001 C CIN
 F 3 "https://www.infineon.com/dgdl/irf8301mpbf.pdf?fileId=5546d462533600a40153560d0e7a1d58" H 4100 4200 50  0001 L CNN
+F 4 "https://www.digikey.com/products/en?keywords=IRF8788TRPBFCT-ND" H 0   0   50  0001 C CNN "Part"
 	1    4100 4200
 	-1   0    0    -1  
 $EndComp
 Wire Wire Line
 	3100 4400 4000 4400
-$Comp
-L Connector_Generic:Conn_01x02 P2
-U 1 1 5CDF6130
-P 4550 3850
-F 0 "P2" H 4629 3842 50  0000 L CNN
-F 1 "TOMOTORS" H 4629 3751 50  0000 L CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x01_P2.54mm_Vertical" H 4550 3850 50  0001 C CNN
-F 3 "~" H 4550 3850 50  0001 C CNN
-	1    4550 3850
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	2250 4000 3100 4000
-Wire Wire Line
-	4350 4000 4350 3950
 Connection ~ 3100 4000
 Wire Wire Line
 	3100 4000 4000 4000
 Connection ~ 4000 4000
-Wire Wire Line
-	4000 4000 4350 4000
-Wire Wire Line
-	4350 3850 2150 3850
-Wire Wire Line
-	1950 3850 1950 3950
-Wire Wire Line
-	1950 3950 1850 3950
-Connection ~ 1850 3950
 Text Label 2550 4100 0    50   ~ 0
 GATE
 Wire Wire Line
@@ -259,86 +218,6 @@ Wire Wire Line
 Wire Wire Line
 	3400 4100 3400 4200
 $Comp
-L roomba_pcb:RECEIVER J1
-U 1 1 5CDF89FF
-P 5350 2650
-F 0 "J1" H 5345 3175 50  0000 C CNN
-F 1 "RECEIVER" H 5345 3084 50  0000 C CNN
-F 2 "roomba_pcb:Receiver_IARC" H 5350 2650 50  0001 C CNN
-F 3 "" H 5350 2650 50  0001 C CNN
-	1    5350 2650
-	-1   0    0    -1  
-$EndComp
-$Comp
-L Device:Jumper JP1
-U 1 1 5CDF940E
-P 5850 2450
-F 0 "JP1" H 5850 2714 50  0000 C CNN
-F 1 "Jumper" H 5850 2623 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5850 2450 50  0001 C CNN
-F 3 "~" H 5850 2450 50  0001 C CNN
-	1    5850 2450
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:Jumper JP2
-U 1 1 5CDF96DB
-P 5850 2550
-F 0 "JP2" H 5850 2814 50  0000 C CNN
-F 1 "Jumper" H 5850 2723 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5850 2550 50  0001 C CNN
-F 3 "~" H 5850 2550 50  0001 C CNN
-	1    5850 2550
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:Jumper JP3
-U 1 1 5CDF9705
-P 5850 2650
-F 0 "JP3" H 5850 2914 50  0000 C CNN
-F 1 "Jumper" H 5850 2823 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5850 2650 50  0001 C CNN
-F 3 "~" H 5850 2650 50  0001 C CNN
-	1    5850 2650
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:Jumper JP4
-U 1 1 5CDF9749
-P 5850 2750
-F 0 "JP4" H 5850 3014 50  0000 C CNN
-F 1 "Jumper" H 5850 2923 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5850 2750 50  0001 C CNN
-F 3 "~" H 5850 2750 50  0001 C CNN
-	1    5850 2750
-	1    0    0    -1  
-$EndComp
-NoConn ~ 5550 2850
-$Comp
-L power:+5V #PWR010
-U 1 1 5CDF994A
-P 5650 2350
-F 0 "#PWR010" H 5650 2200 50  0001 C CNN
-F 1 "+5V" H 5665 2523 50  0000 C CNN
-F 2 "" H 5650 2350 50  0001 C CNN
-F 3 "" H 5650 2350 50  0001 C CNN
-	1    5650 2350
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	5650 2350 5550 2350
-$Comp
-L power:GND #PWR09
-U 1 1 5CDF9BCE
-P 5550 2950
-F 0 "#PWR09" H 5550 2700 50  0001 C CNN
-F 1 "GND" H 5555 2777 50  0000 C CNN
-F 2 "" H 5550 2950 50  0001 C CNN
-F 3 "" H 5550 2950 50  0001 C CNN
-	1    5550 2950
-	1    0    0    -1  
-$EndComp
-$Comp
 L power:GND #PWR04
 U 1 1 5CDF9BFE
 P 1850 4400
@@ -349,92 +228,53 @@ F 3 "" H 1850 4400 50  0001 C CNN
 	1    1850 4400
 	1    0    0    -1  
 $EndComp
-Connection ~ 1850 4400
 Wire Wire Line
 	1850 4400 2250 4400
-$Comp
-L power:PWR_FLAG #FLG02
-U 1 1 5CDF9D21
-P 2150 3850
-F 0 "#FLG02" H 2150 3925 50  0001 C CNN
-F 1 "PWR_FLAG" H 2150 4024 50  0000 C CNN
-F 2 "" H 2150 3850 50  0001 C CNN
-F 3 "~" H 2150 3850 50  0001 C CNN
-	1    2150 3850
-	1    0    0    -1  
-$EndComp
-Connection ~ 2150 3850
-Wire Wire Line
-	2150 3850 1950 3850
-$Comp
-L power:PWR_FLAG #FLG01
-U 1 1 5CDF9D53
-P 1600 4400
-F 0 "#FLG01" H 1600 4475 50  0001 C CNN
-F 1 "PWR_FLAG" V 1600 4528 50  0000 L CNN
-F 2 "" H 1600 4400 50  0001 C CNN
-F 3 "~" H 1600 4400 50  0001 C CNN
-	1    1600 4400
-	0    -1   -1   0   
-$EndComp
-Connection ~ 1600 4400
-Wire Wire Line
-	6150 2750 6150 2650
-Wire Wire Line
-	6150 2300 6350 2300
-Connection ~ 6150 2450
-Wire Wire Line
-	6150 2450 6150 2300
-Connection ~ 6150 2550
-Wire Wire Line
-	6150 2550 6150 2450
-Connection ~ 6150 2650
-Wire Wire Line
-	6150 2650 6150 2550
-Text Label 6550 2300 2    50   ~ 0
+Text Label 5175 6475 2    50   ~ 0
 GATE
 $Comp
 L Device:LED D2
 U 1 1 5CDFB063
-P 6350 2600
-F 0 "D2" V 6388 2482 50  0000 R CNN
-F 1 "LED_RED" V 6297 2482 50  0000 R CNN
-F 2 "LED_SMD:LED_1206_3216Metric_Castellated" H 6350 2600 50  0001 C CNN
-F 3 "~" H 6350 2600 50  0001 C CNN
-	1    6350 2600
+P 4975 6775
+F 0 "D2" V 5013 6657 50  0000 R CNN
+F 1 "LED_RED" V 4922 6657 50  0000 R CNN
+F 2 "LED_SMD:LED_1206_3216Metric_Castellated" H 4975 6775 50  0001 C CNN
+F 3 "~" H 4975 6775 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=160-1167-1-ND" H 0   0   50  0001 C CNN "Part"
+	1    4975 6775
 	0    -1   -1   0   
 $EndComp
 Wire Wire Line
-	6350 2300 6350 2450
-Connection ~ 6350 2300
+	4975 6475 4975 6625
 Wire Wire Line
-	6350 2300 6550 2300
+	4975 6475 5175 6475
 $Comp
 L Device:R R2
 U 1 1 5CDFB7D5
-P 6350 3050
-F 0 "R2" H 6420 3096 50  0000 L CNN
-F 1 "475" H 6420 3005 50  0000 L CNN
-F 2 "Resistor_SMD:R_0805_2012Metric" V 6280 3050 50  0001 C CNN
-F 3 "~" H 6350 3050 50  0001 C CNN
-	1    6350 3050
+P 4975 7225
+F 0 "R2" H 5045 7271 50  0000 L CNN
+F 1 "475" H 5045 7180 50  0000 L CNN
+F 2 "Resistors_SMD:R_0603" V 4905 7225 50  0001 C CNN
+F 3 "~" H 4975 7225 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/stackpole-electronics-inc/RMCF0603FT475R/RMCF0603FT475RCT-ND/1942987" H 4975 7225 50  0001 C CNN "Part"
+	1    4975 7225
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	6350 2900 6350 2750
+	4975 7075 4975 6925
 $Comp
 L power:GND #PWR011
 U 1 1 5CDFBC6D
-P 6350 3200
-F 0 "#PWR011" H 6350 2950 50  0001 C CNN
-F 1 "GND" H 6355 3027 50  0000 C CNN
-F 2 "" H 6350 3200 50  0001 C CNN
-F 3 "" H 6350 3200 50  0001 C CNN
-	1    6350 3200
+P 4975 7375
+F 0 "#PWR011" H 4975 7125 50  0001 C CNN
+F 1 "GND" H 4980 7202 50  0000 C CNN
+F 2 "" H 4975 7375 50  0001 C CNN
+F 3 "" H 4975 7375 50  0001 C CNN
+	1    4975 7375
 	1    0    0    -1  
 $EndComp
 $Comp
-L esp8266:ESP8266-nodemcu U2
+L estop_custom_board-rescue:ESP8266-nodemcu-esp8266 U2
 U 1 1 5CDFDC08
 P 6300 4400
 F 0 "U2" H 6675 4575 50  0000 C CNN
@@ -522,8 +362,9 @@ U 1 1 5CE01028
 P 8700 2350
 F 0 "J2" H 8780 2342 50  0000 L CNN
 F 1 "Conn_01x04" H 8780 2251 50  0000 L CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" H 8700 2350 50  0001 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm" H 8700 2350 50  0001 C CNN
 F 3 "~" H 8700 2350 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/wurth-electronics-inc/61300411121/732-5317-ND/4846827" H 0   0   50  0001 C CNN "Part"
 	1    8700 2350
 	1    0    0    -1  
 $EndComp
@@ -539,5 +380,473 @@ NoConn ~ 6200 4850
 NoConn ~ 6200 4950
 NoConn ~ 6200 5250
 NoConn ~ 6200 5350
-NoConn ~ 6200 5050
+$Comp
+L Connector_Generic:Conn_01x04 J101
+U 1 1 5CEEC5A1
+P 8700 3275
+F 0 "J101" H 8780 3267 50  0000 L CNN
+F 1 "Conn_01x04" H 8780 3176 50  0000 L CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm" H 8700 3275 50  0001 C CNN
+F 3 "~" H 8700 3275 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/wurth-electronics-inc/61300411121/732-5317-ND/4846827" H 0   0   50  0001 C CNN "Part"
+	1    8700 3275
+	1    0    0    -1  
+$EndComp
+NoConn ~ 6200 5850
+Text Label 8500 3175 2    50   ~ 0
+L_PW
+Text Label 8500 3275 2    50   ~ 0
+L_RX
+Text Label 6200 5750 2    50   ~ 0
+L_PW
+Text Label 6200 5650 2    50   ~ 0
+L_RX
+Text Label 6200 5550 2    50   ~ 0
+C_PW
+Text Label 6200 5450 2    50   ~ 0
+C_RX
+$Comp
+L Connector_Generic:Conn_01x04 J102
+U 1 1 5CEF1090
+P 8700 3825
+F 0 "J102" H 8780 3817 50  0000 L CNN
+F 1 "Conn_01x04" H 8780 3726 50  0000 L CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm" H 8700 3825 50  0001 C CNN
+F 3 "~" H 8700 3825 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/wurth-electronics-inc/61300411121/732-5317-ND/4846827" H 0   0   50  0001 C CNN "Part"
+	1    8700 3825
+	1    0    0    -1  
+$EndComp
+Text Label 8500 3725 2    50   ~ 0
+C_PW
+Text Label 8500 3825 2    50   ~ 0
+C_RX
+$Comp
+L power:+5V #PWR0101
+U 1 1 5CEF1562
+P 8200 3925
+F 0 "#PWR0101" H 8200 3775 50  0001 C CNN
+F 1 "+5V" H 8215 4098 50  0000 C CNN
+F 2 "" H 8200 3925 50  0001 C CNN
+F 3 "" H 8200 3925 50  0001 C CNN
+	1    8200 3925
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8200 3925 8500 3925
+$Comp
+L power:GND #PWR0102
+U 1 1 5CEF2801
+P 8200 4025
+F 0 "#PWR0102" H 8200 3775 50  0001 C CNN
+F 1 "GND" H 8205 3852 50  0000 C CNN
+F 2 "" H 8200 4025 50  0001 C CNN
+F 3 "" H 8200 4025 50  0001 C CNN
+	1    8200 4025
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8200 4025 8500 4025
+$Comp
+L power:+5V #PWR0103
+U 1 1 5CEF3578
+P 8200 3375
+F 0 "#PWR0103" H 8200 3225 50  0001 C CNN
+F 1 "+5V" H 8215 3548 50  0000 C CNN
+F 2 "" H 8200 3375 50  0001 C CNN
+F 3 "" H 8200 3375 50  0001 C CNN
+	1    8200 3375
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0104
+U 1 1 5CEF3CCA
+P 8200 3475
+F 0 "#PWR0104" H 8200 3225 50  0001 C CNN
+F 1 "GND" H 8205 3302 50  0000 C CNN
+F 2 "" H 8200 3475 50  0001 C CNN
+F 3 "" H 8200 3475 50  0001 C CNN
+	1    8200 3475
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8200 3375 8500 3375
+Wire Wire Line
+	8200 3475 8500 3475
+Text Label 6200 5150 2    50   ~ 0
+R_PW
+Text Label 6200 5050 2    50   ~ 0
+R_RX
+$Comp
+L Connector_Generic:Conn_01x04 J103
+U 1 1 5CEF7FFF
+P 8700 4375
+F 0 "J103" H 8780 4367 50  0000 L CNN
+F 1 "Conn_01x04" H 8780 4276 50  0000 L CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm" H 8700 4375 50  0001 C CNN
+F 3 "~" H 8700 4375 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/wurth-electronics-inc/61300411121/732-5317-ND/4846827" H 0   0   50  0001 C CNN "Part"
+	1    8700 4375
+	1    0    0    -1  
+$EndComp
+Text Label 8500 4275 2    50   ~ 0
+R_PW
+Text Label 8500 4375 2    50   ~ 0
+R_RX
+$Comp
+L power:+5V #PWR0105
+U 1 1 5CEF800B
+P 8200 4475
+F 0 "#PWR0105" H 8200 4325 50  0001 C CNN
+F 1 "+5V" H 8215 4648 50  0000 C CNN
+F 2 "" H 8200 4475 50  0001 C CNN
+F 3 "" H 8200 4475 50  0001 C CNN
+	1    8200 4475
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8200 4475 8500 4475
+$Comp
+L power:GND #PWR0106
+U 1 1 5CEF8016
+P 8200 4575
+F 0 "#PWR0106" H 8200 4325 50  0001 C CNN
+F 1 "GND" H 8205 4402 50  0000 C CNN
+F 2 "" H 8200 4575 50  0001 C CNN
+F 3 "" H 8200 4575 50  0001 C CNN
+	1    8200 4575
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8200 4575 8500 4575
+$Comp
+L custom_parts:CD4013BM U101
+U 1 1 5CF085DA
+P 3275 5525
+F 0 "U101" H 3275 6156 50  0000 C CNN
+F 1 "CD4013BM" H 3275 6065 50  0000 C CNN
+F 2 "Housings_SOIC:SOIC-14_3.9x8.7mm_Pitch1.27mm" H 3275 5525 50  0001 C CNN
+F 3 "" H 3275 5525 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=296-12972-5-ND" H 0   0   50  0001 C CNN "Part"
+	1    3275 5525
+	1    0    0    -1  
+$EndComp
+$Comp
+L custom_parts:CD4013BM U101
+U 2 1 5CF0965E
+P 3275 7050
+F 0 "U101" H 3275 7681 50  0000 C CNN
+F 1 "CD4013BM" H 3275 7590 50  0000 C CNN
+F 2 "Housings_SOIC:SOIC-14_3.9x8.7mm_Pitch1.27mm" H 3275 7050 50  0001 C CNN
+F 3 "" H 3275 7050 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=296-12972-5-ND" H 0   0   50  0001 C CNN "Part"
+	2    3275 7050
+	1    0    0    -1  
+$EndComp
+$Comp
+L custom_parts:CD4013BM U101
+U 3 1 5CF0B40C
+P 1625 5775
+F 0 "U101" H 1903 5796 50  0000 L CNN
+F 1 "CD4013BM" H 1903 5705 50  0000 L CNN
+F 2 "Housings_SOIC:SOIC-14_3.9x8.7mm_Pitch1.27mm" H 1625 5775 50  0001 C CNN
+F 3 "" H 1625 5775 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=296-12972-5-ND" H 0   0   50  0001 C CNN "Part"
+	3    1625 5775
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0107
+U 1 1 5CF0BF54
+P 1625 5325
+F 0 "#PWR0107" H 1625 5175 50  0001 C CNN
+F 1 "+5V" H 1640 5498 50  0000 C CNN
+F 2 "" H 1625 5325 50  0001 C CNN
+F 3 "" H 1625 5325 50  0001 C CNN
+	1    1625 5325
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0108
+U 1 1 5CF0C881
+P 1625 6275
+F 0 "#PWR0108" H 1625 6025 50  0001 C CNN
+F 1 "GND" H 1630 6102 50  0000 C CNN
+F 2 "" H 1625 6275 50  0001 C CNN
+F 3 "" H 1625 6275 50  0001 C CNN
+	1    1625 6275
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0109
+U 1 1 5CF0CF35
+P 2700 5425
+F 0 "#PWR0109" H 2700 5275 50  0001 C CNN
+F 1 "+5V" H 2715 5598 50  0000 C CNN
+F 2 "" H 2700 5425 50  0001 C CNN
+F 3 "" H 2700 5425 50  0001 C CNN
+	1    2700 5425
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0117
+U 1 1 5CF0F2E5
+P 5325 2600
+F 0 "#PWR0117" H 5325 2350 50  0001 C CNN
+F 1 "GND" H 5330 2427 50  0000 C CNN
+F 2 "" H 5325 2600 50  0001 C CNN
+F 3 "" H 5325 2600 50  0001 C CNN
+	1    5325 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0118
+U 1 1 5CF0F7D9
+P 5700 2400
+F 0 "#PWR0118" H 5700 2250 50  0001 C CNN
+F 1 "+5V" H 5715 2573 50  0000 C CNN
+F 2 "" H 5700 2400 50  0001 C CNN
+F 3 "" H 5700 2400 50  0001 C CNN
+	1    5700 2400
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J104
+U 1 1 5CF111EB
+P 5025 2400
+F 0 "J104" H 5075 2717 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 5075 2626 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_2x03_Pitch2.54mm" H 5025 2400 50  0001 C CNN
+F 3 "~" H 5025 2400 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/amphenol-icc-fci/67996-206HLF/609-3210-ND/1878485" H 0   0   50  0001 C CNN "Part"
+	1    5025 2400
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5325 2400 5700 2400
+$Comp
+L power:+5V #PWR0114
+U 1 1 5CF157AC
+P 4375 2400
+F 0 "#PWR0114" H 4375 2250 50  0001 C CNN
+F 1 "+5V" H 4390 2573 50  0000 C CNN
+F 2 "" H 4375 2400 50  0001 C CNN
+F 3 "" H 4375 2400 50  0001 C CNN
+	1    4375 2400
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0116
+U 1 1 5CF163F9
+P 4825 2500
+F 0 "#PWR0116" H 4825 2250 50  0001 C CNN
+F 1 "GND" H 4830 2327 50  0000 C CNN
+F 2 "" H 4825 2500 50  0001 C CNN
+F 3 "" H 4825 2500 50  0001 C CNN
+	1    4825 2500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4825 2400 4375 2400
+NoConn ~ 4825 2300
+Text Notes 4225 2075 0    50   ~ 0
+Power Receiver
+Text Notes 5200 2050 0    50   ~ 0
+Signal In
+Text Label 5325 2300 0    50   ~ 0
+S_IN
+Wire Wire Line
+	2700 5425 2825 5425
+Text Label 2825 5625 2    50   ~ 0
+S_IN
+Wire Wire Line
+	2825 5625 2825 6950
+Wire Wire Line
+	2825 7150 2650 7150
+Wire Wire Line
+	2650 7150 2650 6200
+Wire Wire Line
+	2650 6200 3725 6200
+Wire Wire Line
+	3725 6200 3725 5625
+$Comp
+L Device:R_POT RV101
+U 1 1 5CF1C5DC
+P 4175 5425
+F 0 "RV101" H 4105 5379 50  0000 R CNN
+F 1 "5k" H 4105 5470 50  0000 R CNN
+F 2 "Potentiometers:Potentiometer_Trimmer_Bourns_3266W" H 4175 5425 50  0001 C CNN
+F 3 "~" H 4175 5425 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=3266W-502LF-ND" H 0   0   50  0001 C CNN "Part"
+	1    4175 5425
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	3725 5425 3950 5425
+Wire Wire Line
+	3950 5425 3950 5175
+Wire Wire Line
+	3950 5175 4175 5175
+Wire Wire Line
+	4175 5175 4175 5275
+Connection ~ 3950 5425
+Wire Wire Line
+	3950 5425 4025 5425
+Wire Wire Line
+	4175 5575 4175 6025
+Wire Wire Line
+	4175 6025 3275 6025
+$Comp
+L Device:C C101
+U 1 1 5CF208F6
+P 4175 6175
+F 0 "C101" H 4290 6221 50  0000 L CNN
+F 1 "1uF" H 4290 6130 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 4213 6025 50  0001 C CNN
+F 3 "~" H 4175 6175 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=478-5034-1-ND" H 0   0   50  0001 C CNN "Part"
+	1    4175 6175
+	1    0    0    -1  
+$EndComp
+Connection ~ 4175 6025
+$Comp
+L power:GND #PWR0113
+U 1 1 5CF211CA
+P 4175 6325
+F 0 "#PWR0113" H 4175 6075 50  0001 C CNN
+F 1 "GND" H 4180 6152 50  0000 C CNN
+F 2 "" H 4175 6325 50  0001 C CNN
+F 3 "" H 4175 6325 50  0001 C CNN
+	1    4175 6325
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0111
+U 1 1 5CF21A77
+P 3425 5075
+F 0 "#PWR0111" H 3425 4825 50  0001 C CNN
+F 1 "GND" H 3430 4902 50  0000 C CNN
+F 2 "" H 3425 5075 50  0001 C CNN
+F 3 "" H 3425 5075 50  0001 C CNN
+	1    3425 5075
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3275 5075 3425 5075
+$Comp
+L power:GND #PWR0112
+U 1 1 5CF2347C
+P 3425 6600
+F 0 "#PWR0112" H 3425 6350 50  0001 C CNN
+F 1 "GND" H 3430 6427 50  0000 C CNN
+F 2 "" H 3425 6600 50  0001 C CNN
+F 3 "" H 3425 6600 50  0001 C CNN
+	1    3425 6600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3275 6600 3425 6600
+$Comp
+L power:GND #PWR0110
+U 1 1 5CF25172
+P 3275 7550
+F 0 "#PWR0110" H 3275 7300 50  0001 C CNN
+F 1 "GND" H 3280 7377 50  0000 C CNN
+F 2 "" H 3275 7550 50  0001 C CNN
+F 3 "" H 3275 7550 50  0001 C CNN
+	1    3275 7550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:LED D101
+U 1 1 5CF26043
+P 4000 7150
+F 0 "D101" V 4038 7032 50  0000 R CNN
+F 1 "LED_RED" V 3947 7032 50  0000 R CNN
+F 2 "LED_SMD:LED_1206_3216Metric_Castellated" H 4000 7150 50  0001 C CNN
+F 3 "~" H 4000 7150 50  0001 C CNN
+F 4 "https://www.digikey.com/products/en?keywords=160-1167-1-ND" H 0   0   50  0001 C CNN "Part"
+	1    4000 7150
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R102
+U 1 1 5CF26F27
+P 4375 7150
+F 0 "R102" H 4445 7196 50  0000 L CNN
+F 1 "475" H 4445 7105 50  0000 L CNN
+F 2 "Resistors_SMD:R_0603" V 4305 7150 50  0001 C CNN
+F 3 "~" H 4375 7150 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/stackpole-electronics-inc/RMCF0603FT475R/RMCF0603FT475RCT-ND/1942987" H 4375 7150 50  0001 C CNN "Part"
+	1    4375 7150
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:R R101
+U 1 1 5CF27944
+P 4000 6950
+F 0 "R101" H 4070 6996 50  0000 L CNN
+F 1 "10" H 4070 6905 50  0000 L CNN
+F 2 "Resistors_SMD:R_0603" V 3930 6950 50  0001 C CNN
+F 3 "~" H 4000 6950 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/stackpole-electronics-inc/RMCF0603JT10R0/RMCF0603JT10R0CT-ND/1943148" H 0   0   50  0001 C CNN "Part"
+	1    4000 6950
+	0    1    1    0   
+$EndComp
+Text Label 4150 6950 0    50   ~ 0
+GATE
+Wire Wire Line
+	4225 7150 4150 7150
+Wire Wire Line
+	3850 7150 3725 7150
+Wire Wire Line
+	3850 6950 3725 6950
+$Comp
+L power:+5V #PWR0115
+U 1 1 5CF2DE77
+P 4525 7150
+F 0 "#PWR0115" H 4525 7000 50  0001 C CNN
+F 1 "+5V" H 4540 7323 50  0000 C CNN
+F 2 "" H 4525 7150 50  0001 C CNN
+F 3 "" H 4525 7150 50  0001 C CNN
+	1    4525 7150
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R103
+U 1 1 5CF2F13E
+P 5525 2450
+F 0 "R103" H 5595 2496 50  0000 L CNN
+F 1 "10k" H 5595 2405 50  0000 L CNN
+F 2 "Resistors_SMD:R_0603" V 5455 2450 50  0001 C CNN
+F 3 "~" H 5525 2450 50  0001 C CNN
+F 4 "https://www.digikey.com/product-detail/en/stackpole-electronics-inc/RMCF0603JT10K0/RMCF0603JT10K0CT-ND/1943191" H 0   0   50  0001 C CNN "Part"
+	1    5525 2450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5325 2300 5525 2300
+Wire Wire Line
+	5525 2600 5325 2600
+Wire Wire Line
+	5325 2500 5325 2600
+Connection ~ 5325 2600
+$Comp
+L Connector_Generic:Conn_01x02 P2
+U 1 1 5CDF6130
+P 4775 4000
+F 0 "P2" H 4854 3992 50  0000 L CNN
+F 1 "GND_INTERUPT" H 4854 3901 50  0000 L CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x01_P2.54mm_Vertical" H 4775 4000 50  0001 C CNN
+F 3 "~" H 4775 4000 50  0001 C CNN
+	1    4775 4000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4000 4000 4575 4000
+Wire Wire Line
+	4575 4100 4575 4400
+Wire Wire Line
+	4575 4400 4000 4400
+Connection ~ 4000 4400
 $EndSCHEMATC
