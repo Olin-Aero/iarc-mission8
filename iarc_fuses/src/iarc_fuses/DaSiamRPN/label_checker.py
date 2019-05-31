@@ -123,16 +123,20 @@ class LabelChecker():
 			rect_xyxy = annotation.bounding_rect
 
 			rect_xyxy = np.array(BoxUtils.unnormalize(rect_xyxy, BoxUtils.FMT_XYXY, [self.orig_im_height, self.orig_im_width]), np.uint32)
-			rect_ccwh = rect_xywh = BoxUtils.convert(rect_xyxy,
-				BoxUtils.FMT_XYXY,
-				BoxUtils.FMT_CCWH
-				)
-			rect_ccwh = [rect_ccwh[0], rect_ccwh[1], max(rect_ccwh[2:4]),max(rect_ccwh[2:4])]
 			rect_xywh = BoxUtils.convert(rect_ccwh,
 				BoxUtils.FMT_CCWH,
 				BoxUtils.FMT_XYWH
 				)
-			rect_xywh = map(int, rect_xywh)
+			# rect_ccwh = rect_xywh = BoxUtils.convert(rect_xyxy,
+			# 	BoxUtils.FMT_XYXY,
+			# 	BoxUtils.FMT_CCWH
+			# 	)
+			# rect_ccwh = [rect_ccwh[0], rect_ccwh[1], max(rect_ccwh[2:4]),max(rect_ccwh[2:4])]
+			# rect_xywh = BoxUtils.convert(rect_ccwh,
+			# 	BoxUtils.FMT_CCWH,
+			# 	BoxUtils.FMT_XYWH
+			# 	)
+			# rect_xywh = map(int, rect_xywh)
 			try:
 				
 				# self.disp_opencv_img(im_gray)
