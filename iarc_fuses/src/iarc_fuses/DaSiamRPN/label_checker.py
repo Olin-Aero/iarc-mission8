@@ -47,7 +47,9 @@ class LabelChecker():
 		array = np.zeros((self.im_height,self.im_width, 3))
 		image =  Image.fromarray(array.astype('uint8'))
 		self.image = ImageTk.PhotoImage(image=image)
-		self.cap.set(1, self.annotation_array[0].frame_num -1)
+		self.current_frame  = self.annotation_array[0].frame_num
+		print(self.current_frame)
+		self.cap.set(1, self.current_frame)
 		ret, img = self.cap.read()
 		img = cv2.resize(img, (self.im_width, self.im_height))
 		self.image_on_canvas = self.canvas.create_image(0, 0, anchor = NW, image =self.image)
@@ -59,7 +61,7 @@ class LabelChecker():
 		self.view_btn = Button(self.root, text="View Labels", command=self.view_callback)
 		self.view_btn.grid(row=1, column=0)   
 
-		self.convert_btn = Button(self.root, text="Convert to TF Label", command=self.convert_callback)
+		self.convert_btn = Button(self.root, text="Generate Haar Labels", command=self.convert_callback)
 		self.convert_btn.grid(row=1, column=1)
 
 
@@ -86,31 +88,67 @@ class LabelChecker():
 		return filename
 
 	def view_callback(self):
-		# for i in range(len(self.annotation_array)):
-		print("View Labels!")
-		# cap = cv2.VideoCapture(self.annotation_array[i].file_reference)
-		# print(self.annotation_array[i].frame_num)
-		# if self.annotation_array[self.annotation_num - 1].frame_num + 1 != self.annotation_array[self.annotation_num].frame_num:
-		# 	print("New cap")
-		self.cap.set(1, self.annotation_array[self.annotation_num].frame_num)
+		if self.current_frame != self.annotation_array[self.annotation_num].frame_num:
+			self.current_frame = self.annotation_array[self.annotation_num].frame_num
+			self.cap.set(1, self.current_frame)
 		
 		rect_xyxy = self.annotation_array[self.annotation_num].bounding_rect
-		print("rect_xyxy normalized: ", rect_xyxy)
-		print(self.orig_im_width, self.orig_im_height)
+		# print("rect_xyxy normalized: ", rect_xyxy)
+		# print(self.orig_im_width, self.orig_im_height)
 		rect_xyxy = np.array(BoxUtils.unnormalize(rect_xyxy, BoxUtils.FMT_XYXY, [self.orig_im_height, self.orig_im_width]), np.uint32)
-		print("rect_xyxy: ", rect_xyxy)
-		print(rect_xyxy[0:2], rect_xyxy[2:4])
+		# print("rect_xyxy: ", rect_xyxy)
+		# print(rect_xyxy[0:2], rect_xyxy[2:4])
 		self.annotation_num = self.annotation_num + 1
 		ret, img = self.cap.read()
 		cv2.rectangle(img, tuple(rect_xyxy[0:2]), tuple(rect_xyxy[2:4]), (0, 255, 255), 3)
 		self.disp_opencv_img(img)
 		time.sleep(.05)
-		print("Done")
 
 		self.root.after(15, self.view_callback)
+		self.current_frame = self.current_frame + 1
 		# for label in self.annotation_array:
 
 	def convert_callback(self):
+		f_dat = open("haar_info.dat", "w+")
+		current_frame = self.annotation_array[0].frame_num
+		for annotation in self.annotation_array:
+			fname = "pos_images/im_{}.jpg".format(annotation.frame_num)
+			# print(annotation.bounding_rect)
+			if self.current_frame != self.annotation_array[self.annotation_num].frame_num:
+				current_frame = annotation.frame_num
+				self.cap.set(1, current_frame)
+			ret, im = self.cap.read()
+			im_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+			
+			rect_xyxy = annotation.bounding_rect
+
+			rect_xyxy = np.array(BoxUtils.unnormalize(rect_xyxy, BoxUtils.FMT_XYXY, [self.orig_im_height, self.orig_im_width]), np.uint32)
+			rect_ccwh = rect_xywh = BoxUtils.convert(rect_xyxy,
+				BoxUtils.FMT_XYXY,
+				BoxUtils.FMT_CCWH
+				)
+			rect_ccwh = [rect_ccwh[0], rect_ccwh[1], max(rect_ccwh[2:4]),max(rect_ccwh[2:4])]
+			rect_xywh = BoxUtils.convert(rect_ccwh,
+				BoxUtils.FMT_CCWH,
+				BoxUtils.FMT_XYWH
+				)
+			rect_xywh = map(int, rect_xywh)
+			try:
+				
+				# self.disp_opencv_img(im_gray)
+				line_out = fname + " 1 {} {} {} {}".format(*rect_xywh)
+				print(line_out)
+				# Write outputs
+				ret = cv2.imwrite(fname, im_gray)
+				f_dat.write(line_out + "\n")
+
+				cv2.rectangle(im_gray, tuple(rect_xyxy[0:2]), tuple(rect_xyxy[2:4]), (255, 255, 255), 3)
+			except:
+				print("Skipping Frame")
+			current_frame = current_frame + 1
+
+			# print(annotation.)
+		f_dat.close()
 		print("Convert Callback!")
 
 	def to_tf(img_file, boxs):
