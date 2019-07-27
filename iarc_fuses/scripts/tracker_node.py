@@ -84,7 +84,7 @@ class TrackerNode(object):
                 root=self.root_,
                 model=self.dmodel_,
                 cmap={1:Identifier.OBJ_PERSON},
-                gpu=0.0#self.gpu_
+                gpu=0.2
                 )
         # drone config
         #self.det_ = ObjectDetectorTF(
