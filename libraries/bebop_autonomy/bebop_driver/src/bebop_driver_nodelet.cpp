@@ -95,7 +95,9 @@ void BebopDriverNodelet::onInit()
 
   param_camera_frame_id_ = private_nh.param<std::string>("camera_frame_id", "camera_optical");
   param_odom_frame_id_ = private_nh.param<std::string>("odom_frame_id", "odom");
+  param_origin_frame_id_ = private_nh.param<std::string>("origin_frame_id", "origin");
   param_publish_odom_tf_ = private_nh.param<bool>("publish_odom_tf", true);
+  param_publish_origin_tf_ = private_nh.param<bool>("publish_origin_tf", true);
   param_cmd_vel_timeout_ = private_nh.param<double>("cmd_vel_timeout", 0.2);
 
   NODELET_INFO("Connecting to Bebop ...");
@@ -148,6 +150,7 @@ void BebopDriverNodelet::onInit()
   toggle_recording_sub_ = nh.subscribe("record", 10, &BebopDriverNodelet::ToggleRecordingCallback, this);
 
   odom_pub_ = nh.advertise<nav_msgs::Odometry>("odom", 30);
+  origin_pub_ = nh.advertise<nav_msgs::Odometry>("origin", 30); // FFF Oktober13: added origin frame
   camera_joint_pub_ = nh.advertise<sensor_msgs::JointState>("joint_states", 10, true);
   gps_fix_pub_ = nh.advertise<sensor_msgs::NavSatFix>("fix", 10, true);
 
@@ -236,6 +239,24 @@ void BebopDriverNodelet::TakeoffCallback(const std_msgs::EmptyConstPtr& empty_pt
 {
   try
   {
+    // FFF
+    ros::Time stamp = ros::Time::now();
+
+    nav_msgs::OdometryPtr odom_msg_ptr(new nav_msgs::Odometry());
+    odom_msg_ptr->header.stamp = stamp;
+    odom_msg_ptr->header.frame_id = param_odom_frame_id_;
+    odom_msg_ptr->child_frame_id = "base_link";
+    odom_msg_ptr->twist.twist.linear.x = beb_vx_m;
+    odom_msg_ptr->twist.twist.linear.y = beb_vy_m;
+    odom_msg_ptr->twist.twist.linear.z = beb_vz_m;
+
+    // TODO(mani-monaj): Optimize this
+    odom_msg_ptr->pose.pose.position.x = odom_to_base_trans_v3.x();
+    odom_msg_ptr->pose.pose.position.y = odom_to_base_trans_v3.y();
+    odom_msg_ptr->pose.pose.position.z = odom_to_base_trans_v3.z();
+    tf2::convert(odom_to_base_rot_q, odom_msg_ptr->pose.pose.orientation);
+    odom_pub_.publish(odom_msg_ptr);
+
     bebop_ptr_->Takeoff();
   }
   catch (const std::runtime_error& e)
@@ -248,6 +269,7 @@ void BebopDriverNodelet::LandCallback(const std_msgs::EmptyConstPtr& empty_ptr)
 {
   try
   {
+    // FFFF
     bebop_ptr_->Land();
   }
   catch (const std::runtime_error& e)
@@ -280,6 +302,7 @@ void BebopDriverNodelet::EmergencyCallback(const std_msgs::EmptyConstPtr& empty_
 {
   try
   {
+    // FFFF
     bebop_ptr_->Emergency();
   }
   catch (const std::runtime_error& e)
@@ -510,6 +533,14 @@ void BebopDriverNodelet::AuxThread()
   tf2::Vector3 odom_to_base_trans_v3(0.0, 0.0, 0.0);
   tf2::Quaternion odom_to_base_rot_q;
 
+  // TF2, origin
+  geometry_msgs::TransformStamped origin_to_base_tf;
+  origin_to_base_tf.header.frame_id = param_origin_frame_id_;
+  origin_to_base_tf.child_frame_id = "base_link";
+  tf2_ros::TransformBroadcaster origin_broad;
+  tf2::Vector3 origin_to_base_trans_v3(0.0, 0.0, 0.0);
+  tf2::Quaternion origin_to_base_rot_q;
+
   // Detect new messages
   // TODO(mani-monaj): Wrap this functionality into a class to remove duplicate code
   ros::Time last_speed_time(0);
@@ -551,10 +582,15 @@ void BebopDriverNodelet::AuxThread()
             ((t_now - prev_twist_stamp_).toSec() > param_cmd_vel_timeout_)
            )
         {
-          NODELET_WARN("[AuxThread] Input cmd_vel timeout, reseting cmd_vel ...");
+          NODELET_WARN("[AuxThread] Input cmd_vel timeout, resetting cmd_vel ...");
           util::ResetTwist(prev_bebop_twist_);
           bebop_ptr_->Move(0.0, 0.0, 0.0, 0.0);
         }
+
+        /** FFF: Added code for publishing original location tf frame**/
+        origin_to_base_tf.header.stamp = stamp;
+        tf2::convert(tf2::Transform(origin_to_base_rot_q, origin_to_base_trans_v3), origin_to_base_tf.transform);
+        origin_broad.sendTransform(origin_to_base_tf);
       }
 
       // Experimental
