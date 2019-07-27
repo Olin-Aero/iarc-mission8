@@ -46,7 +46,7 @@ class Mode(object):
         return value
 
     def get_look_direction(self, current_orientation, enable=False):
-        ''' Returns drone orientation desired by mode as an angle in the odom frame (deg)
+        ''' Returns drone orientation desired by mode as an angle in the odom frame (radians)
             The enable flag is true the first time this function is called'''
         self.yaw = current_orientation
         return current_orientation
