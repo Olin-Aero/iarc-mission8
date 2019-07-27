@@ -1,0 +1,33 @@
+<launch>
+    <arg name="n"/>
+    <arg name="sim" default="false"/>
+
+    <group if="$(eval sim and n==1)">
+        <param name="use_sim_time" value="true" />
+        <include file="$(find iarc_sim_engine)/launch/basic.launch"/>
+    </group>
+
+    <include file="$(find iarc_main)/launch/multi/single_drone.launch" if="$(eval n==1)">
+        <arg name="sim" value="$(arg sim)"/>
+        <arg name="ip" value="192.168.43.94"/>
+        <arg name="namespace" value="alexa"/>
+    </include>
+
+    <include file="$(find iarc_main)/launch/multi/single_drone.launch" if="$(eval n==2)">
+        <arg name="sim" value="$(arg sim)"/>
+        <arg name="ip" value="192.168.43.95"/>
+        <arg name="namespace" value="google"/>
+    </include>
+
+    <include file="$(find iarc_main)/launch/multi/single_drone.launch" if="$(eval n==3)">
+        <arg name="sim" value="$(arg sim)"/>
+        <arg name="ip" value="192.168.43.96"/>
+        <arg name="namespace" value="siri"/>
+    </include>
+
+    <include file="$(find iarc_main)/launch/multi/single_drone.launch" if="$(eval n==4)">
+        <arg name="sim" value="$(arg sim)"/>
+        <arg name="ip" value="192.168.43.97"/>
+        <arg name="namespace" value="clippy"/>
+    </include>
+</launch>

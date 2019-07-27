@@ -14,8 +14,9 @@ from iarc_fuses.qr_detector import QRDetector
 from iarc_fuses.qr_combiner import QRCombiner
 
 def convert_nparray_to_PIL(x):
-    # Nathan will do this
-    pass
+    cv2_im = x
+    cv2_im = cv2.cvtColor(cv2_im,cv2.COLOR_BGR2RGB)
+    return Image.fromarray(cv2_im)
 
 class QRNode():
     def __init__(self):
@@ -65,8 +66,7 @@ class QRNode():
                 qr = self.detector(image)
                 finalImages.append(croppedImage) # adds the image to the collection of final images
 
-            # combine and deocde QR Codes
-            # TODO: convert images to PIL Image before passing to combiner
+            # combine and decode QR Codes
             pil_images = [convert_nparray_to_PIL(e) for e in finalImages]
             number = self.combiner(pil_images)
 

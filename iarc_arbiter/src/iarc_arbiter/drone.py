@@ -4,7 +4,7 @@ import rospy
 import tf
 import tf.transformations
 from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
-from iarc_arbiter.msg import RegisterBehavior, VelAlt
+from iarc_arbiter.msg import RegisterBehavior, VelAlt, PosCam
 from iarc_main.msg import Roomba
 from std_msgs.msg import String, Empty, Header
 
@@ -18,10 +18,8 @@ except ImportError:
 class Drone:
     DEFAULT_HEIGHT = 1.5
 
-    def __init__(self, tfl=None):
-        """
-        :type tfl: tf.TransformListener
-        """
+    def __init__(self, namespace='/bebop/', tfl=None):
+
         rospy.loginfo("name: {}".format(rospy.get_name()))
 
         if rospy.get_name().endswith('/unnamed'):
@@ -31,6 +29,10 @@ class Drone:
 
             # rospy.logwarn('initialing ROS node in Drone object')
 
+        if not namespace.endswith('/'):
+            namespace += '/'
+        self.namespace = namespace
+
         # World state
         self._remembers_flying = False
 
@@ -39,7 +41,7 @@ class Drone:
 
         self.prev_target_facing_angle = None  # in radian
 
-        self.FRAME_ID = "base_link"
+        self.FRAME_ID = self.prefix("base_link")
 
         if tfl is None:
             self.tf = tf.TransformListener()
@@ -47,17 +49,15 @@ class Drone:
         else:
             self.tf = tfl
 
-        self.posPub = rospy.Publisher('/forebrain/cmd_pos', PoseStamped, queue_size=0)
-        self.velPub = rospy.Publisher('/forebrain/cmd_vel', Twist, queue_size=0)
-        self.takeoffPub = rospy.Publisher('/forebrain/cmd_takeoff', Empty, queue_size=0)
-        self.landPub = rospy.Publisher('/forebrain/cmd_land', Empty, queue_size=0)
-        self.velAltPub = rospy.Publisher('/forebrain/cmd_vel_alt', VelAlt, queue_size=0)
+        self.posPub = rospy.Publisher(self.namespace+'high_level/cmd_pos', PoseStamped, queue_size=0)
+        self.velPub = rospy.Publisher(self.namespace+'high_level/cmd_vel', Twist, queue_size=0)
+        self.takeoffPub = rospy.Publisher(self.namespace+'high_level/cmd_takeoff', Empty, queue_size=0)
+        self.landPub = rospy.Publisher(self.namespace+'high_level/cmd_land', Empty, queue_size=0)
+        self.velAltPub = rospy.Publisher(self.namespace+'high_level/cmd_vel_alt', VelAlt, queue_size=0)
+        self.camPosPub = rospy.Publisher(self.namespace+'high_level/cmd_cam_pos', PosCam, queue_size=0)
+        self.gimbalPub = rospy.Publisher(self.namespace +'camera_control', Twist, queue_size=0)
 
-        rospy.Publisher('/arbiter/register', RegisterBehavior, latch=True, queue_size=10).publish(
-            name='forebrain', fast=True)
-        rospy.sleep(0.1)
-        rospy.Publisher('/arbiter/activate_behavior', String, latch=True, queue_size=10).publish(
-            'forebrain')
+        # Give the ROS network time to figure out who the subscribers are
         rospy.sleep(0.5)
 
         self.navdata = None
@@ -166,6 +166,7 @@ class Drone:
         and blocks until the drone is within tol of the target, counting vertical and horizontal distance
         """
 
+        frame = self.prefix(frame)
         prev_pos = self.get_pos(frame).pose.position
 
         des_x, des_y, des_height = prev_pos.x + rel_x, prev_pos.y + rel_y, prev_pos.z + rel_height
@@ -197,6 +198,7 @@ class Drone:
         :return:
         """
 
+        frame = self.prefix(frame)
         if height == 0.0:
             height = self.last_height
 
@@ -223,6 +225,7 @@ class Drone:
         :param des_y: desired position y
         """
 
+        frame = self.prefix(frame)
         if height is None:
             height = self.last_height
         else:
@@ -263,6 +266,7 @@ class Drone:
         :param frame: The world frame in which to return the result
         :return (PoseStamped): The position of the drone at the latest available time
         """
+        frame = self.prefix(frame)
         time = None
         while not time and not rospy.is_shutdown():
             try:
@@ -272,7 +276,6 @@ class Drone:
                 rospy.logwarn("Frame missing, delaying...")
 
         position, quaternion = self.tf.lookupTransform(frame, self.FRAME_ID, time)
-
         return PoseStamped(
             header=Header(
                 stamp=time,
@@ -298,6 +301,7 @@ class Drone:
         :param (str) frame: The TF frame to measure to
         :return:
         """
+        frame = self.prefix(frame)
         linear = self.get_pos(frame).pose.linear
 
         return math.sqrt(linear.x ** 2 + linear.y ** 2)
@@ -308,3 +312,76 @@ class Drone:
         """
         self.navdata = msg
 
+    def travel_and_look(self, des_x=0.0, des_y=0.0, focus_x=0.0, focus_y=0.0, frame='map', height = None, tol=0.4):
+        """
+        Tells the drone to move towards a given destination, and look at a given position
+        :param des_x: x position to go to
+        :param des_y: y position to go to
+        :param focus_x: x position to look at
+        :param focus_y: y position to look at
+        :param frame: The tf frame associated with the target
+        :param height: The height for the drone to be, if none, stays steady
+
+
+        """
+        frame = self.prefix(frame)
+        if height is None:
+            height = self.last_height
+        else:
+            self.last_height = height
+        camMsg = PosCam()
+        camMsg.look_at_position.pose.position.x = focus_x
+        camMsg.look_at_position.pose.position.y = focus_y
+        camMsg.look_at_position.pose.position.z = 0.0
+
+        camMsg.pose_stamped.pose.position.x = des_x
+        camMsg.pose_stamped.pose.position.y = des_y
+        camMsg.pose_stamped.pose.position.z = height
+        camMsg.pose_stamped.header.frame_id = frame
+        camMsg.look_at_position.header.frame_id = frame
+        self.camPosPub.publish(camMsg)
+
+        rel_pos = self.get_pos(frame).pose.position
+        dist = math.sqrt(
+            (rel_pos.x - des_x) ** 2 +
+            (rel_pos.y - des_y) ** 2 +
+            (rel_pos.z - height) ** 2)
+        if dist <= tol:
+            return True
+        else:
+            return False
+
+
+    def turn_to(self, angle, frame = 'map'):
+        """
+        Tells the drone to turn to face a particular direction.
+        :param angle: the euler angle for the drone to face.
+        :param frame: The tf frame associated with the target
+        """
+        frame = self.prefix(frame)
+        pose_stamped = self.get_pos(frame)
+        orientationQuat = tf.transformations.quaternion_from_euler(0,0,angle)
+        pose_stamped.pose.orientation.x = orientationQuat[0]
+        pose_stamped.pose.orientation.y = orientationQuat[1]
+        pose_stamped.pose.orientation.z = orientationQuat[2]
+        pose_stamped.pose.orientation.w = orientationQuat[3]
+
+        self.posPub.publish(pose_stamped)
+
+    def move_camera(self, pitch, yaw):
+        """
+        Tells the gimbal to make the camera point in a certain direction
+        param pitch: the pitch to make the camera go to (degrees), makes the camera look up(+) or down(-)
+        param yaw: the yaw to make the camera go to (degrees), makes the camera look left(-) or right(+)
+        Roll doesn't do anything
+        """
+        cameraCoordinates = Twist()
+        cameraCoordinates.angular.y = pitch
+        cameraCoordinates.angular.z = yaw
+        self.gimbalPub.publish(cameraCoordinates)
+
+    def prefix(self, frame):
+        """ Appends drone namespace to tf frame id if appropriate """
+        if frame in ['odom', 'base_link']:
+            frame = self.namespace[1:-1]+'/'+frame
+        return frame

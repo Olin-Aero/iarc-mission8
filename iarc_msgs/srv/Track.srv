@@ -1,0 +1,9 @@
+# Service for tracking initiation
+string source               # observation source camera to detect from ('' == all)
+time stamp                  # request stamp
+float32 thresh                # detection confidence threshold
+float32 timeout               # detection timeout
+#iarc_msgs/IARCObject obj    # requested trackable object
+iarc_msgs/Identifier obj
+---
+bool success                # whether or not the detection was successful

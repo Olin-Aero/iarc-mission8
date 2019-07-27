@@ -32,6 +32,7 @@ def detect_helmet(image):
     contour = max(contours, key=cv2.contourArea)
     disp_contours = cv2.drawContours(disp_contours, [contour], 0, (255,255,255), 1)
     cv2.imshow("contours", disp_contours)
+    cv2.waitKey(0)
     return contour
 
 

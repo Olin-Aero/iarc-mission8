@@ -5,11 +5,12 @@ import rospy
 from ddynamic_reconfigure_python.ddynamic_reconfigure import DDynamicReconfigure
 from geometry_msgs.msg import Twist, PoseStamped
 from iarc_arbiter.msg import RegisterBehavior
-from iarc_arbiter.msg import VelAlt
+from iarc_arbiter.msg import VelAlt, PosCam
 from std_msgs.msg import Empty, String
 from tf import TransformListener
 
 import transformers
+import filters
 
 
 class Arbiter:
@@ -26,7 +27,7 @@ class Arbiter:
     """
 
     def __init__(self):
-        # The Null behavior will aafutomatically process a 0-velocity Twist at 10hz
+        # The Null behavior will automatically process a 0-velocity Twist at 10hz
         self.null_behavior = Behavior(self.process_command, 'zero', freq=10)
 
         self.behaviors = {'zero': self.null_behavior}
@@ -42,14 +43,15 @@ class Arbiter:
 
         alt_pid = transformers.PIDAltController(self.tf, self.ddynrec)
         pos_pid = transformers.PIDPosController(self.tf, self.ddynrec, alt_pid)
-        print pos_pid.cmd_pos
+        pos_cam_pid = transformers.PIDPosCamController(self.tf, self.ddynrec, pos_pid)
         self.transformers = {
             'cmd_vel': (Twist, transformers.cmd_vel),
             'cmd_takeoff': (Empty, transformers.cmd_takeoff),
             'cmd_land': (Empty, transformers.cmd_land),
             'cmd_pos': (PoseStamped, pos_pid.cmd_pos),
-            'cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos),
-            'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt)
+            'cmd_vel_alt': (VelAlt, alt_pid.cmd_vel_alt),
+            'cmd_cam_pos': (PosCam, pos_cam_pid.cmd_pos_cam),
+            'cmd_rel_pos': (PoseStamped, pos_pid.cmd_pos)
         }
         """:type : dict[str, (str, (Any) -> transformers.Command)]"""
 
@@ -60,9 +62,9 @@ class Arbiter:
             behavior.subscribe(self.transformers)
             self.behaviors[b] = behavior
 
-        # Secondary behaviors are filters that are always active on the Command before it is published.
-        # Examples include last-minute obstacle avoidance, speed limiters, or arena boundary constraints.
-        self.secondaries = []
+        # Filters constrain final output before it goes to the drone.
+        # Potential examples include last-minute obstacle avoidance, speed limiters, or arena boundary constraints.
+        self.filters = [filters.make_speed_filter(0.1, 0.5, 0.5)]
 
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=0)
         self.takeoff_pub = rospy.Publisher('/takeoff', Empty, queue_size=0)
@@ -167,10 +169,8 @@ class Arbiter:
         _, transformer = self.transformers[topic]
 
         # Convert to a transformers.Command
-        cmd = transformer(raw_cmd)  # type: transformers.Command
-
-        # Apply secondary behaviors
-        for func in self.secondaries:
+        cmd = transformer(raw_cmd)  # type: transformers.Filters constrain final output before it goes to the drone.
+        for func in self.filters:
             cmd = func(cmd)
 
         # Publish the result to the ROS network

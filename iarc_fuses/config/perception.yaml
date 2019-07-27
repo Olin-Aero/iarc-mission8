@@ -1,0 +1,34 @@
+# global execution flags
+dbg : False
+src : ['alexa', 'google'] # detection source
+max_dt : 0.5
+
+# module configurations
+person-detector:
+    model: 'model-all-300x300'
+    gpu: 0.4
+
+drone-detector:
+    model: 'model-all-300x300'
+    gpu: 0.4
+
+bin-detector:
+    model: ''
+    gpu: 0.0
+
+dasiam-tracker:
+    model: 'dasiam'
+    gpu: 0.4
+
+qr-detector:
+    model: 'qr'
+
+gesture-detector:
+    model: ''
+    gpu: 0.0
+
+# enabled modules
+modules:
+    - person-detector
+    - drone-detector
+    - dasiam-tracker

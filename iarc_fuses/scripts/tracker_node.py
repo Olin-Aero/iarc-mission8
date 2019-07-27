@@ -1,147 +1,91 @@
 #!/usr/bin/env python2
+"""
+Object Tracker Node.
+
+Sample Usage:
+    rosrun iarc_fuses tracker_node.py _srcs:=['cv_camera'] _use_gpu:=True _dbg:=False
+    roslaunch iarc_fuses tracker_node.py config
+"""
+import numpy as np
+import cv2
+import os
 import rospy
+import time
+from collections import deque
+
+import rospkg
+import actionlib
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
-from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
+#from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
+#from iarc_msgs.srv import Track, TrackRequest, TrackResponse
+from iarc_msgs.msg import *
+from iarc_msgs.srv import *
 from iarc_fuses.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.object_track import Object_Tracker
-from iarc_fuses.utils import draw_bbox, iarc_root
-import numpy as np
-import cv2
-import os
-import rospkg
+from iarc_fuses.track_manager import TrackManager, TrackData
+from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils, box_iou
+from iarc_fuses.camera_handle import CameraHandle
 
-class NullDetector(object):
-    """ example class for generic Detector() implementation """
-    def __init__(self):
+class Guess3D(object):
+    @staticmethod
+    def get_info(obj_id, box):
         pass
-    def __call__(self, img):
-        return (0.0, 0.0)
-
-class NullTracker(object):
-    """ example class for generic Tracker() implementation """
-    def __init__(self):
-        pass
-    def init(self, img, box):
-        """ 
-        Initialize the tracker with the input image and the bounding box.
-
-        Returns:
-            any state-related metadata required for later tracking 
-        """
-        return None
-    def __call__(self, img, box, meta):
-        """
-        Arguments:
-            img(A(H,W,3)): Input image.
-            box(A(4)): [cx,cy,w,h] encoded box
-            meta(?): Extra information field to maintain tracking state.
-        Returns:
-            box(A(4)): [cx,cy,w,h] new encoded box
-            state
-        """
-        return box, meta
-
-def convert_box(box_in):
-    """
-    TODO : handle format arguments, i.e.
-    #format_in='y,x,y,x',
-    #format_out='cx,cy,w,h'
-    """
-    y0, x0, y1, x1 = box_in
-    cx = (x0+x1)/2.0
-    cy = (y0+y1)/2.0
-    w  = float(y1-y0)
-    h  = float(x1-x0)
-    return [cx,cy,w,h]
-
-def convert_box_2(box_in):
-    """
-    TODO : handle format arguments, i.e.
-    #format_in='cx,cy,w,h'
-    #format_out='y,x,y,x',
-    """
-    cx,cy,w,h = box_in
-    x0 = cx - w / 2.0
-    y0 = cy - h / 2.0
-    x1 = cx + w / 2.0
-    y1 = cy + h / 2.0
-
-    return [y0,x0,y1,x1]
-
-class CameraHandle(object):
-    def __init__(self, src, bridge, callback):
-        # parameters
-        self.src_   = src
-        self.model_ = PinholeCameraModel()
-        self.has_info_ = False
-
-        # data
-        self.img_ = None
-        self.stamp_ = None
-
-        # handles
-        self.bridge_ = bridge
-        self.sub_   = rospy.Subscriber(
-                '{}/image_raw'.format(src),
-                Image,
-                self.data_cb
-                )
-        self.sub_i_ = rospy.Subscriber(
-                '{}/camera_info'.format(src),
-                CameraInfo,
-                self.info_cb
-                )
-        self.callback_ = callback
-
-    def info_cb(self, info):
-        self.model_.fromCameraInfo(info)
-        self.has_info_ = True
-        # no longer care about camera_info
-        self.sub_i_.unregister()
-
-    def data_cb(self, data):
-        img = self.bridge_.imgmsg_to_cv2(data, 'bgr8')
-        self.img_ = img
-        self.stamp_ = data.header.stamp
-        self.callback_(self.src_, img, data.header.stamp)
-
-class Track(object):
-    def __init__(self, src, cid, img, box, stamp, meta=None):
-        self.src_ = src
-        self.cid_ = cid
-        self.img_ = img
-        self.box_ = box
-        self.stamp_ = stamp
-        self.meta_ = meta
-
-        self.cnt_ = 1 # count the number of frames seen
-    def __repr__(self):
-        return '[{}]{}-({})'.format(self.src_, self.cid_, self.box_)
 
 class TrackerNode(object):
     def __init__(self):
-        # parse sources
-        srcs = rospy.get_param('~srcs', [])
-        self.dbg_ = rospy.get_param('~dbg', False)
-        self.use_gpu_ = rospy.get_param('~use_gpu', True)
-        rospy.loginfo('Tracker Received Sources : {}'.format(srcs))
+        # parse sources and parameters
+        self.srcs_    = rospy.get_param('~srcs', [])
+        self.dbg_     = rospy.get_param('~dbg', False)
+        self.gpu_     = rospy.get_param('~gpu', 0.4)
+        self.root_    = rospy.get_param('~root', os.path.join(iarc_root(), 'data'))
+        self.tmodel_  = rospy.get_param('~tmodel', '') # tracker model; not used right now
+        self.dmodel_  = rospy.get_param('~dmodel', 'person')
+        self.max_dt_  = rospy.get_param('~max_dt', 0.5) # max threshold for stale data
+        self.min_p_   = rospy.get_param('~min_p',  0.2) # minimum score to keep tracks
+
+        # human-friendly default model specifications
+        # currently only supports detector models, since there's only one tracker model (DaSiamRPN)
+        self.mmap_ = {
+                'person' : 'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
+                'drone'  : 'model2-drone-300x300'
+                }
+        # rectify model names based on model map
+        if self.tmodel_ in self.mmap_:
+            self.tmodel_ = self.mmap_[self.tmodel_]
+        if self.dmodel_ in self.mmap_:
+            self.dmodel_ = self.mmap_[self.dmodel_]
+
+        # logging
+        rospy.loginfo("""
+        Tracker Configuration :
+            Sources : {}
+            Debug   : {}
+            GPU     : {}
+            Root    : {}
+            DModel  : {}
+            TModel  : {}
+        """.format(self.srcs_,self.dbg_,self.gpu_,self.root_,self.dmodel_,self.tmodel_))
+
+        if( len(self.srcs_) <= 0):
+            rospy.loginfo("""
+            Have not received any sources as argument - Check if the script was run correctly.
+            Sample Usage: rosrun iarc_fuses tracker_node.py _srcs:=['cv_camera'] _use_gpu:=True _dbg:=False
+            """)
 
         # Processing Handles
-        #self.det_ = NullDetector()
-
         # person config
+        # alternatively, self.det_ = rospy.ServiceProxy(...)
+        # TODO : add more detectors
         self.det_ = ObjectDetectorTF(
-                root=os.path.join(iarc_root(), 'data'),
-                model='ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
-                cmap={1:DetectRequest.CID_PERSON},
-                use_gpu=False
-                #use_gpu=self.use_gpu_
+                root=self.root_,
+                model=self.dmodel_,
+                cmap={1:Identifier.OBJ_PERSON},
+                gpu=0.0#self.gpu_
                 )
-
         # drone config
         #self.det_ = ObjectDetectorTF(
         #        root=os.path.join(iarc_root(), 'data'),
@@ -149,19 +93,27 @@ class TrackerNode(object):
         #        cmap={1:DetectRequest.CID_DRONE},
         #        use_gpu=self.use_gpu_)
 
-        self.trk_ = Object_Tracker(use_gpu=self.use_gpu_)
-        #self.trk_ = NullTracker()
+        self.trk_ = Object_Tracker(use_gpu=self.gpu_)
+        self.mgr_ = TrackManager(self.trk_)
 
         # ROS Handles
         self.cvbr_ = CvBridge()
-        self.srv_ = rospy.Service('detect', Detect, self.detect_cb)
-        self.pub_ = rospy.Publisher('dbg', PointStamped, queue_size=10)
+
+        self.srv_ = rospy.Service('track', Track, self.track_cb)
+        #self.srv_ = actionlib.SimpleActionServer('track',
+        #        TrackAction, execute_cb=self.track_cb,
+        #        auto_start=False)
+        self.trk_pub_ = rospy.Publisher('tracked_objects',
+                IARCObjects, queue_size=10)
 
         # Register Camera Handlers
-        self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in srcs}
+        self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in self.srcs_}
 
         # data
-        self.track_ = []
+        self.queue_ = {k:deque(maxlen=8) for k in self.srcs_}
+        self.q_idx_ = 0
+        self.reqs_  = []
+        self.tdata_ = []
 
         # Things to detect:
         # - Person ( <= 1 )
@@ -169,120 +121,122 @@ class TrackerNode(object):
         # - Enemy Drone ( <= ? )
         # - Bin/QR ( <= 4 )
 
-    def filter_detection(self, req, din):
-        dout = []
-        for (cid, box, score) in zip(din['class'], din['box'], din['score']):
-            if (req.cid is not req.CID_NULL) and (str(req.cid) is not str(cid)):
-                # class mismatch
-                continue
-            if score < 0.5:
-                # insufficient confidence
-                continue
-            box = convert_box(box)
-            dout.append( (cid, box) )
-        return dout
+    @staticmethod
+    def match_class(cls_a, cls_b):
+        agn_a = (cls_a is Identifier.OBJ_NULL)
+        agn_b = (cls_b is Identifier.OBJ_NULL)
+        eq_ab = (cls_a == cls_b)
+        return (agn_a or agn_b or eq_ab)
 
-    def detect_cb(self, req):
-        src = req.source
-        res_fail = DetectResponse(success=False)
-        if not src in self.cam_:
-            rospy.loginfo('Got Detection Request for [{}] but data does not exit yet'.format(src))
-            return res_fail
+    def match_detection(self, req, din):
+        cid_req = req.obj.obj_id
+        cid, box, score = din
+        if not TrackerNode.match_class(cid_req, cid):
+            # class mismatch
+            return False
+        if score < req.thresh: # TODO : support classwise detection confidence threshold?
+            # insufficient confidence
+            return False
+        return True
 
-        # parse input data
-        img   = self.cam_[src].img_
-        stamp = self.cam_[src].stamp_
-        if (img is None) or (stamp is None):
-            return res_fail
-        
-        dt = (rospy.Time.now() - self.cam_[src].stamp_).to_sec()
-        if dt > 0.5:  # << TODO : MAGIC
-            # more than 500ms passed since last image received:
-            # image cannot be processed.
-            # TODO : support post-request detection as action?(timeout)
-            return res_fail
-
-        dres = self.det_( img )
-        if dres is None:
-            rospy.loginfo('Detector failed for request : {}'.format(req))
-            return res_fail
-
-        # TODO : maybe support multi-class detection in the future
-        dres = self.filter_detection(req, dres)
-
-        if len(dres) <= 0:
-            rospy.loginfo('Detector has found no matching objects for request: {}'.format(req))
-            return res_fail
-
-        # sort by box area
-        # TODO : this code depends on box encoding
-        cid, box = sorted(dres, key=lambda (_,box):(box[2]*box[3]))[-1]
-        x,y,w,h = box
-
-        if (req.track):
-            # initialize tracking that object
-            # TODO : filter for already tracked objects?
-            print('box->', box)
-            meta = self.trk_.init(img, box)
-            self.track_.append( Track(src, cid, img, box, stamp, meta) )
-
-        # finally, success!
-        return DetectResponse(x=x,y=y,w=w,h=h, cid=int(cid), success=True)
+    def track_cb(self, req):
+        """
+        Tracking Callback; Only handles registration.
+        Actual processing happens inside step()
+        """
+        src      = req.source
+        tracking = True
+        if req.stamp.to_sec() == 0:
+            req.stamp = rospy.Time.now()
+        self.reqs_.append( req )
+        return TrackResponse(success=True)
 
     def data_cb(self, src, img, stamp):
-        # TODO : save data in cam_ and run data_cb in step()
-        # instead of inside the callback. May run into strange race conditions.
-        now = rospy.Time.now()
-        if (now - stamp).to_sec() > 0.5:
-            print 'now', now
-            print 'stamp', stamp
-            rospy.loginfo_throttle(1.0, 'incoming data too old: [{}]-{}'.format(src, stamp) )
-            # too old
-            return
+        self.queue_[src].append( (src, img, stamp) )
 
-        if not (src in self.cam_):
-            # should usually not reach here - error
-            return
+    def filter_reqs(self, stamp, reqs):
+        res = []
+        for r in reqs:
+            if (stamp - r.stamp).to_sec() > r.timeout:
+                # current observation is now older than request timeout
+                continue
+            res.append( r)
+        return res
+
+    def process(self, src, img, stamp):
+        # source validation
         cam = self.cam_[src]
-
         if not cam.has_info_:
             # should usually not reach here, maybe the first few frames
             return
 
-        for t in self.track_:
-            tres = self.trk_(img, t.box_, t.meta_)
-            tscore = self.trk_.get_confidence(t.meta_)
-            print('tscore', tscore)
+        obs_new = []
 
-            if tscore > 0.2:
-                t.box_, t.meta_ = tres
-                t.cnt_ += 1
-                t.stamp_ = stamp
-                print('box-->', t.box_)
-            else:
-                # lost track
-                t.box_ = None
+        # remove stale requests
+        self.reqs_ = self.filter_reqs(stamp, self.reqs_)
 
-        # filter tracks
-        # TODO : support tenacious tracking? (recovery from loss / re-detection)
-        # TODO : set timeout (10.0 = MAGIC)
-        self.track_ = [t for t in self.track_ if (t.box_ is not None) and (stamp - t.stamp_).to_sec() < 10.0]
+        #if len(self.reqs_) > 0:
+        #    print len(self.reqs_)
 
-        #if len(self.track_) > 0:
-        #    print self.track_
+        req_msk = np.full(len(self.reqs_), True, dtype=np.bool)
 
-        # TODO : publish tracks
-        for t in self.track_:
-            draw_bbox(img, convert_box_2(t.box_), cls=None)
+        if len(self.reqs_) > 0:
+            # TODO : looking out into the future with multiple parallel detectors ...
+            #d_res = []
+            #for d_cid, det in self.det_:
+            #    if not np.any(d_cid in self.reqs_):
+            #        continue
+            #    d_res.append( det.detect(img) )
+
+            d_res   = self.det_.detect(img,
+                    is_bgr = True
+                    )
+            for d in zip(d_res['class'], d_res['box'], d_res['score']):
+                d_add = False # flag to add detection to observations
+                for i_r, r in enumerate(self.reqs_):
+                    if not req_msk[i_r]:
+                        # already matched request
+                        continue
+                    if self.match_detection(r, d):
+                        req_msk[i_r] = False
+                        d_add = True
+                        break
+
+                if not d_add:
+                    continue
+
+                obs_new.append(TrackData(
+                    src=src,
+                    cid=d[0],
+                    img=img,
+                    box=BoxUtils.convert(d[1],
+                        BoxUtils.FMT_NYXYX,
+                        BoxUtils.FMT_NCCWH),
+                    stamp=stamp.to_sec(),
+                    meta=None # << will be populated by TrackManager() if the observation is accepted
+                    ))
+
+        self.reqs_ = [r for (r,m) in zip(self.reqs_, req_msk) if m]
+
+        # append!
+        self.mgr_.append( obs_new )
+        self.mgr_.process(src, img, stamp.to_sec())
+
+        for t in self.mgr_.get_tracks():
+            if (t.src_ != src):
+                continue
+            draw_bbox(img, t.box_,
+                    fmt=BoxUtils.FMT_NCCWH,
+                    cls=None)
 
             iw, ih = cam.model_.width, cam.model_.height
             cx, cy = np.multiply(t.box_[:2], [iw,ih])
             ray3d  = cam.model_.projectPixelTo3dRay([cx, cy])
 
-            self.pub_.publish(PointStamped(
-                header=Header(frame_id=cam.model_.tfFrame(), stamp=stamp),
-                point=Point(*ray3d)
-                ))
+            #self.pub_.publish(PointStamped(
+            #    header=Header(frame_id=cam.model_.tfFrame(), stamp=stamp),
+            #    point=Point(*ray3d)
+            #    ))
 
         if self.dbg_:
             cv2.imshow('win', img) 
@@ -294,16 +248,88 @@ class TrackerNode(object):
         # ray3d = cam.model_.projectPixelTo3dRay([x,y])
 
     def publish(self):
-        pass
+        msg = IARCObjects()
+        msg.header.frame_id = 'map' # ??
+        msg.header.stamp    = rospy.Time.now()
+
+        for t in self.mgr_.get_tracks():
+            # TODO : fill geometric information
+            #res_3d = Guess3D.get_info(obj_id, box)
+            #cov, vol, dmin, dmax, centroid = res_3d
+            cam = self.cam_[t.src_]
+            
+            roi = cam.model_.raw_roi
+            box_ccwh = BoxUtils.convert(t.box_,
+                    BoxUtils.FMT_NCCWH,
+                    BoxUtils.FMT_CCWH,
+                    img_shape = (roi.height, roi.width)
+                    )
+
+            # TODO : better distance estimates
+            # full-scale estimation from part?
+            if t.cid_ == Identifier.OBJ_PERSON:
+                d    = (cam.model_.getDeltaU(0.44, 1.0) / box_ccwh[2])
+            elif t.cid == Identifier.OBJ_DRONE:
+                d    = (cam.model_.getDeltaU(0.32, 1.0) / box_ccwh[2])
+            else:
+                # default: 1.0
+                d = 1.0
+            pos  = d * np.array( cam.model_.projectPixelTo3dRay(box_ccwh[:2]) )
+
+            # DaSiamRPN encoding
+            box_msg = Box( 
+                    format=Box.FMT_CCWH, # careful! d.n.e. BoxUtils.FMT_CCWH
+                    data=t.box_,
+                    normalized=True
+                    )
+            msg.objects.append(
+                    IARCObject(
+                        source = t.src_,
+                        stamp  = rospy.Time(secs=t.stamp_),
+                        obj_id = Identifier(obj_id=t.cid_),
+                        box    = box_msg,
+                        #covariance=
+                        #volume=
+                        #distance_range=
+                        centroid=PointStamped(
+                            header=Header(
+                                frame_id = cam.model_.tfFrame(),
+                                stamp    = msg.header.stamp,
+                                ),
+                            point=Point(*pos),
+                            )
+                        )
+                    )
+        self.trk_pub_.publish(msg)
 
     def step(self):
-        pass
+        # loop through sources sequentially
+        if len(self.srcs_) <= 0:
+            return
+        src = self.srcs_[ self.q_idx_ ]
+        q = self.queue_[ src ]
+        self.q_idx_ = ((self.q_idx_ + 1) % len(self.srcs_))
+
+        if len(q) <= 0:
+            # no data in queue
+            return
+
+        data = q.pop()
+        src, img, stamp = data
+        dt = (rospy.Time.now() - stamp).to_sec()
+        if (dt > self.max_dt_):
+            # stale data
+            rospy.loginfo_throttle(1.0,
+                    'incoming data too old: [{}]-{}'.format(src, stamp))
+            return
+        self.process(src, img, stamp)
+        self.publish()
 
     def run(self):
         r = rospy.Rate(50)
         while not rospy.is_shutdown():
             self.step()
-        #rospy.spin()
+            r.sleep()
 
 def main():
     rospy.init_node('tracker')

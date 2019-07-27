@@ -14,6 +14,9 @@ Currently, the package depends on (listing external packages):
 - [tum-simulator](https://github.com/angelsantamaria/tum_simulator.git)
     * **NOT** The standard version; needs to be from this repository.
     * Be sure to also install its dependencies.
+- [sphinx](https://developer.parrot.com/docs/sphinx/index.html)
+    * Gazebo-based 3D Physics Simulation Support for Parrot Bebop Line + @
+
 
 ### Building
 
@@ -34,3 +37,6 @@ rosrun iarc_forebrain start.py _sim:=true
 
 
 **WARNING :** The simulation will run extremely slow on a VM, and may appear broken as a result.
+
+
+
