@@ -2,6 +2,9 @@
     <arg name="namespace" default="bebopN" />
     <arg name="ip" default="192.168.42.1" />
     <arg name="sim" default="false"/>
+    <arg name="x_start" default="0"/>
+    <arg name="y_start" default="0"/>
+    <arg name="yaw_start" default="0"/>
 
     <param name="$(arg namespace)/tf_prefix" value="$(arg namespace)"/>
 
@@ -24,7 +27,7 @@
         <node name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 $(arg namespace) base_link 30">
             <remap from="/tf" to="tf"/>
         </node>
-        <node name="odom_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map odom 30">
+        <node name="odom_tf" pkg="tf" type="static_transform_publisher" args="$(arg x_start) $(arg y_start) 0 0 0 $(arg yaw_start) map launch 30">
             <remap from="/tf" to="tf"/>
         </node>
     </group>

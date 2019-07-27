@@ -13,7 +13,7 @@ class TfRelay(object):
 
         self.remaps = {}
 
-        for s in 'base_link odom'.split():
+        for s in 'base_link odom launch'.split():
             self.remaps[s] = self.tf_namespace + '/' + s
 
     def handleInternalTf(self, msg):
