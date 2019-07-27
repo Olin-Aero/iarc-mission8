@@ -20,7 +20,7 @@ void ROSRobot::publish(){
     tf::Quaternion q;
     q.setRPY(0,0,t);
     xform.setRotation(q);
-    br.sendTransform(tf::StampedTransform(xform, ros::Time::now(), "map", name));
+    br.sendTransform(tf::StampedTransform(xform, ros::Time::now(), name+"/odom", name));
 
     //also publish
     pos_msg.x=x;
