@@ -1,0 +1,9 @@
+string source               # observation source camera to detect from ('' == all)
+time stamp                  # request stamp
+iarc_msgs/Identifier obj_id # request type id
+float32 thresh                # detection confidence threshold
+float32 timeout               # detection timeout
+sensor_msgs/Image image     # [optional] image to detect from; if supplied, overrides stamp, etc.
+---
+iarc_msgs/IARCObject obj    # full detected object characterization
+bool success                # whether or not the detection was successful

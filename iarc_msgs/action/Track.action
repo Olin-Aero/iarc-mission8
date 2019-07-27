@@ -1,0 +1,13 @@
+# Goal
+string source               # observation source camera to detect from ('' == all)
+time stamp                  # request stamp
+float thresh                # detection confidence threshold
+float timeout               # detection timeout
+iarc_msgs/IARCObject obj;   # requested trackable object
+---
+# Results
+iarc_msgs/IARCObject obj;   # full detected object characterization
+bool success                # whether or not the detection was successful
+---
+# Feedback
+iarc_msgs/IARCObject obj;   # full detected object characterization
