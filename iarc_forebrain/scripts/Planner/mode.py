@@ -6,6 +6,7 @@ class Mode(object):
     def __init__(self, drone):
         ''' Called once when program starts '''
         self.active = False
+        self.yaw = 0
         self.drone = drone
 
     def enable(self, *args):
@@ -47,4 +48,5 @@ class Mode(object):
     def get_look_direction(self, current_orientation, enable=False):
         ''' Returns drone orientation desired by mode as an angle in the odom frame (radians)
             The enable flag is true the first time this function is called'''
+        self.yaw = current_orientation
         return current_orientation

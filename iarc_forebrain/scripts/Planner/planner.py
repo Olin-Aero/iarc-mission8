@@ -5,7 +5,8 @@ import numpy as np
 import math
 import cv2
 import sys
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32MultiArray
+from tf.transformations import *
 from mode import Mode
 from follow_gesture import FollowGesture
 from geometry_msgs.msg import PointStamped
@@ -30,6 +31,7 @@ class Planner(object):
         rospy.Subscriber("/helmet_pos", PointStamped, self.player_callback)
         # TODO: change message type
         rospy.Subscriber("/obstacles", PointStamped, self.obstacle_callback)
+        rospy.Subscriber("/rangefinder", Int32MultiArray, self.rangefinder_callback)
 
     def voice_callback(self, msg):
         ''' Voice command format: [color] [command] [parameters...] '''
@@ -50,6 +52,7 @@ class Planner(object):
                 drone.current_mode.disable()
             drone.current_mode = drone.modes[args[1]]
             try:
+                drone.current_mode.yaw = drone.look_direction
                 drone.current_mode.enable(*args[2:])
             except TypeError as e:
                 rospy.loginfo("Invalid parameters provided: %s" % args)
@@ -81,8 +84,33 @@ class Planner(object):
         self.player_pos = msg
 
     def obstacle_callback(self, msg):
-        self.obstacles = msg
+        pass
         # TODO: parse obstacle message into proper format
+
+    def rangefinder_callback(self, msg):
+        drones = ["alexa","google","siri","clippy"]
+        angles = [-60, 0, 60] # TODO: actual mounting angles in degrees CCW from forward
+        maxrange = 1.5 # maximum distance for finding objects with rangefinder in meters
+        beamwidth = 60 # angular coverage of each ultrasonic in degrees
+        vals = msg.data
+        pose = self.drones[drones[vals[0]]].drone.get_pos("map").pose
+        o = pose.orientation
+        p = pose.position
+        yaw = euler_from_quaternion([o.x, o.y, o.z, o.w])[2]
+        for o in self.obstacles[:]:
+            ang = np.arctan2(o[1]-p.y, o[0]-p.x)
+            dist = np.sqrt((o[0]-p.x)**2+(o[1]-p.y)**2)
+            if dist < maxrange and any(abs(a+yaw-ang)<np.radians(beamwidth)/2 for a in angles):
+                self.obstacles.remove(o)
+            elif rospy.get_time() - o[3] > 10: # obstacles removed after 10 seconds
+                # self.obstacles.remove(o)
+                pass
+        for i, val in enumerate(vals[1:]):
+            if val > 0:
+                dist = val/10.0 # TODO: actual conversion
+                ang = np.radians(angles[i])+yaw
+                self.obstacles += [(dist*np.cos(ang)+p.x, dist*np.sin(ang)+p.y, p.z, rospy.get_time())]
+        print(self.obstacles)
 
     def run(self):
         rate = rospy.Rate(10)  # 10Hz
@@ -92,6 +120,7 @@ class Planner(object):
                     drone.look_direction = drone.look_mode.get_look_direction(drone.look_direction)
                     drone.look_mode.update(drone.look_direction, self.obstacles)
                 if drone.current_mode.is_active():
+                    drone.current_mode.yaw = drone.look_direction
                     drone.current_mode.update(
                         drone.look_direction, self.obstacles)  # is this thread safe?
             rate.sleep()
@@ -107,8 +136,9 @@ class SubPlanner:
                       "land": TakeoffLand(drone),     "takeoff": TakeoffLand(drone, takeoff=True),
                       "north": Move(drone, 0),        "east": Move(drone, 3*math.pi/2),
                       "south": Move(drone, math.pi),  "west": Move(drone, math.pi/2),
-                      "stop": Move(drone, 0),         "duck": Move(drone, 0, -1),
-                      "jump": Move(drone, 0, 1),      "analyze": Photo(drone)}
+                      "stop": Move(drone, 0),         "forward": Move(drone, 0, relative=True),
+                      "duck": Move(drone, 0, -1),     "jump": Move(drone, 0, 1)},
+                      "analyze": Photo(drone)}
         self.look_modes = {"look": Turn(drone), "right": Turn(drone, -1), "left": Turn(drone, 1)}
         self.look_direction = 0
         self.current_mode_pub = rospy.Publisher(
