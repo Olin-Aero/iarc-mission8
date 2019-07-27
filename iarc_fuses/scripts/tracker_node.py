@@ -175,8 +175,8 @@ class TrackerNode(object):
         # remove stale requests
         self.reqs_ = self.filter_reqs(stamp, self.reqs_)
 
-        #if len(self.reqs_) > 0:
-        #    print len(self.reqs_)
+        if len(self.reqs_) > 0:
+            print(len(self.reqs_))
 
         req_msk = np.full(len(self.reqs_), True, dtype=np.bool)
 
@@ -187,6 +187,7 @@ class TrackerNode(object):
             #    if not np.any(d_cid in self.reqs_):
             #        continue
             #    d_res.append( det.detect(img) )
+            print('hmm')
 
             d_res   = self.det_.detect(img,
                     is_bgr = True

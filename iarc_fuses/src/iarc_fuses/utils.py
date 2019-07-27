@@ -83,22 +83,6 @@ def convert_to_pixels(image_size, bounding_box):
         int(bounding_box[3] * image_size[1]),
     )
 
-
-def draw_bbox(img, box, cls=None):
-    """ Draw a yxyx-encoded box """
-    h, w = img.shape[:2]
-    yxyx = box
-    yxyx = np.multiply(yxyx, [h, w, h, w])
-    yxyx = np.round(yxyx).astype(np.int32)
-    y0, x0, y1, x1 = yxyx
-    cv2.rectangle(img, (x0, y0), (x1, y1), (255, 0, 0), thickness=2)
-    if cls is not None:
-        org = (max(x0, 0), min(y1, h))
-        cv2.putText(
-            img, cls, org, cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 1, cv2.LINE_AA
-        )
-
-
 def iarc_root():
     try:
         import rospkg
