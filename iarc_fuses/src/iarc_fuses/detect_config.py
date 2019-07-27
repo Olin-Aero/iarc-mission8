@@ -1,3 +1,1 @@
-
-# PERSON_HSV_THRESHOLDS = {'highHSV': (179, 219, 153), 'lowHSV': (177, 180, 123)}
-PERSON_HSV_THRESHOLDS = {'lowHSV': (170, 32, 109), 'highHSV': (180, 255, 193)}
+PERSON_HSV_THRESHOLDS = {"lowHSV": (168, 55, 50), "highHSV": (6, 255, 255)}

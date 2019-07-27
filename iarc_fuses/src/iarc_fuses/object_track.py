@@ -9,12 +9,9 @@ from DaSiamRPN.net import SiamRPNvot
 from DaSiamRPN.run_SiamRPN import SiamRPN_init, SiamRPN_track
 from DaSiamRPN.utils import get_axis_aligned_bbox, cxy_wh_2_rect
 
-class Object_Tracker():
-    def __init__(self,
-            root='DaSiamRPN/',
-            model='SiamRPNVOT.model',
-            use_gpu=False
-            ):
+
+class Object_Tracker:
+    def __init__(self, root="DaSiamRPN/", model="SiamRPNVOT.model", use_gpu=False):
         """
         root(str): Persistent model data Directory.
         model(str): name of the model[file] to run.
@@ -55,16 +52,18 @@ class Object_Tracker():
                     relative coordinates [0-1]
         """
 
-        if np.any( np.greater(np.asarray(bounding_box), 1.0)):
+        if np.any(np.greater(np.asarray(bounding_box), 1.0)):
             # input is probably not relative.
             # we could resolve this, but we choose to throw an error.
             raise ValueError("Please Make sure that the input box is relative !!")
 
         img_h, img_w = np.shape(image)[:2]
-        [cx, cy, w, h] = utils.convert_to_pixels([img_w,img_h], bounding_box) 
+        [cx, cy, w, h] = utils.convert_to_pixels([img_w, img_h], bounding_box)
         # tracker init
         target_pos, target_sz = np.array([cx, cy]), np.array([w, h])
-        state = SiamRPN_init(image, target_pos, target_sz, self.net, use_gpu=self.use_gpu_)
+        state = SiamRPN_init(
+            image, target_pos, target_sz, self.net, use_gpu=self.use_gpu_
+        )
 
         return state
 
@@ -89,14 +88,16 @@ class Object_Tracker():
 
         tic = cv2.getTickCount()
         state = SiamRPN_track(state, image, use_gpu=self.use_gpu_)  # track
-        toc += cv2.getTickCount()-tic
+        toc += cv2.getTickCount() - tic
 
-        box = (state['target_pos'][0],
-                state['target_pos'][1],
-                state['target_sz'][0], 
-                state['target_sz'][1])
+        box = (
+            state["target_pos"][0],
+            state["target_pos"][1],
+            state["target_sz"][0],
+            state["target_sz"][1],
+        )
 
         img_h, img_w = np.shape(image)[:2]
-        box = utils.convert_to_relative([img_w,img_h], box)
+        box = utils.convert_to_relative([img_w, img_h], box)
 
         return box, state

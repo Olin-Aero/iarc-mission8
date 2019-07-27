@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 # USAGE
 # python detect.py --images images
 
@@ -19,6 +21,7 @@ def detect_helmet(image):
     # frame_HSV = cv2.dilate(frame_HSV,kernel,iterations = 1)
     # frame_HSV = cv2.dilate(frame_HSV)
     frame_threshold = cv2.inRange(frame_HSV, PERSON_HSV_THRESHOLDS['lowHSV'], PERSON_HSV_THRESHOLDS['highHSV'])
+    cv2.imshow("threshold", frame_threshold)
 
     im2, contours, hierarchy = cv2.findContours(frame_threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if len(contours) == 0:
@@ -26,14 +29,15 @@ def detect_helmet(image):
     # print("_____________________")
     # print(contours)
     # contours = imutils.grab_contours(contours)
-    contour = sorted(contours, key=cv2.contourArea, reverse=True)[0]
-    print("Doin stuff")
+    contour = max(contours, key=cv2.contourArea)
     disp_contours = cv2.drawContours(disp_contours, [contour], 0, (255,255,255), 1)
-    cv2.imshow("garb", disp_contours)
+    cv2.imshow("contours", disp_contours)
     cv2.waitKey(0)
+    return contour
+
 
 def main2():
-    vidPath = '/home/maximilian/Pictures/VID_20190220_192021.mp4'
+    vidPath = './schommer.mp4'
     cap = cv2.VideoCapture(vidPath)
 
     # Start tracker by initializing state
@@ -43,8 +47,9 @@ def main2():
     # startedTracking = False
     while cap.isOpened():
         ret, image = cap.read()
+        if not ret: # If we have reached the end of the video
+          break
         image = cv2.resize(image, None, fx=.5, fy=.5)
-        # print(type(image))
         detect_helmet(image)
         # res = utils.convert_to_pixels(np.shape(image), tracker.track(image))
         # print(tracker.state)
