@@ -28,6 +28,7 @@ class TrackData(object):
         self.meta_ = meta
 
         self.cnt_ = 1 # count the number of frames seen
+        # TODO(yycho0108): Add unique track id for data association
     def __repr__(self):
         return '[{}]{}-({})'.format(self.src_, self.cid_, self.box_)
 
