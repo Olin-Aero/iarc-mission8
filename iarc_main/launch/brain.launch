@@ -6,7 +6,11 @@ and EXCEPT the estop, which needs `rosrun iarc_main bebop_keyboard_multi.py` -->
     <node name="qr_node" pkg="iarc_fuses" type="qr_node.py" output="screen"/>
     <node name="sonar_server" pkg="iarc_forebrain" type="http_ros_bridge.py"/>
 
-    <node name="tracker_node" pkg="iarc_fuses" type="tracker_node.py" args="alexa google siri clippy" output="screen">
+    <node name="tracker_node" pkg="iarc_fuses" type="tracker_node.py" output="screen">
+        <param name="srcs" value="['alexa','google','siri','clippy']"/>
+    </node>
+
+    <node pkg="iarc_fuses" type="detection_node.py" name="drone_person_detector">
         <param name="srcs" value="['alexa','google','siri','clippy']"/>
     </node>
 
