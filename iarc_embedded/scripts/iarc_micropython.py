@@ -8,28 +8,28 @@ import utime
 from machine import Pin, UART
 import machine
 
-from config import DRONE_ID
+from config import DRONE_ID, WIFI_PASSWORD
 
 SERVER = "192.168.43.3:8080"
 
 sta_if = network.WLAN(network.STA_IF)
 sta_if.active(True)
-sta_if.connect("bebop_drones", "PASSWORD_HERE")
+sta_if.connect("bebop_drones", WIFI_PASSWORD)
 
 
 # response = urequests.post("http://jsonplaceholder.typicode.com/posts", data = "some dummy content")
 
 # Pinout for Ultrasonics:
-# Sensor | PW pin | RX pin
-# Left   |   D1   |   D2
+# Sensor | PW pin | RX pin (yellow)
+# Left   |   D5   |   D6
 # Center |   D3   |   D4
-# Right  |   D5   |   D6
+# Right  |   D1   |   D2
 sonics = [
     (Pin(rx, Pin.IN), Pin(tx, Pin.OUT))
     for rx, tx in [
-        (5, 4),
-        (0, 2),
         (14, 12),
+        (0, 2),
+        (5, 4),
     ]
 ]
 LED = Pin(16, Pin.OUT)
