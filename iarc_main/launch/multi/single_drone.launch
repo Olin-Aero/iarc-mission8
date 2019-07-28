@@ -24,7 +24,10 @@
         <node name="iarc_simulator" pkg="iarc_sim_2d" cwd="node" type="sim.py" output="screen">
             <param name="name" value="$(arg namespace)"/>
         </node>
-        <node name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 $(arg namespace) base_link 30">
+        <node ns="$(arg namespace)" name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 $(arg namespace) base_link 30">
+            <remap from="/tf" to="tf"/>
+        </node>
+        <node ns="$(arg namespace)" name="launch_frame_static" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 launch odom 30">
             <remap from="/tf" to="tf"/>
         </node>
     </group>
@@ -38,5 +41,5 @@
         <param name="tf_prefix" value="$(arg namespace)"/>
     </node>
 
-    <node name="launch_frame" ns="$(arg namespace)" pkg="iarc_main" type="launch_observer.py" />
+    <node name="launch_frame" ns="$(arg namespace)" pkg="iarc_main" type="launch_observer.py" unless="$(arg sim)"/>
 </launch>

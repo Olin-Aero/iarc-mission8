@@ -4,6 +4,7 @@ and EXCEPT the estop, which needs `rosrun iarc_main bebop_keyboard_multi.py` -->
     <arg name="voice" default="true"/>
     <!-- Shared perception nodes -->
     <node name="qr_node" pkg="iarc_fuses" type="qr_node.py" output="screen"/>
+    <node name="sonar_server" pkg="iarc_forebrain" type="http_ros_bridge.py" output="screen"/>
 
     <node name="tracker_node" pkg="iarc_fuses" type="tracker_node.py" args="alexa google siri clippy" output="screen">
         <param name="srcs" value="['alexa', 'google', 'siri', 'clippy']"/>
