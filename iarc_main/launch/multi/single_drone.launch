@@ -19,7 +19,7 @@
         </include>
     </group>
 
-    <group ns="$(arg namespace)" if="$(arg sim)">
+    <group if="$(arg sim)">
         <!-- Simulator nodes -->
         <node name="iarc_simulator" pkg="iarc_sim_2d" cwd="node" type="sim.py" output="screen">
             <param name="name" value="$(arg namespace)"/>
@@ -27,10 +27,11 @@
         <node name="base_link_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 $(arg namespace) base_link 30">
             <remap from="/tf" to="tf"/>
         </node>
-        <node name="odom_tf" pkg="tf" type="static_transform_publisher" args="$(arg x_start) $(arg y_start) 0 0 0 $(arg yaw_start) map launch 30">
-            <remap from="/tf" to="tf"/>
-        </node>
     </group>
+    
+    <node ns="$(arg namespace)" name="odom_tf" pkg="tf" type="static_transform_publisher" args="$(arg x_start) $(arg y_start) 0 0 0 $(arg yaw_start) map launch 30">
+        <remap from="/tf" to="tf"/>
+    </node>
 
     <node name="arbiter" ns="$(arg namespace)" pkg="iarc_arbiter" type="arbiter_lite.py" output="screen">
         <remap from="/odometry" to="odom"/>
