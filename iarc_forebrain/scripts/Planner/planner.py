@@ -190,5 +190,5 @@ class SubPlanner:
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner(['alexa'])
+    p = Planner(['siri'])
     p.run()
