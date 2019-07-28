@@ -4,7 +4,7 @@ import cv2
 import warnings
 import sys
 from matplotlib import pyplot as plt
-import utils
+from iarc_fuses import utils
 
 # ColorTuner uses much code from
 # https://github.com/opencv/opencv/blob/3.4/samples/python/tutorial_code/imgProc/threshold_inRange/threshold_inRange.py
@@ -327,7 +327,7 @@ class ColorTuner(object):
 
 def main():
     cap = cv2.VideoCapture(sys.argv[1])
-    mySess = ColorTuner(object)()
+    mySess = ColorTuner()
     ret, img = cap.read()
     img = cv2.resize(img, None, fx=0.5, fy=0.5)
     mySess.set_source(img)

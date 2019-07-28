@@ -107,8 +107,7 @@ class TrackerNode(object):
         self.cvbr_ = CvBridge()
 
         self.track_service_ = rospy.Service('track', Track, self.track_cb)
-        self.track_publishers_ = [rospy.Publisher('{}/tracked_objects',
-            IARCObjects, queue_size=10) for src in self.srcs_]
+        self.trk_pub_ = rospy.Publisher('tracked_objects', IARCObjects, queue_size=10)
 
         # Register Camera Handlers
         self.cam_ = {k: CameraHandle(k, self.cvbr_, self.data_cb)
