@@ -8,8 +8,9 @@ import sys
 from collections import defaultdict
 
 from std_msgs.msg import String, Int32MultiArray
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, Point, Vector3
 from tf.transformations import *
+from visualization_msgs.msg import Marker, MarkerArray
 
 from mode import Mode
 from follow_gesture import FollowGesture
@@ -19,13 +20,6 @@ from photo import Photo
 from turn import Turn
 from iarc_arbiter.drone import Drone
 
-
-import ptvsd
-
-# 5678 is the default attach port in the VS Code debug configurations
-print("Waiting for debugger attach")
-ptvsd.enable_attach(address=('localhost', 5678), redirect_output=True)
-ptvsd.wait_for_attach()
 
 class Planner(object):
 
@@ -44,6 +38,8 @@ class Planner(object):
         rospy.Subscriber("/obstacles", PointStamped, self.obstacle_callback)
         rospy.Subscriber("/rangefinder", Int32MultiArray,
                          self.rangefinder_callback)
+
+        self.obstacle_vis_pub = rospy.Publisher('obstacle_visualizations', Marker, queue_size=10)
 
     def voice_callback(self, msg):
         ''' Voice command format: [color] [command] [parameters...] '''
@@ -101,27 +97,32 @@ class Planner(object):
         # TODO: parse obstacle message into proper format
 
     def rangefinder_callback(self, msg):
+        OBJECT_DESPAWN_TIME = 2.0 # Despawn all old obstacles immediately
         drones = ["alexa", "google", "siri", "clippy"]
         # TODO: actual mounting angles in degrees CCW from forward
-        angles = [-60, 0, 60]
-        maxrange = 1.5  # maximum distance for finding objects with rangefinder in meters
+        angles = [60, 0, -60]
+        maxrange = 2.0  # maximum distance for finding objects with rangefinder in meters
         beamwidth = 60  # angular coverage of each ultrasonic in degrees
-        US_PER_METER = 5787
+        US_PER_METER = 5787.0
         vals = msg.data
-        pose = self.drones[drones[vals[0]]].drone.get_pos("map").pose
-        o = pose.orientation
+        name=drones[vals[0]]
+        pose = self.drones[name].drone.get_pos("map").pose
+        orient = pose.orientation
         p = pose.position
-        yaw = euler_from_quaternion([o.x, o.y, o.z, o.w])[2]
-        obstacles = self.obstacles[drones[vals[0]]]
-        for o in obstacles:
-            ang = np.arctan2(o[1]-p.y, o[0]-p.x)
-            dist = np.sqrt((o[0]-p.x)**2+(o[1]-p.y)**2)
-            if dist < maxrange and any(abs(a+yaw-ang) < np.radians(beamwidth)/2 for a in angles):
-                obstacles.remove(o)
-            # obstacles removed after 10 seconds
-            elif rospy.get_time() - o[3] > 10:
-                # obstacles.remove(o)
-                pass
+        yaw = euler_from_quaternion([orient.x, orient.y, orient.z, orient.w])[2]
+        self.obstacles[name] = []
+        obstacles = self.obstacles[name]
+        # for o in obstacles:
+        #     obstacles.remove(0)
+        #     continue
+        #     # Clear out old obscacles
+        #     ang = np.arctan2(o[1]-p.y, o[0]-p.x)
+        #     dist = np.sqrt((o[0]-p.x)**2+(o[1]-p.y)**2)
+        #     # if dist < maxrange and any(abs(a+yaw-ang) < np.radians(beamwidth)/2 for a in angles):
+        #     #     obstacles.remove(o)
+        #     # obstacles removed after timeout
+        #     if rospy.get_time() - o[3] > OBJECT_DESPAWN_TIME:
+        #         obstacles.remove(o)
         for i, val in enumerate(vals[1:]):
             if val > 0:
                 dist = val/US_PER_METER
@@ -129,21 +130,35 @@ class Planner(object):
                 obstacles += [(dist*np.cos(ang)+p.x,
                                dist*np.sin(ang)+p.y, p.z, rospy.get_time())]
         rospy.loginfo_throttle(2.0,
-            "Active obstacles for {}: {}".format(drones[vals[0]], obstacles))
+            "Active obstacles for {}: {}".format(name, obstacles))
+
+        # Output visualizations
+        m = Marker()
+        m.header.frame_id = 'map'
+        m.type = Marker.SPHERE_LIST
+        m.scale = Vector3(0.5, 0.5, 0.5)
+        m.ns = 'planner'
+        m.id = vals[0]
+        m.color.a = 1.0
+        m.color.r = vals[0]/4.0
+        m.color.g = 1-vals[0]/4.0
+        for x,y,z,t in obstacles:
+            m.points.append(Point(x,y,z))
+        self.obstacle_vis_pub.publish(m)
 
     def run(self):
         rate = rospy.Rate(10)  # 10Hz
         while not rospy.is_shutdown():
-            for drone in self.drones.values():
+            for name, drone in self.drones.iteritems():
                 if drone.look_mode.is_active():
                     drone.look_direction = drone.look_mode.get_look_direction(
                         drone.look_direction)
                     drone.look_mode.update(
-                        drone.look_direction, self.obstacles)
+                        drone.look_direction, self.obstacles[name])
                 if drone.current_mode.is_active():
                     drone.current_mode.yaw = drone.look_direction
                     drone.current_mode.update(
-                        drone.look_direction, self.obstacles)  # is this thread safe?
+                        drone.look_direction, self.obstacles[name])  # is this thread safe?
             rate.sleep()
 
 
@@ -175,5 +190,5 @@ class SubPlanner:
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner(['alexa', 'google', 'siri', 'clippy'])
+    p = Planner(['alexa'])
     p.run()
