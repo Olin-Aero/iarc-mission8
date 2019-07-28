@@ -5,8 +5,11 @@ import rospy
 import math
 from mode import Mode
 
+import numpy as np
+
 
 class Move(Mode):
+    TARGET_DIST_LOOK_THRESH = 0.5
     def __init__(self, drone, angle=0, dz=0, relative=False):
         Mode.__init__(self, drone)
         self.angle = angle
@@ -35,6 +38,9 @@ class Move(Mode):
         pos = self.drone.get_pos("map").pose.position
         v = self.get_move_direction(
             [self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
+        vec_to_target = np.array(self.target[:2]) - np.array([pos.x, pos.y])
+        if np.linalg.norm(vec_to_target) >= self.TARGET_DIST_LOOK_THRESH:
+            look_direction = math.atan2(vec_to_target[1], vec_to_target[0])
         dest = [v[0]+pos.x, v[1]+pos.y]
         # TODO: account for vertical obstacle distance
         x, y = pos.x+math.cos(look_direction), pos.y+math.sin(look_direction)
