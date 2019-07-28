@@ -5,8 +5,11 @@ import rospy
 import math
 from mode import Mode
 
+import numpy as np
+
 
 class Move(Mode):
+    TARGET_DIST_LOOK_THRESH = 0.5
     def __init__(self, drone, angle=0, dz=0, relative=False):
         Mode.__init__(self, drone)
         self.angle = angle
@@ -35,6 +38,9 @@ class Move(Mode):
         pos = self.drone.get_pos("map").pose.position
         v = self.get_move_direction(
             [self.target[0]-pos.x, self.target[1]-pos.y], [(o[0]-pos.x, o[1]-pos.y) for o in obstacles])
+        vec_to_target = np.array(self.target[:2]) - np.array([pos.x, pos.y])
+        if np.linalg.norm(vec_to_target) >= self.TARGET_DIST_LOOK_THRESH:
+            look_direction = math.atan2(vec_to_target[1], vec_to_target[0])
         dest = [v[0]+pos.x, v[1]+pos.y]
         # TODO: account for vertical obstacle distance
         x, y = pos.x+math.cos(look_direction), pos.y+math.sin(look_direction)
@@ -46,10 +52,10 @@ class Move(Mode):
         Returns optimal (vx, vy) based on gradient of potential field determined by target and 
         obstacle coordinates relative to current drone location
         '''
-        AVOID_RADIUS = 1  # Closest that drone should approach an obstacle
-        D_FULL = 10  # Minimum distance at which velocity maxes out
+        AVOID_RADIUS = 1.0  # Closest that drone should approach an obstacle
+        D_FULL = 10.0  # Minimum distance at which velocity maxes out
         STUCK_THRESHOLD = 0  # 0.01 # If v is below this value, move orthogonal to target direction
-        DECAY = 2  # how quickly the repulsivity of obstacles decays with distance
+        DECAY = 3.0  # how quickly the repulsivity of obstacles decays with distance
 
         k_avoid = AVOID_RADIUS**DECAY  # Repulsivity of obstacles
         dist = math.sqrt(target[0]**2 + target[1]**2)
