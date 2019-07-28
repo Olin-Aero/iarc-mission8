@@ -1,3 +1,7 @@
+
+# Before loading this code, you will need to flash your ESP8266:
+# esptool.py --port /dev/ttyUSB0 erase_flash
+# esptool.py --port /dev/ttyUSB0 --baud 460800 write_flash --flash_size=detect 0 Downloads/esp8266-20190310-v1.10-194-g41e7ad647.bin
 import urequests
 import network
 import utime
@@ -6,11 +10,11 @@ import machine
 
 from config import DRONE_ID
 
-SERVER = "192.168.16.96:8080"
+SERVER = "192.168.43.3:8080"
 
 sta_if = network.WLAN(network.STA_IF)
 sta_if.active(True)
-sta_if.connect("OLIN-ROBOTICS", "R0B0TS-RULE")
+sta_if.connect("bebop_drones", "PASSWORD_HERE")
 
 
 # response = urequests.post("http://jsonplaceholder.typicode.com/posts", data = "some dummy content")
@@ -25,7 +29,7 @@ sonics = [
     for rx, tx in [
         (5, 4),
         (0, 2),
-        # (14, 12),
+        (14, 12),
     ]
 ]
 LED = Pin(16, Pin.OUT)
