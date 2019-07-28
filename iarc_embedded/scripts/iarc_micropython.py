@@ -10,7 +10,7 @@ import machine
 
 from config import DRONE_ID, WIFI_PASSWORD
 
-SERVER = "192.168.43.3:8080"
+SERVER = "192.168.43.2:8080"
 
 sta_if = network.WLAN(network.STA_IF)
 sta_if.active(True)
