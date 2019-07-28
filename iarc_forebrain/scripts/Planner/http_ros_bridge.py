@@ -37,8 +37,9 @@ class S(BaseHTTPRequestHandler):
             Drone ordering is "alexa", "google", "siri", "clippy"
         '''
         vals = [float(x) for x in self.path[1:].split(';')]
-        print(vals)
-        print(self._set_headers())
+        # print(vals)
+        # print(self._set_headers())
+        self._set_headers()
         self.pub.publish(data=vals)
         self.wfile.write("<html><body><h1>hi!</h1></body></html>")
 
@@ -49,6 +50,9 @@ class S(BaseHTTPRequestHandler):
         # Doesn't do anything with posted data
         self._set_headers()
         self.wfile.write("<html><body><h1>POST!</h1></body></html>")
+
+    def log_message(self, format, *args):
+        return
         
 def run(server_class=HTTPServer, handler_class=S, port=8080):
     server_address = ('', port)

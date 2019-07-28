@@ -7,7 +7,7 @@ and EXCEPT the estop, which needs `rosrun iarc_main bebop_keyboard_multi.py` -->
     <node name="sonar_server" pkg="iarc_forebrain" type="http_ros_bridge.py"/>
 
     <node name="tracker_node" pkg="iarc_fuses" type="tracker_node.py" output="screen">
-        <param name="srcs" value="['alexa','google','siri','clippy']"/>
+        <rosparam param="srcs">[alexa, google, siri, clippy]</rosparam>
     </node>
     
     <!-- User interface -->
