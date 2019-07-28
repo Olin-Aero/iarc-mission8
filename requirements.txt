@@ -4,3 +4,5 @@ matplotlib==1.5.1
 SpeechRecognition
 pocketsphinx
 pyaudio>=0.2.11
+torch==1.0.1
+qrtools
