@@ -81,7 +81,7 @@ install:
   - rosdep install --from-paths . --ignore-src --rosdistro=$ROS_DISTRO -y
 
     # python dependencies with pip
-  - sudo pip2 install -r "$CI_SOURCE_PATH/requirements.txt"
+  - sudo pip2 install --quiet -r "$CI_SOURCE_PATH/requirements.txt"
 
 before_script:
   - cd ~/catkin_ws
