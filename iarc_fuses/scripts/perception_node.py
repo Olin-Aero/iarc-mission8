@@ -16,6 +16,7 @@ from iarc_fuses.utils import iarc_root
 class BinDetector(object):
     def __init__(self):
         pass
+
 class QRQuadrantDetector(object):
     def __init__(self):
         pass

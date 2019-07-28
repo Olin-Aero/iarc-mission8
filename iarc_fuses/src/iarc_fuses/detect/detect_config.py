@@ -1,0 +1,1 @@
+PERSON_HSV_THRESHOLDS = {"lowHSV": (168, 55, 50), "highHSV": (6, 255, 255)}

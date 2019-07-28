@@ -20,39 +20,46 @@ from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
-#from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
-#from iarc_msgs.srv import Track, TrackRequest, TrackResponse
 from iarc_msgs.msg import *
 from iarc_msgs.srv import *
-from iarc_fuses.object_detection_tf import ObjectDetectorTF
-from iarc_fuses.object_track import Object_Tracker
-from iarc_fuses.track_manager import TrackManager, TrackData
+from iarc_fuses.detect.object_detection_tf import ObjectDetectorTF
+from iarc_fuses.track.object_track import Object_Tracker
+from iarc_fuses.track.track_manager import TrackManager, TrackData
 from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils, box_iou
-from iarc_fuses.camera_handle import CameraHandle
+from iarc_fuses.utils import CameraHandle
+
 
 class Guess3D(object):
+
     @staticmethod
     def get_info(obj_id, box):
         pass
 
+
 class TrackerNode(object):
+
     def __init__(self):
         # parse sources and parameters
-        self.srcs_    = rospy.get_param('~srcs', [])
-        self.dbg_     = rospy.get_param('~dbg', False)
-        self.gpu_     = rospy.get_param('~gpu', 0.4)
-        self.root_    = rospy.get_param('~root', os.path.join(iarc_root(), 'data'))
-        self.tmodel_  = rospy.get_param('~tmodel', '') # tracker model; not used right now
-        self.dmodel_  = rospy.get_param('~dmodel', 'person')
-        self.max_dt_  = rospy.get_param('~max_dt', 0.5) # max threshold for stale data
-        self.min_p_   = rospy.get_param('~min_p',  0.2) # minimum score to keep tracks
+        self.srcs_ = rospy.get_param('~srcs', [])
+        self.dbg_ = rospy.get_param('~dbg', False)
+        self.gpu_ = rospy.get_param('~gpu', 0.4)
+        self.root_ = rospy.get_param(
+            '~root', os.path.join(iarc_root(), 'data'))
+        self.tmodel_ = rospy.get_param(
+            '~tmodel', '')  # tracker model; not used right now
+        self.dmodel_ = rospy.get_param('~dmodel', 'person')
+        self.max_dt_ = rospy.get_param(
+            '~max_dt', 0.5)  # max threshold for stale data
+        self.min_p_ = rospy.get_param(
+            '~min_p',  0.2)  # minimum score to keep tracks
 
         # human-friendly default model specifications
-        # currently only supports detector models, since there's only one tracker model (DaSiamRPN)
+        # currently only supports detector models, since there's only one
+        # tracker model (DaSiamRPN)
         self.mmap_ = {
-                'person' : 'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
-                'drone'  : 'model2-drone-300x300'
-                }
+            'person': 'ssd_mobilenet_v1_ppn_shared_box_predictor_300x300_coco14_sync_2018_07_03',
+                'drone': 'model2-drone-300x300'
+        }
         # rectify model names based on model map
         if self.tmodel_ in self.mmap_:
             self.tmodel_ = self.mmap_[self.tmodel_]
@@ -68,9 +75,9 @@ class TrackerNode(object):
             Root    : {}
             DModel  : {}
             TModel  : {}
-        """.format(self.srcs_,self.dbg_,self.gpu_,self.root_,self.dmodel_,self.tmodel_))
+        """.format(self.srcs_, self.dbg_, self.gpu_, self.root_, self.dmodel_, self.tmodel_))
 
-        if( len(self.srcs_) <= 0):
+        if(len(self.srcs_) <= 0):
             rospy.loginfo("""
             Have not received any sources as argument - Check if the script was run correctly.
             Sample Usage: rosrun iarc_fuses tracker_node.py _srcs:=['cv_camera'] _use_gpu:=True _dbg:=False
@@ -81,13 +88,13 @@ class TrackerNode(object):
         # alternatively, self.det_ = rospy.ServiceProxy(...)
         # TODO : add more detectors
         self.det_ = ObjectDetectorTF(
-                root=self.root_,
+            root=self.root_,
                 model=self.dmodel_,
-                cmap={1:Identifier.OBJ_PERSON},
+                cmap={1: Identifier.OBJ_PERSON},
                 gpu=0.2
-                )
+        )
         # drone config
-        #self.det_ = ObjectDetectorTF(
+        # self.det_ = ObjectDetectorTF(
         #        root=os.path.join(iarc_root(), 'data'),
         #        model='model3-drone-640x640',
         #        cmap={1:DetectRequest.CID_DRONE},
@@ -99,20 +106,18 @@ class TrackerNode(object):
         # ROS Handles
         self.cvbr_ = CvBridge()
 
-        self.srv_ = rospy.Service('track', Track, self.track_cb)
-        #self.srv_ = actionlib.SimpleActionServer('track',
-        #        TrackAction, execute_cb=self.track_cb,
-        #        auto_start=False)
-        self.trk_pub_ = rospy.Publisher('tracked_objects',
-                IARCObjects, queue_size=10)
+        self.track_service_ = rospy.Service('track', Track, self.track_cb)
+        self.track_publishers_ = [rospy.Publisher('{}/tracked_objects',
+            IARCObjects, queue_size=10) for src in self.srcs_]
 
         # Register Camera Handlers
-        self.cam_ = {k : CameraHandle(k, self.cvbr_, self.data_cb) for k in self.srcs_}
+        self.cam_ = {k: CameraHandle(k, self.cvbr_, self.data_cb)
+                     for k in self.srcs_}
 
         # data
-        self.queue_ = {k:deque(maxlen=8) for k in self.srcs_}
+        self.queue_ = {k: deque(maxlen=8) for k in self.srcs_}
         self.q_idx_ = 0
-        self.reqs_  = []
+        self.reqs_ = []
         self.tdata_ = []
 
         # Things to detect:
@@ -134,7 +139,7 @@ class TrackerNode(object):
         if not TrackerNode.match_class(cid_req, cid):
             # class mismatch
             return False
-        if score < req.thresh: # TODO : support classwise detection confidence threshold?
+        if score < req.thresh:  # TODO : support classwise detection confidence threshold?
             # insufficient confidence
             return False
         return True
@@ -144,15 +149,15 @@ class TrackerNode(object):
         Tracking Callback; Only handles registration.
         Actual processing happens inside step()
         """
-        src      = req.source
+        src = req.source
         tracking = True
         if req.stamp.to_sec() == 0:
             req.stamp = rospy.Time.now()
-        self.reqs_.append( req )
+        self.reqs_.append(req)
         return TrackResponse(success=True)
 
     def data_cb(self, src, img, stamp):
-        self.queue_[src].append( (src, img, stamp) )
+        self.queue_[src].append((src, img, stamp))
 
     def filter_reqs(self, stamp, reqs):
         res = []
@@ -160,7 +165,7 @@ class TrackerNode(object):
             if (stamp - r.stamp).to_sec() > r.timeout:
                 # current observation is now older than request timeout
                 continue
-            res.append( r)
+            res.append(r)
         return res
 
     def process(self, src, img, stamp):
@@ -182,18 +187,16 @@ class TrackerNode(object):
 
         if len(self.reqs_) > 0:
             # TODO : looking out into the future with multiple parallel detectors ...
-            #d_res = []
-            #for d_cid, det in self.det_:
+            # d_res = []
+            # for d_cid, det in self.det_:
             #    if not np.any(d_cid in self.reqs_):
             #        continue
             #    d_res.append( det.detect(img) )
-            print('hmm')
-
-            d_res   = self.det_.detect(img,
-                    is_bgr = True
-                    )
+            d_res = self.det_.detect(img,
+                                     is_bgr=True
+                                     )
             for d in zip(d_res['class'], d_res['box'], d_res['score']):
-                d_add = False # flag to add detection to observations
+                d_add = False  # flag to add detection to observations
                 for i_r, r in enumerate(self.reqs_):
                     if not req_msk[i_r]:
                         # already matched request
@@ -211,36 +214,36 @@ class TrackerNode(object):
                     cid=d[0],
                     img=img,
                     box=BoxUtils.convert(d[1],
-                        BoxUtils.FMT_NYXYX,
-                        BoxUtils.FMT_NCCWH),
+                                         BoxUtils.FMT_NYXYX,
+                                         BoxUtils.FMT_NCCWH),
                     stamp=stamp.to_sec(),
-                    meta=None # << will be populated by TrackManager() if the observation is accepted
-                    ))
+                    meta=None  # << will be populated by TrackManager() if the observation is accepted
+                ))
 
-        self.reqs_ = [r for (r,m) in zip(self.reqs_, req_msk) if m]
+        self.reqs_ = [r for (r, m) in zip(self.reqs_, req_msk) if m]
 
         # append!
-        self.mgr_.append( obs_new )
+        self.mgr_.append(obs_new)
         self.mgr_.process(src, img, stamp.to_sec())
 
         for t in self.mgr_.get_tracks():
             if (t.src_ != src):
                 continue
             draw_bbox(img, t.box_,
-                    fmt=BoxUtils.FMT_NCCWH,
-                    cls=None)
+                      fmt=BoxUtils.FMT_NCCWH,
+                      cls=None)
 
             iw, ih = cam.model_.width, cam.model_.height
-            cx, cy = np.multiply(t.box_[:2], [iw,ih])
-            ray3d  = cam.model_.projectPixelTo3dRay([cx, cy])
+            cx, cy = np.multiply(t.box_[:2], [iw, ih])
+            ray3d = cam.model_.projectPixelTo3dRay([cx, cy])
 
-            #self.pub_.publish(PointStamped(
+            # self.pub_.publish(PointStamped(
             #    header=Header(frame_id=cam.model_.tfFrame(), stamp=stamp),
             #    point=Point(*ray3d)
             #    ))
 
         if self.dbg_:
-            cv2.imshow('win', img) 
+            cv2.imshow('win', img)
             cv2.waitKey(1)
 
         # pixel --> ray
@@ -250,65 +253,65 @@ class TrackerNode(object):
 
     def publish(self):
         msg = IARCObjects()
-        msg.header.frame_id = 'map' # ??
-        msg.header.stamp    = rospy.Time.now()
+        msg.header.frame_id = 'map'  # ??
+        msg.header.stamp = rospy.Time.now()
 
         for t in self.mgr_.get_tracks():
             # TODO : fill geometric information
-            #res_3d = Guess3D.get_info(obj_id, box)
-            #cov, vol, dmin, dmax, centroid = res_3d
+            # res_3d = Guess3D.get_info(obj_id, box)
+            # cov, vol, dmin, dmax, centroid = res_3d
             cam = self.cam_[t.src_]
-            
+
             roi = cam.model_.raw_roi
             box_ccwh = BoxUtils.convert(t.box_,
-                    BoxUtils.FMT_NCCWH,
-                    BoxUtils.FMT_CCWH,
-                    img_shape = (roi.height, roi.width)
-                    )
+                                        BoxUtils.FMT_NCCWH,
+                                        BoxUtils.FMT_CCWH,
+                                        img_shape=(roi.height, roi.width)
+                                        )
 
             # TODO : better distance estimates
             # full-scale estimation from part?
             if t.cid_ == Identifier.OBJ_PERSON:
-                d    = (cam.model_.getDeltaU(0.44, 1.0) / box_ccwh[2])
+                d = (cam.model_.getDeltaU(0.44, 1.0) / box_ccwh[2])
             elif t.cid == Identifier.OBJ_DRONE:
-                d    = (cam.model_.getDeltaU(0.32, 1.0) / box_ccwh[2])
+                d = (cam.model_.getDeltaU(0.32, 1.0) / box_ccwh[2])
             else:
                 # default: 1.0
                 d = 1.0
-            pos  = d * np.array( cam.model_.projectPixelTo3dRay(box_ccwh[:2]) )
+            pos = d * np.array(cam.model_.projectPixelTo3dRay(box_ccwh[:2]))
 
             # DaSiamRPN encoding
-            box_msg = Box( 
-                    format=Box.FMT_CCWH, # careful! d.n.e. BoxUtils.FMT_CCWH
+            box_msg = Box(
+                format=Box.FMT_CCWH,  # careful! d.n.e. BoxUtils.FMT_CCWH
                     data=t.box_,
                     normalized=True
-                    )
+            )
             msg.objects.append(
-                    IARCObject(
-                        source = t.src_,
-                        stamp  = rospy.Time(secs=t.stamp_),
-                        obj_id = Identifier(obj_id=t.cid_),
-                        box    = box_msg,
-                        #covariance=
-                        #volume=
-                        #distance_range=
+                IARCObject(
+                    source=t.src_,
+                        stamp=rospy.Time(secs=t.stamp_),
+                        obj_id=Identifier(obj_id=t.cid_),
+                        box=box_msg,
+                        # covariance=
+                        # volume=
+                        # distance_range=
                         centroid=PointStamped(
                             header=Header(
-                                frame_id = cam.model_.tfFrame(),
-                                stamp    = msg.header.stamp,
-                                ),
+                                frame_id=cam.model_.tfFrame(),
+                                stamp=msg.header.stamp,
+                            ),
                             point=Point(*pos),
-                            )
                         )
-                    )
+                )
+            )
         self.trk_pub_.publish(msg)
 
     def step(self):
         # loop through sources sequentially
         if len(self.srcs_) <= 0:
             return
-        src = self.srcs_[ self.q_idx_ ]
-        q = self.queue_[ src ]
+        src = self.srcs_[self.q_idx_]
+        q = self.queue_[src]
         self.q_idx_ = ((self.q_idx_ + 1) % len(self.srcs_))
 
         if len(q) <= 0:
@@ -321,7 +324,7 @@ class TrackerNode(object):
         if (dt > self.max_dt_):
             # stale data
             rospy.loginfo_throttle(1.0,
-                    'incoming data too old: [{}]-{}'.format(src, stamp))
+                                   'incoming data too old: [{}]-{}'.format(src, stamp))
             return
         self.process(src, img, stamp)
         self.publish()
@@ -331,6 +334,7 @@ class TrackerNode(object):
         while not rospy.is_shutdown():
             self.step()
             r.sleep()
+
 
 def main():
     rospy.init_node('tracker')

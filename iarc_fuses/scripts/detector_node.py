@@ -5,10 +5,11 @@ from std_msgs.msg import Header
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point, PointStamped
 from image_geometry import PinholeCameraModel
-from iarc_msgs.srv import Detect, DetectRequest, DetectResponse
-from iarc_fuses.object_detection_tf import ObjectDetectorTF
+from iarc_msgs.msg import *
+from iarc_msgs.srv import *
+from iarc_fuses.detect.object_detection_tf import ObjectDetectorTF
 from iarc_fuses.utils import draw_bbox, iarc_root, BoxUtils
-from iarc_fuses.camera_handle import CameraHandle
+from iarc_fuses.utils import CameraHandle
 import numpy as np
 import cv2
 import os
@@ -31,7 +32,7 @@ class DetectorNode(object):
         self.det_ = ObjectDetectorTF(
                 root=os.path.join(iarc_root(), 'data'),
                 model='model2-drone-300x300',
-                cmap={1:DetectRequest.CID_DRONE},
+                cmap={1:Identifier.OBJ_DRONE},
                 use_gpu=self.use_gpu_)
 
         # ROS Handles
@@ -45,7 +46,7 @@ class DetectorNode(object):
     def filter_detection(self, req, din):
         dout = []
         for (cid, box, score) in zip(din['class'], din['box'], din['score']):
-            if (req.cid is not req.CID_NULL) and (str(req.cid) is not str(cid)):
+            if (req.obj_id is not Identifier.OBJ_NULL) and (str(req.cid) is not str(cid)):
                 # class mismatch
                 continue
             if score < self.thresh_:
