@@ -1,0 +1,17 @@
+<!-- Runs all nodes that are needed for competition flight summer 2019 EXCEPT those run by manual_single_drone.launch
+and EXCEPT the estop, which needs `rosrun iarc_main bebop_keyboard_multi.py` -->
+<launch>
+    <arg name="voice" default="true"/>
+    <!-- Shared perception nodes -->
+    <node name="qr_node" pkg="iarc_fuses" type="qr_node.py" output="screen"/>
+
+    <node name="tracker_node" pkg="iarc_fuses" type="tracker_node.py" args="alexa google siri clippy" output="screen">
+        <param name="srcs" value="['alexa', 'google', 'siri', 'clippy']"/>
+    </node>
+
+    <!-- User interface -->
+    <node name="voice_interface" pkg="iarc_forebrain" type="voice_interface.py" if="$(arg voice)"/>
+
+    <!-- Planner -->
+    <node name="planner" pkg="iarc_forebrain" type="planner.py" output="screen"/>
+</launch>
