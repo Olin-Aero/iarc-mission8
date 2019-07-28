@@ -10,8 +10,8 @@ class TakeoffLand(Mode):
 
     def enable(self):
         if self.takeoff:
-            self.drone.takeoff()
+            self.drone.takeoff(tol=0)
             print('TAKEOFF')
         else:
-            self.drone.land()
+            self.drone.land(block=False)
             print('LAND')

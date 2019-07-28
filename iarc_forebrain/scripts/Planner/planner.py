@@ -55,10 +55,10 @@ class Planner(object):
                 drone.current_mode.yaw = drone.look_direction
                 drone.current_mode.enable(*args[2:])
             except TypeError as e:
-                rospy.loginfo("Invalid parameters provided: %s" % args)
+                rospy.loginfo("Invalid parameters provided: %s, %s" % args, e)
                 return
             except Exception as e:
-                rospy.loginfo(e)
+                rospy.logwarn(e)
                 return
             print(args[1])
             drone.current_mode_pub.publish(args[1])
@@ -70,10 +70,10 @@ class Planner(object):
                 drone.look_mode.enable(*args[2:])
                 drone.look_direction = drone.look_mode.get_look_direction(drone.look_direction, True)
             except TypeError as e:
-                rospy.loginfo("Invalid parameters provided: %s" % args)
+                rospy.loginfo("Invalid parameters provided: %s, %s" % args, e)
                 return
             except Exception as e:
-                rospy.loginfo(e)
+                rospy.logwarn(e)
                 return
             print(args[1])
             drone.look_mode_pub.publish(args[1])
@@ -110,7 +110,6 @@ class Planner(object):
                 dist = val/10.0 # TODO: actual conversion
                 ang = np.radians(angles[i])+yaw
                 self.obstacles += [(dist*np.cos(ang)+p.x, dist*np.sin(ang)+p.y, p.z, rospy.get_time())]
-        print(self.obstacles)
 
     def run(self):
         rate = rospy.Rate(10)  # 10Hz
@@ -152,5 +151,5 @@ class SubPlanner:
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner(['alexa'])
+    p = Planner(['siri'])
     p.run()
