@@ -52,7 +52,7 @@ class Move(Mode):
         Returns optimal (vx, vy) based on gradient of potential field determined by target and 
         obstacle coordinates relative to current drone location
         '''
-        AVOID_RADIUS = 0.6  # Closest that drone should approach an obstacle
+        AVOID_RADIUS = 1.0  # Closest that drone should approach an obstacle
         D_FULL = 10.0  # Minimum distance at which velocity maxes out
         STUCK_THRESHOLD = 0  # 0.01 # If v is below this value, move orthogonal to target direction
         DECAY = 3.0  # how quickly the repulsivity of obstacles decays with distance
