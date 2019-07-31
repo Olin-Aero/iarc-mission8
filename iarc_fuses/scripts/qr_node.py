@@ -32,6 +32,7 @@ class QRNode():
         rospy.init_node('QRDetector', anonymous=True)
         self.imageSub = rospy.Subscriber('/qr_image', ImageBin, self.image_cb)
         self.qrNumberPub = rospy.Publisher('/qr_string', String, queue_size=10)
+        self.qrCropPubs = [rospy.Publisher('/qr_crop_{}'.format(i+1), Image, queue_size=10) for i in range(4)]
         self.bridge = CvBridge()
         self.currentImage = None
         self.images = [None for _ in range(4)]
@@ -81,6 +82,7 @@ class QRNode():
                 else:
                     cv2.imshow("next{}".format(i+1), croppedImage)
                     cv2.waitKey(1)
+                    self.qrCropPub[i].publish(self.bridge.cv2_to_imgmsg(croppedImage, "bgr8"))
                 finalImages.append(
                     croppedImage)  # adds the image to the collection of final images
 
