@@ -31,7 +31,7 @@ class QRNode():
         # ROS Handles
         rospy.init_node('QRDetector', anonymous=True)
         self.imageSub = rospy.Subscriber('/qr_image', ImageBin, self.image_cb)
-        self.qrNumberPub = rospy.Publisher('/qr_number', Int32, queue_size=10)
+        self.qrNumberPub = rospy.Publisher('/qr_string', String, queue_size=10)
         self.bridge = CvBridge()
         self.currentImage = None
         self.images = [None for _ in range(4)]
@@ -71,8 +71,16 @@ class QRNode():
 
         if self.number is None:
             # don't have the number yet
-            for image in images:
+            for i, image in enumerate(images):
                 croppedImage = self.detector(image)
+                if croppedImage is None:
+                    # Unable to find QR code
+                    images[i] = None
+                    self.qrNumberPub.publish("Error: Image {} undecodable".format(i+1))
+                    return
+                else:
+                    cv2.imshow("next{}".format(i+1), croppedImage)
+                    cv2.waitKey(1)
                 finalImages.append(
                     croppedImage)  # adds the image to the collection of final images
 
@@ -84,10 +92,10 @@ class QRNode():
 
         # now broadcast the result
         if self.number is not None:
-            self.qrNumberPub.publish(number)
+            self.qrNumberPub.publish(str(self.number))
         else:
             # indicate failure
-            self.qrNumberPub.publish(-1)
+            self.qrNumberPub.publish("ERROR: None returned")
 
     def run(self):
         rate = rospy.Rate(10)

@@ -15,8 +15,10 @@ class QRDetector():
 
     def imageToBinary(self,image):
         # inputse an image to get the whites of a digital screen
-        whiteLowerBound = (240,210,160) # a high blue value was used because computers tend to make white very blue.
-        whiteUpperBound = (255,255,255) # IMPORTANT NOTE: I set it to (220,210,160) for paper. Testing it on ipads, it should be set to (249,210,160)!!
+        # whiteLowerBound = (249,210,160) # a high blue value was used because computers tend to make white very blue.
+        # whiteUpperBound = (255,255,255) # IMPORTANT NOTE: I set it to (220,210,160) for paper. Testing it on ipads, it should be set to (249,210,160)!!
+        whiteLowerBound = (128,128,128)
+        whiteUpperBound = (255,255,255)
         b1 = cv2.inRange(image, whiteLowerBound, whiteUpperBound) # gets a binary image of the white in the picture
 
         return b1
@@ -27,11 +29,15 @@ class QRDetector():
         ret, thresh = cv2.threshold(b1, 127, 255, 0)
         _, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) # gets the contours of the image
         maxArea = 0 # initializes the highest area
+        maxCnt = None
         for i in contours: # loops through the contours
             a = cv2.contourArea(i) # gets the area of the contour
             if a > maxArea: # if the area is greater than the past maximum area:
                 maxCnt = i # make the new contour the maximum area contour
                 maxArea = a # and make its area the maximum area
+        if maxCnt is None:
+            rospy.logwarn("No contours found in QR image")
+            return None
         rect = cv2.minAreaRect(maxCnt) # gets a rectangular bounding box
         box = cv2.boxPoints(rect)
         box = np.int0(box) # makes it into an array of points
@@ -92,15 +98,19 @@ class QRDetector():
         if height == width: # in this case, the image is already square
                 finalImage = crop_img
         finalImage = cv2.resize(finalImage, (200, 200)) # resizes the square image to 200 by 200 to make later processing easier
-        cv2.imshow("next",finalImage)
-        cv2.waitKey(0)
+        # cv2.imshow("next",finalImage)
+        # cv2.waitKey(1)
         return finalImage
 
     def __call__(self, image):
         # saves the images so that QRCombiner can access them.
         cv2.imwrite( 'Image.jpg', image )
         b1 = self.imageToBinary(image) # gets the white part of the image
+        # cv2.imshow('b1', image)
+        # cv2.waitKey(1)
         box = self.getBox(b1,image) # gets a rectangle around the box
+        if box is None:
+            return None
         rotatedImage = self.getRotatedImage(image,box) # rotates the image so that the rectangle is flat
         b1Rotated = self.imageToBinary(rotatedImage) # converts the rotated image to a binary based on white
         boxRotated = self.getBox(b1Rotated,rotatedImage) # uses this new image to create a box that is flat with the x-axis

@@ -11,7 +11,7 @@ and EXCEPT the estop, which needs `rosrun iarc_main bebop_keyboard_multi.py` -->
     </node>
     
     <!-- User interface -->
-    <node name="voice_interface" pkg="iarc_forebrain" type="voice_interface.py" if="$(arg voice)"/>
+    <node name="voice_interface" pkg="iarc_forebrain" type="voice_interface.py" if="$(arg voice)" output="screen"/>
 
     <!-- Planner -->
     <node name="planner" pkg="iarc_forebrain" type="planner.py" output="screen"/>

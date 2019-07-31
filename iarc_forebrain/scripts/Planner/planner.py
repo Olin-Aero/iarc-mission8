@@ -18,6 +18,7 @@ from takeoff_land import TakeoffLand
 from move import Move
 from photo import Photo
 from turn import Turn
+from tilt import Tilt
 from iarc_arbiter.drone import Drone
 
 
@@ -172,7 +173,7 @@ class SubPlanner:
                       "south": Move(drone, math.pi),  "west": Move(drone, math.pi/2),
                       "stop": Move(drone, 0),         "forward": Move(drone, 0, relative=True),
                       "duck": Move(drone, 0, -1),     "jump": Move(drone, 0, 1),
-                      "analyze": Photo(drone)}
+                      "analyze": Photo(drone),        "tilt": Tilt(drone)}
         self.look_modes = {"look": Turn(drone),
                            "right": Turn(drone, -1),
                            "left": Turn(drone, 1)}
@@ -188,5 +189,5 @@ class SubPlanner:
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner(['siri'])
+    p = Planner(['siri', 'google', 'alexa', 'clippy'])
     p.run()

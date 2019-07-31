@@ -14,6 +14,7 @@ class QRCombiner():
 
     def decode(self, image):
         my_QR = QR()
+        print "decoding image"
         if my_QR.decode(image): # if the image is a recognizable QR Code
             return my_QR.data # return the value of that QR Code
         else:

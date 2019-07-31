@@ -7,9 +7,9 @@ from iarc_arbiter.drone import Drone
 
 
 class Photo(Mode):
-	DEFAULT_PITCH_ANGLE = 30 # degrees
-	PHOTO_PITCH_ANGLE = 60 # degrees
-	WAIT_TIME = rospy.Duration.from_sec(1.0)
+	# DEFAULT_PITCH_ANGLE = -30 # degrees
+	# PHOTO_PITCH_ANGLE = -60 # degrees
+	WAIT_TIME = rospy.Duration.from_sec(0.0)
 	def __init__(self, drone):
 		self.drone = drone
 		rospy.Subscriber(drone.namespace+"image_raw", Image, self.image_raw_callback)
@@ -28,7 +28,7 @@ class Photo(Mode):
 		self.start_time=rospy.Time.now()
 		self.bin_number = binNumber
 		self.has_triggered = False
-		self.drone.move_camera(self.PITCH_ANGLE, 0)
+		# self.drone.move_camera(self.PHOTO_PITCH_ANGLE, 0)
 
 	def update(self, look_direction=0, obstacles=[]):
 		self.drone.hover()
@@ -38,9 +38,12 @@ class Photo(Mode):
 				return
 			imageBinMsg = ImageBin()
 			imageBinMsg.image = self.image
-			imageBinMsg.bin = int(self.bin_number)
+			try:
+				imageBinMsg.bin = int(self.bin_number)
+			except ValueError:
+				imageBinMsg.bin = 0
 			self.qrPub.publish(imageBinMsg)
 			self.has_triggered = True
 			rospy.logwarn("Image captured from drone ")
-			self.drone.move_camera(self.DEFAULT_PITCH_ANGLE, 0)
+			# self.drone.move_camera(self.DEFAULT_PITCH_ANGLE, 0)
 

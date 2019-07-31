@@ -11,7 +11,7 @@
 
 grammar command;
 
-public <command> = <color> (<analyze> | <task> | <move> | <look> | <turn> | cancel) [cancel];
+public <command> = <color> (<analyze> | <task> | <move> | <look> | <tilt> | <turn> | cancel) [cancel];
 
 <color> = [swarm | alexa | google | siri | (clip e)];
 
@@ -20,6 +20,7 @@ public <command> = <color> (<analyze> | <task> | <move> | <look> | <turn> | canc
 <move> = (north | east | south | west | forward | follow | return | duck | jump) <distance>;
 <look> = look <direction>;
 <turn> = (right | left) <digit> <decimal> <digit> [degree | degrees];
+<tilt> = tilt (up | down | <digit> [degree | degrees]);
 
 <digit> = (oh | zero | one | two | three | four | five | six | seven | eight | nine | ten | eleven | twelve | thirteen | fourteen | fifteen | sixteen | seventeen | eighteen | nineteen | twenty | thirty | forty | fifty | sixty | seventy | eighty | ninety) *;
 <decimal> = [point];
