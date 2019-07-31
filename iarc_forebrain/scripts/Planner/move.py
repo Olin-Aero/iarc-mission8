@@ -9,6 +9,8 @@ import numpy as np
 
 
 class Move(Mode):
+    MAX_VERTICAL_DIST = 3.0 # meters
+    MAX_HORIZONTAL_DIST = 10.0 # meters
     TARGET_DIST_LOOK_THRESH = 0.5
     def __init__(self, drone, angle=0, dz=0, relative=False):
         Mode.__init__(self, drone)
@@ -20,6 +22,12 @@ class Move(Mode):
 
     def enable(self, distance=0, units=0):
         self.distance = self.parse(distance, units)
+        if math.abs(dz) > 0: # vertical move
+            if self.distance > MAX_VERTICAL_DIST:
+                self.distance = 0
+        else: # horizontal move
+            if self.distance > MAX_HORIZONTAL_DIST:
+                self.distance = 0
         pos = self.drone.get_pos("map").pose.position
         angle = self.angle
         if self.relative:
