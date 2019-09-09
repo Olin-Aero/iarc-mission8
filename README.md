@@ -6,7 +6,7 @@
 ```bash
 # Clone this repository into a working catkin_ws of a ROS Kinetic install, then...
 
-roscd iarc_main/.. && rosdep install -iy --from_paths .
+roscd iarc_main/.. && rosdep install -iy --from-paths .
 
 sudo apt-get install python python-all-dev python-pip build-essential swig git libpulse-dev libasound2-dev
 
