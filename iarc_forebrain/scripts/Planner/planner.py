@@ -189,5 +189,5 @@ class SubPlanner:
 
 # Start the node
 if __name__ == '__main__':
-    p = Planner(['siri'])
+    p = Planner(['alexa', 'google', 'siri', 'clippy'])
     p.run()
