@@ -26,6 +26,8 @@ class Dance(Mode):
             additional parameters from the voice command
             contained in the args array. '''
         self.active = True
+        self.p0 = self.get_position()
+        self.i = 0
 
     def disable(self):
         ''' Called once each time this mode stops being active.
@@ -35,6 +37,30 @@ class Dance(Mode):
     def update(self, look_direction=0, obstacles=[]):
         ''' Called repeatedly while this mode is active. 
             Use this function for repeated operations. '''
+        p = self.get_position()
+        if self.i == 0:
+            self.move_towards(self.p0.x+1, self.p0.y)
+            if p.x-self.p0.x > .9:
+                self.i+=1
+                return
+
+        if self.i == 1:
+            self.move_towards(self.p0.x+1, self.p0.y+1)
+            if p.y-self.p0.y > .9:
+                self.i+=1
+                return
+
+        if self.i == 2:
+            self.move_towards(self.p0.x, self.p0.y+1)
+            if p.x-self.p0.x < .1:
+                self.i+=1
+                return
+
+        if self.i == 3:
+            self.move_towards(self.p0.x, self.p0.y)
+            if p.y-self.p0.y < .1:
+                self.i = 0
+                return
         pass
 
 
@@ -49,7 +75,7 @@ class Dance(Mode):
     def move_towards(self, x=0.0, y=0.0, z=None):
         ''' Move drone towards a new location. This function must be called repeatedly in update.
             If given height is None, the drone will maintain its current altitude. '''
-        self.drone.move_towards(self, des_x=x, des_y=y, frame='map', height=z)
+        self.drone.move_towards(des_x=x, des_y=y, frame='map', height=z)
 
     def get_time(self):
         ''' Return the current time in seconds '''
