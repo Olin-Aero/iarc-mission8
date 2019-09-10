@@ -16,7 +16,7 @@ public <command> = <color> (<analyze> | <task> | <move> | <look> | <turn> | canc
 <color> = [swarm | alexa | google | siri | (clip e)];
 
 <analyze> = analyze <digit>;
-<task> = stop | takeoff | land | heal | shutdown;
+<task> = stop | takeoff | land | heal | shutdown | exterminate;
 <move> = (north | east | south | west | forward | follow | return | duck | jump) <distance>;
 <look> = look <direction>;
 <turn> = (right | left) <digit> <decimal> <digit> [degree | degrees];
