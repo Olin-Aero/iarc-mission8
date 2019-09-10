@@ -2,10 +2,10 @@
     using the following code as a template.
 
     To run your code in the simulator, run each of the following
-    commands in its own window. You will need to restart the brain.launch
-    command each time you change the code.
+    commands in its own window. You will need to restart all three
+    commands each time you change and save your code.
         roslaunch iarc_main brain.launch
-        rosrun iarc_main bebop_keyboard_multi.py n:=1
+        rosrun iarc_main bebop_keyboard_multi.py
         roslaunch iarc_main n_drones_sim.launch n:=1
 
     Select the bebop_keyboard_multi window to move the drone around with
@@ -24,10 +24,8 @@ class Dance(Mode):
     def enable(self, *args):
         ''' Called once each time this mode becomes active with
             additional parameters from the voice command
-            contained in the args array. '''
+            contained in the args array (just ignore args for now). '''
         self.active = True
-        self.p0 = self.get_position()
-        self.i = 0
 
     def disable(self):
         ''' Called once each time this mode stops being active.
@@ -36,31 +34,8 @@ class Dance(Mode):
 
     def update(self, look_direction=0, obstacles=[]):
         ''' Called repeatedly while this mode is active. 
-            Use this function for repeated operations. '''
-        p = self.get_position()
-        if self.i == 0:
-            self.move_towards(self.p0.x+1, self.p0.y)
-            if p.x-self.p0.x > .9:
-                self.i+=1
-                return
-
-        if self.i == 1:
-            self.move_towards(self.p0.x+1, self.p0.y+1)
-            if p.y-self.p0.y > .9:
-                self.i+=1
-                return
-
-        if self.i == 2:
-            self.move_towards(self.p0.x, self.p0.y+1)
-            if p.x-self.p0.x < .1:
-                self.i+=1
-                return
-
-        if self.i == 3:
-            self.move_towards(self.p0.x, self.p0.y)
-            if p.y-self.p0.y < .1:
-                self.i = 0
-                return
+            Use this function for repeated operations. 
+            Ignore the other parameters for now. '''
         pass
 
 
