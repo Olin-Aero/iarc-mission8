@@ -25,6 +25,7 @@ class Dance(Mode):
         ''' Called once each time this mode becomes active with
             additional parameters from the voice command
             contained in the args array (just ignore args for now). '''
+        self.x = self.get_time()
         self.active = True
 
     def disable(self):
@@ -36,6 +37,20 @@ class Dance(Mode):
         ''' Called repeatedly while this mode is active. 
             Use this function for repeated operations. 
             Ignore the other parameters for now. '''
+        if self.get_time() - self.x >= 7:
+            self.move_towards(2,0,None)
+
+        if self.get_time() - self.x >= 14:
+            self.move_towards(0,2,None)
+        
+        if self.get_time() - self.x >= 21:
+            self.move_towards(-2,0,None)
+
+        if self.get_time() - self.x >= 28:
+            self.move_towards(0,-2,None)
+
+        if self.get_time() - self.x >= 35:
+            self.move_towards(0,0,2)
         pass
 
 
@@ -44,7 +59,7 @@ class Dance(Mode):
 
     def get_position(self):
         ''' Return a vector containing drone position in meters
-            position.x is forward, position.y is left, and position.z is up. '''
+            position.self.x is forward, position.y is left, and position.z is up. '''
         return self.drone.get_pos("map").pose.position
 
     def move_towards(self, x=0.0, y=0.0, z=None):
@@ -55,3 +70,5 @@ class Dance(Mode):
     def get_time(self):
         ''' Return the current time in seconds '''
         return rospy.get_time()
+
+    
