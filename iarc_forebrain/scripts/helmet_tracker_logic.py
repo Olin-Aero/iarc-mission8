@@ -11,7 +11,7 @@ def detect_helmet_coordinates(image, visualize=True):
     Detects the pixel coordinates of the helmet in the image feed
 
     Input: OpenCV image
-    Output: tuple of x- and y- coordinates of the center of the green helmet in the display
+    Output: tuple of x- and y- coordinates of the center of the red helmet in the display
     """
     if visualize:
         cv2.imshow('Raw Image', image)
