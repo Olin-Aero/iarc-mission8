@@ -14,12 +14,14 @@
 
 '''
 import rospy
+import math
 from mode import Mode
 
 class Dance(Mode):
     def __init__(self, drone):
         ''' Called once when program starts. '''
         Mode.__init__(self, drone)
+	self.point_index = 0
 
     def enable(self, *args):
         ''' Called once each time this mode becomes active with
@@ -36,7 +38,19 @@ class Dance(Mode):
         ''' Called repeatedly while this mode is active. 
             Use this function for repeated operations. 
             Ignore the other parameters for now. '''
-        pass
+
+	if self.point_index > 3:
+		return
+
+	goal = ([1,1,0,0][self.point_index], [0,1,1,0][self.point_index])
+
+	pos = (self.get_position().x, self.get_position().y)
+
+	dist_to_goal = math.sqrt(math.pow(goal[0] - pos[0], 2) + math.pow(goal[1] - pos[1], 2))
+	if dist_to_goal < 0.1:
+		self.point_index += 1
+
+	self.move_towards(goal[0], goal[1])
 
 
 
