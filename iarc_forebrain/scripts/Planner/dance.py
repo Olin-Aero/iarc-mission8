@@ -26,6 +26,11 @@ class Dance(Mode):
             additional parameters from the voice command
             contained in the args array (just ignore args for now). '''
         self.active = True
+        self.finished = False
+
+        self.listTargetPos = [[0.0, 2.0], [2.0, 2.0], [2.0, 0.0], [0.0, 0.0]]
+        self.counter = 0;
+        self.targetPos = self.listTargetPos[self.counter]
 
     def disable(self):
         ''' Called once each time this mode stops being active.
@@ -36,8 +41,17 @@ class Dance(Mode):
         ''' Called repeatedly while this mode is active. 
             Use this function for repeated operations. 
             Ignore the other parameters for now. '''
-        pass
 
+        # MAKE A SQUARE
+        currentPos = self.get_position()
+
+        if currentPos.x <= (self.targetPos[0] + 0.25) and currentPos.x >= (self.targetPos[0] - 0.25) and currentPos.y <= (self.targetPos[1] + 0.25) and currentPos.y >= (self.targetPos[1] - 0.25):
+            self.counter+=1
+            if self.counter == 4:
+                self.counter = 0
+            self.targetPos = self.listTargetPos[self.counter]
+
+        self.move_towards(self.targetPos[0], self.targetPos[1])
 
 
     ### Helper functions ###
