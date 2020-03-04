@@ -28,7 +28,7 @@ class Dance(Mode):
         self.active = True
         self.finished = False
 
-        self.listTargetPos = [[0.0, 2.0], [2.0, 2.0], [2.0, 0.0], [0.0, 0.0]]
+        self.listTargetPos = [[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]
         self.counter = 0;
         self.targetPos = self.listTargetPos[self.counter]
 
