@@ -5,5 +5,5 @@ pyaudio>=0.2.11
 qrcode==6.0
 qrtools
 SpeechRecognition
-torch==1.0.1
+torch==2.2.0
 pyzbar
